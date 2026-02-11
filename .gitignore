@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Project Specific
+chroma_db/
+.env
+
+# Node
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.DS_Store

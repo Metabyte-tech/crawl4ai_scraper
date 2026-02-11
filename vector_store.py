@@ -38,6 +38,37 @@ def add_content_to_store(content: str, metadata: dict = None):
     vector_store.add_documents(documents)
     print(f"Added {len(documents)} chunks to the vector store.")
 
+def add_multiple_contents_to_store(items: list):
+    """
+    Ingests multiple pages at once for better performance.
+    items is a list of dicts with {"content": str, "url": str}
+    """
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=100
+    )
+    
+    all_documents = []
+    for item in items:
+        chunks = text_splitter.split_text(item["content"])
+        all_documents.extend([Document(page_content=chunk, metadata={"source": item["url"]}) for chunk in chunks])
+    
+    if not all_documents:
+        return
+        
+    vector_store = get_vector_store()
+    # Batch add for performance
+    vector_store.add_documents(all_documents)
+    print(f"Batch added {len(all_documents)} chunks from {len(items)} pages to the vector store.")
+
+def clear_vector_store():
+    """
+    Clears the chroma collection.
+    """
+    vector_store = get_vector_store()
+    vector_store.delete_collection()
+    print("Vector store collection cleared.")
+
 if __name__ == "__main__":
     # Test adding content
     test_content = "This is a test document about Crawl4AI and LangChain integration."

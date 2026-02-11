@@ -25,7 +25,7 @@ def get_chatbot_chain():
     
     qa_chain = RetrievalQA.from_chain_type(
         llm,
-        retriever=vector_store.as_retriever(),
+        retriever=vector_store.as_retriever(search_kwargs={"k": 6}),
         chain_type_kwargs={"prompt": QA_CHAIN_PROMPT}
     )
     

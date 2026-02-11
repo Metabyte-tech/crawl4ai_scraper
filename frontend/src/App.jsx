@@ -19,23 +19,42 @@ function App() {
     scrollToBottom()
   }, [messages])
 
-  const handleCrawl = async () => {
+  const handleCrawl = async (isDeep = false) => {
     if (!url) return
     setIsCrawling(true)
-    setStatus('Crawling and ingesting content...')
+    setStatus(isDeep ? 'Performing deep crawl (multi-page)... this may take a minute.' : 'Crawling and ingesting content...')
     try {
-      const resp = await fetch('http://localhost:8000/crawl', {
+      const endpoint = isDeep ? 'http://localhost:8000/crawl/deep' : 'http://localhost:8000/crawl'
+      const resp = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
       })
       const data = await resp.json()
       setStatus(data.message || 'Crawl successful!')
-      setUrl('')
+      if (data.status === 'success') {
+        setUrl('')
+      }
     } catch (err) {
       setStatus('Crawl failed: ' + err.message)
     } finally {
       setIsCrawling(false)
+    }
+  }
+
+  const handleClear = async () => {
+    if (!confirm('Are you sure you want to clear the AI memory? This will delete all previously ingested data.')) return
+
+    setStatus('Clearing memory...')
+    try {
+      const resp = await fetch('http://localhost:8000/clear', {
+        method: 'POST'
+      })
+      const data = await resp.json()
+      setStatus(data.message || 'Memory cleared!')
+      setMessages([])
+    } catch (err) {
+      setStatus('Clear failed: ' + err.message)
     }
   }
 
@@ -75,9 +94,17 @@ function App() {
           onChange={(e) => setUrl(e.target.value)}
           disabled={isCrawling}
         />
-        <button onClick={handleCrawl} disabled={isCrawling || !url}>
-          {isCrawling ? 'Processing...' : 'Ingest Site'}
-        </button>
+        <div className="button-group">
+          <button onClick={() => handleCrawl(false)} disabled={isCrawling || !url}>
+            {isCrawling ? 'Processing...' : 'Ingest Site'}
+          </button>
+          <button className="secondary-btn" onClick={() => handleCrawl(true)} disabled={isCrawling || !url}>
+            Deep Ingest
+          </button>
+          <button className="danger-btn" onClick={handleClear} disabled={isCrawling}>
+            Clear Memory
+          </button>
+        </div>
       </div>
 
       <div className="chat-container">

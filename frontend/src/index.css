@@ -50,9 +50,30 @@ body {
 
 .input-group {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  width: 60%;
+}
+
+.button-group button {
+  flex: 1;
+  font-size: 0.9rem;
+  padding: 0.8rem 0.5rem;
+}
+
+.secondary-btn {
+  background: linear-gradient(135deg, #6e8efb, #a777e3);
+}
+
+.danger-btn {
+  background: linear-gradient(135deg, #f85032, #e73827);
 }
 
 input {

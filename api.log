@@ -1,0 +1,7 @@
+INFO:     Started server process [481133]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+/home/himanshu/workspace/crawl4AI/vector_store.py:16: LangChainDeprecationWarning: The class `Chroma` was deprecated in LangChain 0.2.9 and will be removed in 1.0. An updated version of the class exists in the :class:`~langchain-chroma package and should be used instead. To use it run `pip install -U :class:`~langchain-chroma` and import as `from :class:`~langchain_chroma import Chroma``.
+  return Chroma(
+INFO:     127.0.0.1:41022 - "POST /chat HTTP/1.1" 200 OK

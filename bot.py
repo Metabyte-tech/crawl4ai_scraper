@@ -10,13 +10,39 @@ def get_chatbot_chain():
     llm = ChatOllama(model="llama3", temperature=0)
     vector_store = get_vector_store()
     
-    template = """Use the following pieces of context to answer the question at the end. 
-    If you don't know the answer, just say that you don't know, don't try to make up an answer.
+    template = """You are a technical documentation assistant. Answer the user's question directly using ONLY the provided context.
     
+    RESPONSE GUIDELINES:
+    1. **Analyze the question type**:
+       - Installation/setup questions ("how to install", "how to set up", "getting started") → Provide step-by-step instructions with code snippets
+       - Conceptual questions ("what is", "explain", "describe") → Provide clear explanations focusing on concepts, NOT installation steps
+    
+    2. **Be direct and natural**:
+       - Start answering immediately without disclaimers or preambles
+       - Don't say "The provided context does not contain..." at the start
+       - Don't add notes like "Please note that this explanation is based solely on..."
+       - Just answer the question naturally
+    
+    3. **For installation/setup questions**:
+       - List all steps in order
+       - Include exact commands from the context
+       - Include prerequisites and verification steps
+    
+    4. **For conceptual questions**:
+       - Explain what it is, why it's used, and how it works
+       - Do NOT include installation steps
+       - Keep it concise and focused
+    
+    5. **If information is missing**:
+       - Only mention missing information at the END if relevant
+       - Say something like "Note: The documentation doesn't cover [specific aspect]"
+    
+    Context:
     {context}
     
     Question: {question}
-    Helpful Answer:"""
+    
+    Answer:"""
     
     QA_CHAIN_PROMPT = PromptTemplate(
         input_variables=["context", "question"],
@@ -25,7 +51,7 @@ def get_chatbot_chain():
     
     qa_chain = RetrievalQA.from_chain_type(
         llm,
-        retriever=vector_store.as_retriever(search_kwargs={"k": 6}),
+        retriever=vector_store.as_retriever(search_kwargs={"k": 5}),
         chain_type_kwargs={"prompt": QA_CHAIN_PROMPT}
     )
     

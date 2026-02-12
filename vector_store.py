@@ -11,7 +11,7 @@ def get_vector_store():
     Initializes or loads the Chroma vector store.
     """
     # Using Ollama for embeddings. Make sure ollama is running.
-    embeddings = OllamaEmbeddings(model="llama3")
+    embeddings = OllamaEmbeddings(model="nomic-embed-text")
     
     return Chroma(
         persist_directory=DB_DIR,
@@ -24,8 +24,8 @@ def add_content_to_store(content: str, metadata: dict = None):
     Splits content into chunks and adds them to the vector store.
     """
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=100
+        chunk_size=2000,
+        chunk_overlap=200
     )
     
     chunks = text_splitter.split_text(content)
@@ -44,8 +44,8 @@ def add_multiple_contents_to_store(items: list):
     items is a list of dicts with {"content": str, "url": str}
     """
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=100
+        chunk_size=2000,
+        chunk_overlap=200
     )
     
     all_documents = []

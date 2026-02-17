@@ -1,42 +1,49 @@
-from langchain_ollama import ChatOllama
+from langchain_anthropic import ChatAnthropic
 from langchain.chains import RetrievalQA
-from vector_store import get_vector_store
+from query import get_cached_retriever
 from langchain.prompts import PromptTemplate
+from functools import lru_cache
+import os
+from dotenv import load_dotenv
 
-def get_chatbot_chain():
+load_dotenv()
+
+@lru_cache(maxsize=100)
+def get_llm():
+    return ChatAnthropic(
+        model="claude-3-haiku-20240307",
+        anthropic_api_key=os.getenv("MOONSHOT_API_KEY"),
+        temperature=0
+    )
+
+def chat_with_bot(query: str, discovered_stores: list = None):
     """
-    Creates a RAG chain for the chatbot.
+    Sends a query to the chatbot and returns the response.
     """
-    llm = ChatOllama(model="llama3", temperature=0)
-    vector_store = get_vector_store()
+    retriever = get_cached_retriever()
+    docs = retriever._get_relevant_documents(query)
+    context = "\n\n".join([doc.page_content for doc in docs])
     
-    template = """You are a technical documentation assistant. Answer the user's question directly using ONLY the provided context.
+    stores_str = ", ".join(discovered_stores) if discovered_stores else "None yet"
     
-    RESPONSE GUIDELINES:
-    1. **Analyze the question type**:
-       - Installation/setup questions ("how to install", "how to set up", "getting started") → Provide step-by-step instructions with code snippets
-       - Conceptual questions ("what is", "explain", "describe") → Provide clear explanations focusing on concepts, NOT installation steps
-    
-    2. **Be direct and natural**:
-       - Start answering immediately without disclaimers or preambles
-       - Don't say "The provided context does not contain..." at the start
-       - Don't add notes like "Please note that this explanation is based solely on..."
-       - Just answer the question naturally
-    
-    3. **For installation/setup questions**:
-       - List all steps in order
-       - Include exact commands from the context
-       - Include prerequisites and verification steps
-    
-    4. **For conceptual questions**:
-       - Explain what it is, why it's used, and how it works
-       - Do NOT include installation steps
-       - Keep it concise and focused
-    
-    5. **If information is missing**:
-       - Only mention missing information at the END if relevant
-       - Say something like "Note: The documentation doesn't cover [specific aspect]"
-    
+    template = """You are a direct and helpful assistant. You have two sources of info: 1) The Context below, and 2) Your general training data.
+
+    CRITICAL INSTRUCTION:
+    - **JUMP STRAIGHT TO THE ANSWER**: Do not explain where your info comes from. 
+    - **NEVER MENTION THE CONTEXT**: Never use words like "context", "provided info", "document", "source", or "metadata".
+    - **NO PREAMBLES**: Do not say "I apologize", "Unfortunately", "Based on my knowledge", or "Here is an overview".
+    - **NO EXPLANATIONS**: If the question is not in the Context, just answer it directly from your brain. Do not point out the mismatch.
+
+    FORMATTING RULES:
+    1. **RETAIL DATA**: If (and ONLY if) you find specific products in the Context, use this format:
+       ### **Product Name** (Brand)
+       - **Price**: ₹ [Price]
+       - **Details**: [Details]
+       - **[Click here to see Image](S3_URL)**
+       - **[Direct Purchase Link](Source_URL)**
+    2. **BACKGROUND SEARCH**: Only if Discovered Stores is NOT "None yet", start with this exact line: "I've started searching these stores for live updates: {discovered_stores}."
+
+    Discovered Stores: {discovered_stores}
     Context:
     {context}
     
@@ -44,26 +51,15 @@ def get_chatbot_chain():
     
     Answer:"""
     
-    QA_CHAIN_PROMPT = PromptTemplate(
-        input_variables=["context", "question"],
-        template=template,
+    prompt = template.format(
+        context=context,
+        question=query,
+        discovered_stores=stores_str
     )
     
-    qa_chain = RetrievalQA.from_chain_type(
-        llm,
-        retriever=vector_store.as_retriever(search_kwargs={"k": 5}),
-        chain_type_kwargs={"prompt": QA_CHAIN_PROMPT}
-    )
-    
-    return qa_chain
-
-def chat_with_bot(query: str):
-    """
-    Sends a query to the chatbot and returns the response.
-    """
-    qa_chain = get_chatbot_chain()
-    response = qa_chain.invoke(query)
-    return response["result"]
+    llm = get_llm()
+    response = llm.invoke(prompt)
+    return response.content
 
 if __name__ == "__main__":
     # Test chat

@@ -9,6 +9,17 @@ from bot import chat_with_bot
 from retail_crawler import retail_crawler
 from kimi_service import kimi_service
 
+async def deep_crawl_endpoint_logic(url: str):
+    """Internal logic for deep crawling and ingestion."""
+    try:
+        print(f"Background deep crawl started for: {url}")
+        results = await crawl_site_recursive(url, max_pages=15)
+        if results:
+            add_multiple_contents_to_store(results)
+            print(f"Background ingestion complete for {url}")
+    except Exception as e:
+        print(f"Error in background crawl for {url}: {e}")
+
 app = FastAPI(title="Retail AI RAG API")
 
 # Enable CORS for React frontend
@@ -71,30 +82,65 @@ async def clear_endpoint():
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks):
     try:
-        # 2. Heuristic: If user is looking for products, shops, or location-based items
+        # 2. Heuristic: Determine if we need live discovery
         user_message = request.message.lower()
+        
+        # Determine topic and if it's retail or general info
+        is_retail = any(kw in user_message for kw in ["kids", "child", "shoes", "clothes", "shopping", "shop", "buy", "store", "buy", "find", "price"])
+        
         seeds = []
-        shopping_keywords = ["kids", "child", "shoes", "clothes", "shopping", "shop", "buy", "store", "buy", "find", "price"]
-        if any(keyword in user_message for keyword in shopping_keywords):
+        live_products = []
+        if is_retail:
             import re
-            # Improved location extraction
             match = re.search(r"(?:in|near|at|around)\s+([a-zA-Z\s,]+)", request.message, re.IGNORECASE)
             location = match.group(1).strip() if match else "local area"
             
-            # Simple product type extraction
-            product_type = "products"
-            for kw in ["shoes", "clothes", "toys", "electronics", "furniture"]:
+            product_type = "shopping brands"
+            for kw in ["shoes", "clothes", "toys", "electronics", "furniture", "kids"]:
                 if kw in user_message:
                     product_type = kw
                     break
             
-            # Use Kimi to find new seed URLs (blocking but fast enough)
-            seeds = await kimi_service.search_stores(location, product_type)
-            for seed in seeds:
-                background_tasks.add_task(retail_crawler.sync_store, seed)
+            # Legacy store search (now specialized version of general search)
+            if location == "local area":
+                retail_topic = f"direct online shopping links for kids {product_type} from top Indian retailers"
+            else:
+                retail_topic = f"{product_type} shopping stores in {location}"
+                
+            seeds = await kimi_service.search_sources(retail_topic)
+            if seeds:
+                # HOT SYNC: Wait for the first seed to ensure we have REAL S3 URLs in the first response
+                # We limit this to 3 pages to keep the response time reasonable
+                print("="*50)
+                print(f"🔥 HOT SYNC STARTING: Primary source -> {seeds[0]}")
+                sync_result = await retail_crawler.sync_store(seeds[0], max_pages=3)
+                live_products = sync_result if isinstance(sync_result, list) else []
+                print(f"🔥 HOT SYNC COMPLETE: Found {len(live_products)} products.")
+                print("="*50)
+                
+                # Background sync for the rest of the discovery results
+                for seed in seeds[1:]:
+                    background_tasks.add_task(retail_crawler.sync_store, seed)
+            else:
+                print("No seeds found for retail discovery.")
+        else:
+            # General Discovery Heuristic: If it looks like a question or specific technical term
+            # and we want to ensure we have the latest info (e.g. "Iroha 2")
+            technical_topics = ["iroha", "chroma", "langchain", "fastapi", "python", "react", "nextjs"]
+            is_technical = any(topic in user_message for topic in technical_topics)
+            is_question = "?" in user_message or any(user_message.startswith(q) for q in ["what", "how", "why", "who", "when"])
+            
+            if is_technical or is_question:
+                # Extract the main topic (simple heuristic)
+                topic = request.message.replace("?", "").strip()
+                print(f"General discovery triggered for topic: {topic}")
+                seeds = await kimi_service.search_sources(topic)
+                for seed in seeds:
+                    # Generic deep crawl and ingest
+                    background_tasks.add_task(deep_crawl_endpoint_logic, seed)
         
-        # 1. Get Response from Bot (RAG) with knowledge of discovered seeds
-        response = chat_with_bot(request.message, discovered_stores=seeds)
+        # 1. Get Response from Bot (RAG) with knowledge of discovered seeds and LIVE products
+        response = chat_with_bot(request.message, discovered_stores=seeds, live_context=live_products)
         
         return {"status": "success", "response": response}
     except Exception as e:

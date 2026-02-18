@@ -1,75 +1,34 @@
 from langchain_community.vectorstores import Chroma
-from langchain_ollama import OllamaEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.documents import Document
+from langchain_community.embeddings import HuggingFaceEmbeddings
 import os
 
 DB_DIR = "./chroma_db"
 
-def get_vector_store():
-    """
-    Initializes or loads the Chroma vector store.
-    """
-    # Using Ollama for embeddings. Make sure ollama is running.
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
-    
-    return Chroma(
-        persist_directory=DB_DIR,
-        embedding_function=embeddings,
-        collection_name="crawl4ai_collection"
-    )
+print("Initializing Embeddings and Vector Store...")
+# ✅ Load once at startup
+embeddings = HuggingFaceEmbeddings(
+    model_name="all-MiniLM-L6-v2"
+)
 
-def add_content_to_store(content: str, metadata: dict = None):
-    """
-    Splits content into chunks and adds them to the vector store.
-    """
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=2000,
-        chunk_overlap=200
-    )
-    
-    chunks = text_splitter.split_text(content)
-    if not chunks:
-        return
-        
-    documents = [Document(page_content=chunk, metadata=metadata or {}) for chunk in chunks]
-    
-    vector_store = get_vector_store()
-    vector_store.add_documents(documents)
-    print(f"Added {len(documents)} chunks to the vector store.")
-
-def add_multiple_contents_to_store(items: list):
-    """
-    Ingests multiple pages at once for better performance.
-    items is a list of dicts with {"content": str, "url": str}
-    """
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=2000,
-        chunk_overlap=200
-    )
-    
-    all_documents = []
-    for item in items:
-        chunks = text_splitter.split_text(item["content"])
-        all_documents.extend([Document(page_content=chunk, metadata={"source": item["url"]}) for chunk in chunks])
-    
-    if not all_documents:
-        return
-        
-    vector_store = get_vector_store()
-    # Batch add for performance
-    vector_store.add_documents(all_documents)
-    print(f"Batch added {len(all_documents)} chunks from {len(items)} pages to the vector store.")
+vector_store = Chroma(
+    persist_directory=DB_DIR,
+    embedding_function=embeddings,
+    collection_name="crawl4ai_collection"
+)
+print("Vector Store Initialized.")
 
 def clear_vector_store():
     """
-    Clears the chroma collection.
+    Clears the chroma collection by deleting all documents.
     """
-    vector_store = get_vector_store()
-    vector_store.delete_collection()
-    print("Vector store collection cleared.")
-
-if __name__ == "__main__":
-    # Test adding content
-    test_content = "This is a test document about Crawl4AI and LangChain integration."
-    add_content_to_store(test_content, {"source": "test"})
+    try:
+        # Get all IDs
+        collection_data = vector_store.get()
+        ids = collection_data.get("ids", [])
+        if ids:
+            vector_store.delete(ids)
+            print(f"Vector store cleared. Deleted {len(ids)} documents.")
+        else:
+            print("Vector store is already empty.")
+    except Exception as e:
+        print(f"Error clearing vector store: {e}")

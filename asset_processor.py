@@ -81,12 +81,24 @@ class AssetProcessor:
                 
                 # Strict Filtering: Only process actual image files
                 is_image = any(image_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
-                if image_url.startswith("http") and is_image:
+                
+                # Filter out obvious logos/sprites based on URL
+                logolike_keywords = ["logo", "sprite", "icon", "banner", "header", "footer", "favicon"]
+                is_logolike = any(kw in image_url.lower() for kw in logolike_keywords)
+                
+                if image_url.startswith("http") and is_image and not is_logolike:
                     try:
                         print(f"INFO: Attempting to download image: {image_url}")
                         # Use rotating stealth headers for each request
                         headers = self._get_headers(image_url)
                         response = self.client.get(image_url, timeout=10.0, headers=headers)
+                        
+                        # SIZE FILTER: Skip images under 5KB (likely logos or placeholders)
+                        content_len = len(response.content)
+                        if response.status_code == 200 and content_len < 5000:
+                            print(f"SKIP: Image too small ({content_len} bytes), likely a logo or icon: {image_url}")
+                            continue
+
                         print(f"INFO: Image download status: {response.status_code}")
                         
                         if response.status_code != 200 and "original_image_url" in product:

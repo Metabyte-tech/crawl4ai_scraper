@@ -16,7 +16,7 @@ def get_llm():
         temperature=0
     )
 
-def chat_with_bot(query: str, discovered_stores: list = None, live_context: list = None):
+def chat_with_bot(query: str, discovered_stores: list = None, live_context: list = None, intent_type: str = "shopping"):
     """
     Sends a query to the chatbot and returns the response.
     """
@@ -24,7 +24,7 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
     docs = retriever._get_relevant_documents(query)
     rag_context = "\n\n".join([doc.page_content for doc in docs])
     
-    # Format LIVE products into context (guaranteed S3 URLs)
+    # Format LIVE products into context
     live_context_str = ""
     if live_context:
         live_items = []
@@ -37,68 +37,49 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
                 f"Source URL: {p.get('source_url')}"
             )
         live_context_str = "\n\n".join(live_items)
-        print(f"DEBUG: Injected {len(live_context)} live products into context.")
 
-    # Combine: prioritize LIVE data over stale DB data
     context = f"{live_context_str}\n\n{rag_context}".strip()
     
-    print("-" * 50)
-    print(f"DEBUG: RAG Context for '{query}':")
-    print(context)
-    print("-" * 50)
-    
-    stores_str = ", ".join(discovered_stores) if discovered_stores else "None yet"
-    
-    template = """You are a Hybrid AI Shopping Assistant.
+    if intent_type == "shopping":
+        template = """You are a Hybrid AI Shopping Assistant.
+        
+        CONTEXT:
+        {context}
 
-    CONTEXT (RAG + LIVE DATA):
-    {context}
+        INSTRUCTIONS:
+        1. **Direct Answer**: Summarize the best options found.
+        2. **Carousel**: You MUST provide a product carousel for the items found.
+        3. **Carousel Format**: 
+           <product_carousel>
+           [ {{ "name": "...", "brand": "...", "price": "...", "image_url": "...", "source_url": "..." }} ]
+           </product_carousel>
+        
+        Question: {question}
+        Answer:"""
+    else:
+        template = """You are an Intelligent Informational Assistant.
+        
+        CONTEXT:
+        {context}
 
-    IMPORTANT: If there are products marked as "LIVE_PRODUCT_S3" in the context, you MUST show them in the carousel. These are the most recent results found for the user's query.
-
-    INSTRUCTIONS:
-    1. **Direct Answer**: Start your answer immediately. If you have "LIVE_PRODUCT_S3" items, summarize them briefly and then show the carousel.
-    2. **Mandatory Carousel**: If "LIVE_PRODUCT_S3" items exist, you MUST provide a product carousel. Do NOT say "no products found" if live items are present.
-    3. **Carousel Format**: Use this EXACT format for products:
-       <product_carousel>
-       [
-         {{
-           "name": "Product Name",
-           "brand": "Brand Name",
-           "price": "₹ 000",
-           "image_url": "S3_URL",
-           "source_url": "Source_URL",
-           "details": "Short snippet of details"
-         }}
-       ]
-       </product_carousel>
-       CRITICAL RULES:
-       - Use ONLY the JSON structure inside the tag.
-       - **IMAGE PRIORITY**: Always use the 'Image URL' provided in the context. If an S3 URL (from 'ai-gent-storage') is available, you MUST use it as the `image_url`.
-       - NEVER use the "Product: name, Brand: brand..." plain text format found in the Context.
-       - Do NOT include any markdown bullets or extra text inside the tag.
-       - If it's not valid JSON, the system will crash.
+        INSTRUCTIONS:
+        1. **Deep Explanation**: Provide a comprehensive and clear explanation of the topic.
+        2. **Real-World Examples**: Include at least one practical example or scenario to illustrate the concept.
+        3. **No Carousels**: Do NOT use the <product_carousel> tag or show products as cards. Use text only.
+        4. **Structured Layout**: Use headers and bullet points for readability.
+        
+        Question: {question}
+        Answer:"""
     
-    Question: {question}
-    
-    Answer:"""
-    
-    prompt = template.format(
-        context=context,
-        question=query
-    )
-    
+    prompt = template.format(context=context, question=query)
     llm = get_llm()
     response = llm.invoke(prompt)
     content = response.content
     
-    # Final safety check: if we see relative-looking domains in the JSON, fix them
-    # (Doing this via simple string replacement to avoid complex regex for now)
+    # URL fixing logic
     base_retail_domains = ["amazon.in", "flipkart.com", "ajio.com", "myntra.com", "firstcry.com", "nykaafashion.com", "m.media-amazon.com", "static.ajio.com"]
     for domain in base_retail_domains:
-        # Prepend https:// if domain start without it and is preceded by quote
         content = content.replace(f'"{domain}', f'"https://{domain}')
-        # Handle cases where double protocol might occur from the above replacement
         content = content.replace("https://https://", "https://")
 
     return content

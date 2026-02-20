@@ -1,7 +1,7 @@
 import os
 import shutil
-from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 def clear_vector_store():
     persist_directory = "./chroma_db"

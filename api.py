@@ -86,63 +86,84 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         user_message = request.message.lower()
         
         # Determine topic and if it's retail or general info
-        is_retail = any(kw in user_message for kw in ["kids", "child", "shoes", "clothes", "shopping", "shop", "buy", "store", "buy", "find", "price"])
+        retail_keywords = [
+            "shoes", "clothes", "shopping", "shop", "buy", "store", "find", "price", 
+            "laptop", "mobile", "electronics", "furniture", "toys", "watch", "camera", 
+            "sneakers", "sneaker", "footwear", "apparel", "gadgets", "phone",
+            "shirt", "shirts", "t-shirt", "tshirts", "jeans", "pants", "clothing", "dress", "fashion"
+        ]
+        shopping_verbs = ["find", "buy", "shop", "search", "where can i", "get me", "show me", "looking for"]
+        question_starts = ["what", "how", "why", "who", "when", "tell", "explain", "describe", "define"]
+        
+        is_retail_query = any(kw in user_message for kw in retail_keywords)
+        has_shopping_intent = any(verb in user_message for verb in shopping_verbs)
+        is_question = any(user_message.startswith(q) for q in question_starts) or "?" in user_message
+        
+        # Explicit intent detection
+        # 1. If it has shopping verbs or retail keywords, it's shopping
+        # 2. If it's a very short query (<= 3 words) and NOT a question, assume shopping intent
+        is_shopping = (is_retail_query or has_shopping_intent) and not (is_question and not has_shopping_intent)
+        if not is_shopping and len(user_message.split()) <= 3 and not is_question:
+            is_shopping = True
+            
+        intent_type = "shopping" if is_shopping else "info"
         
         seeds = []
         live_products = []
-        if is_retail:
+        if is_shopping:
             import re
             match = re.search(r"(?:in|near|at|around)\s+([a-zA-Z\s,]+)", request.message, re.IGNORECASE)
             location = match.group(1).strip() if match else "local area"
             
-            product_type = "shopping brands"
-            for kw in ["shoes", "clothes", "toys", "electronics", "furniture", "kids"]:
+            # Dynamically detect product type (fallback to broad search)
+            product_type = "products"
+            # Extract most likely noun as category if no keywords match specifically
+            remaining_msg = re.sub(r"(?:find|buy|shop|search|for|in|near|at|around|get|show|me|some|any|all|the|about|want|to)\s+", "", user_message, flags=re.IGNORECASE).strip()
+            if remaining_msg:
+                # Take the last few words as the category usually (e.g. "blue sneakers")
+                # but if there are keywords, they override
+                product_type = remaining_msg
+            
+            for kw in retail_keywords:
                 if kw in user_message:
+                    # If keyword found, it's a stronger signal
                     product_type = kw
                     break
             
-            # Legacy store search (now specialized version of general search)
+            # Refine retail topic
             if location == "local area":
-                retail_topic = f"direct online shopping links for kids {product_type} from top Indian retailers"
+                retail_topic = f"direct online shopping links for {product_type} from top retailers"
             else:
                 retail_topic = f"{product_type} shopping stores in {location}"
                 
             seeds = await kimi_service.search_sources(retail_topic)
             if seeds:
-                # HOT SYNC: Wait for the first seed to ensure we have REAL S3 URLs in the first response
-                # We limit this to 3 pages to keep the response time reasonable
                 print("="*50)
                 print(f"🔥 HOT SYNC STARTING: Primary source -> {seeds[0]}")
-                sync_result = await retail_crawler.sync_store(seeds[0], max_pages=3)
+                # Use concurrency and speed optimizations implemented in crawler.py
+                sync_result = await retail_crawler.sync_store(seeds[0], max_pages=3, target_category=product_type)
                 live_products = sync_result if isinstance(sync_result, list) else []
                 print(f"🔥 HOT SYNC COMPLETE: Found {len(live_products)} products.")
                 print("="*50)
                 
-                # Background sync for the rest of the discovery results
-                for seed in seeds[1:]:
-                    background_tasks.add_task(retail_crawler.sync_store, seed)
-            else:
-                print("No seeds found for retail discovery.")
+                for seed in seeds[1:3]: # Limit background sync to top 2 additional seeds to save tokens
+                    background_tasks.add_task(retail_crawler.sync_store, seed, target_category=product_type)
         else:
-            # General Discovery Heuristic: If it looks like a question or specific technical term
-            # and we want to ensure we have the latest info (e.g. "Iroha 2")
-            technical_topics = ["iroha", "chroma", "langchain", "fastapi", "python", "react", "nextjs"]
-            is_technical = any(topic in user_message for topic in technical_topics)
-            is_question = "?" in user_message or any(user_message.startswith(q) for q in ["what", "how", "why", "who", "when"])
+            # General Discovery: Handle non-retail fields dynamically
+            is_question = "?" in user_message or any(user_message.startswith(q) for q in ["what", "how", "why", "who", "when", "tell", "explain", "describe", "define"])
             
-            if is_technical or is_question:
-                # Extract the main topic (simple heuristic)
+            if is_question:
                 topic = request.message.replace("?", "").strip()
                 print(f"General discovery triggered for topic: {topic}")
                 seeds = await kimi_service.search_sources(topic)
-                for seed in seeds:
-                    # Generic deep crawl and ingest
+                for seed in seeds[:2]:
                     background_tasks.add_task(deep_crawl_endpoint_logic, seed)
         
         # 1. Get Response from Bot (RAG) with knowledge of discovered seeds and LIVE products
-        response = chat_with_bot(request.message, discovered_stores=seeds, live_context=live_products)
+        # Pass intent_type to bot for specialized prompting
+        bot_response = chat_with_bot(request.message, seeds[:3], live_products, intent_type=intent_type)
         
-        return {"status": "success", "response": response}
+        return {"status": "success", "response": bot_response}
     except Exception as e:
         import traceback
         traceback.print_exc()

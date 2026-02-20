@@ -8,12 +8,12 @@ class RetailCrawler:
     def __init__(self):
         self.max_pages = 10
 
-    async def sync_store(self, seed_url, max_pages=None):
+    async def sync_store(self, seed_url, max_pages=None, target_category="relevant"):
         """
         Orchestrates the discovery -> crawl -> extract -> upload -> ingest loop.
         """
         limit = max_pages or self.max_pages
-        print(f"Starting sync for: {seed_url} (limit: {limit} pages)")
+        print(f"Starting sync for: {seed_url} (limit: {limit} pages, category: {target_category})")
         
         # 1. Recursive Crawl
         pages = await crawl_site_recursive(seed_url, max_pages=limit)
@@ -36,7 +36,7 @@ class RetailCrawler:
             # Run blocking extraction in a thread to keep async loop free if needed, 
             # but KimiService uses httpx/anthropic sync client for now.
             # Extract structured data via Kimi (Now async)
-            products = await kimi_service.extract_product_data(content)
+            products = await kimi_service.extract_product_data(content, target_category=target_category)
             if not products:
                 return []
                 

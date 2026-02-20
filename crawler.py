@@ -71,7 +71,7 @@ async def _do_crawl(crawler, url, run_config):
 
 async def crawl_site_recursive(base_url: str, max_pages: int = 20):
     """
-    Recursive crawl starting from base_url up to max_pages.
+    Concurrent recursive crawl starting from base_url up to max_pages.
     """
     import os
     proxy_url = os.getenv("PROXY_URL")
@@ -86,20 +86,36 @@ async def crawl_site_recursive(base_url: str, max_pages: int = 20):
     crawled_urls = set()
     all_content = []
     
+    # Use semaphore to limit concurrency and avoid rate limits
+    semaphore = asyncio.Semaphore(3)
+
+    async def crawl_with_semaphore(url, crawler):
+        async with semaphore:
+            try:
+                content, internal_links = await crawl_site(url, crawler=crawler)
+                return url, content, internal_links
+            except Exception as e:
+                print(f"Error crawling {url}: {e}")
+                return url, None, []
+
     try:
         async with AsyncWebCrawler(config=browser_config) as crawler:
             while pages_to_crawl and len(crawled_urls) < max_pages:
-                url = pages_to_crawl.pop(0)
-                if url in crawled_urls:
-                    continue
+                # Prepare batch of URLs
+                batch_size = min(len(pages_to_crawl), 3)
+                current_batch = []
+                for _ in range(batch_size):
+                    u = pages_to_crawl.pop(0)
+                    if u not in crawled_urls and not any(kw in u.lower() for kw in EXCLUDED_KEYWORDS):
+                        current_batch.append(u)
                 
-                # Skip non-product pages
-                if any(kw in url.lower() for kw in EXCLUDED_KEYWORDS):
-                    print(f"Skipping non-product URL: {url}")
+                if not current_batch:
                     continue
 
-                try:
-                    content, internal_links = await crawl_site(url, crawler=crawler)
+                tasks = [crawl_with_semaphore(u, crawler) for u in current_batch]
+                results = await asyncio.gather(*tasks)
+                
+                for url, content, internal_links in results:
                     if content:
                         all_content.append({"url": url, "content": content})
                         crawled_urls.add(url)
@@ -108,21 +124,18 @@ async def crawl_site_recursive(base_url: str, max_pages: int = 20):
                         for link in internal_links:
                             link_url = link.get("href")
                             if link_url:
-                                # Normalize URL
                                 full_url = urljoin(url, link_url)
-                                # Ensure it's the same domain and NOT an excluded URL
                                 if urlparse(full_url).netloc == urlparse(base_url).netloc:
                                     if not any(kw in full_url.lower() for kw in EXCLUDED_KEYWORDS):
                                         if full_url not in crawled_urls and full_url not in pages_to_crawl:
                                             pages_to_crawl.append(full_url)
-                except Exception as e:
-                    print(f"Non-fatal error crawling {url} during recursive sync: {e}. Skipping page.")
                 
-                # Use a slightly longer sleep to avoid hitting rate limits on retail sites
-                await asyncio.sleep(0.5)
+                # Small yield to allow event loop to breathe
+                await asyncio.sleep(0.1)
+                
     except Exception as e:
         if "Browser.close" in str(e) or "closed" in str(e).lower():
-            print(f"DEBUG: Browser closed unexpectedly during cleanup, but we finished our crawl. Continuing...")
+            print(f"DEBUG: Browser closed unexpectedly, continuing...")
         else:
             print(f"ERROR: Fatal error in recursive crawl: {e}")
 

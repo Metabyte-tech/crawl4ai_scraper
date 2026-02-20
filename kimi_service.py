@@ -163,7 +163,7 @@ class KimiService:
                 print(f"Error in search_sources: {e}")
                 return []
 
-    async def extract_product_data(self, markdown_content):
+    async def extract_product_data(self, markdown_content, target_category="relevant"):
         """
         Extracts structured product data. Truncates content to fit token limits.
         """
@@ -171,13 +171,16 @@ class KimiService:
         truncated_content = markdown_content[:8000]
         prompt = (
             f"system_msg = \"You are a surgical data extraction tool. Extract product information ONLY from the provided markdown. DO NOT invent URLs. If an image link is not explicitly shown in the text (like ![alt](url) or <img src='url'>), you MUST return null. NEVER guess based on product names.\"\n\n"
-            f"Extract all kids products from this markdown. For each product, include: name, price (convert to number), "
-            f"currency (default to INR/₹), age_group, brand, image_url, and the direct product page link (absolute URL).\n\n"
+            f"Identify and extract all products or items related to '{target_category}' from this markdown. For each item, include: name, price (convert to number), "
+            f"currency (default to INR/₹), age_group (if applicable), brand, image_url, and the direct product page link (absolute URL).\n\n"
+            f"CRITICAL PRODUCT RULES:\n"
+            f"1. **RELEVANCE**: Only extract items that truly belong to the category '{target_category}'.\n"
+            f"2. **REJECT NON-PRODUCTS**: Do NOT extract logos, advertising banners, site navigation icons, or promotional bundles that aren't the main items.\n\n"
             f"CRITICAL URL RULES:\n"
             f"1. **STRICT EXTRACTION**: ONLY use image URLs explicitly found in <img> tags or markdown image links (![...](...)).\n"
-            f"2. **ZERO TOLERANCE FOR HALLUCINATION**: If the markdown doesn't have a working image link, set image_url to null. NEVER combine names to make a URL.\n"
-            f"3. **AVOID PLACEHOLDERS**: NEVER extract base64 data-URIs, '1x1.gif', or 'pixel.gif' as image_url.\n"
-            f"4. **VERIFIABLE LINKS**: Only use URLs EXPLICITLY found in the markdown.\n"
+            f"2. **LOGO PREVENTION**: NEVER extract URLs containing 'logo', 'sprite', 'icon', 'banner', 'nav', or 'header' as product images.\n"
+            f"3. **ZERO TOLERANCE FOR HALLUCINATION**: If the markdown doesn't have a working image link, set image_url to null. NEVER combine names to make a URL.\n"
+            f"4. **AVOID PLACEHOLDERS**: NEVER extract base64 data-URIs, '1x1.gif', or 'pixel.gif' as image_url.\n"
             f"5. **ABSOLUTE ONLY**: Favor absolute URLs starting with http:// or https://.\n\n"
             f"Markdown:\n{truncated_content}"
         )

@@ -2,7 +2,6 @@ import httpx
 import uuid
 from s3_service import s3_service
 from kimi_service import kimi_service
-
 class AssetProcessor:
     def __init__(self):
         import os
@@ -22,7 +21,6 @@ class AssetProcessor:
             self.client = httpx.Client(timeout=30.0, verify=False, proxy=self.proxy_url)
         else:
             self.client = httpx.Client(timeout=30.0, verify=False)
-
     def _get_headers(self, url=None):
         import random
         ua = random.choice(self.user_agents)
@@ -44,8 +42,7 @@ class AssetProcessor:
             "Sec-Fetch-Site": "same-site",
             "Upgrade-Insecure-Requests": "1"
         }
-
-    def process_product_images(self, products):
+    def process_product_images(self, products, category="products", subcategory="general"):
         """
         Iterates through products, downloads images from external URLs,
         uploads them to S3, and updates the product metadata with S3 URLs.
@@ -80,12 +77,24 @@ class AssetProcessor:
                 product["image_url"] = image_url
                 
                 # Strict Filtering: Only process actual image files
-                is_image = any(image_url.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
+                clean_url = image_url.split('?')[0].lower()
+                is_image = any(clean_url.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
                 
                 # Filter out obvious logos/sprites based on URL
                 logolike_keywords = ["logo", "sprite", "icon", "banner", "header", "footer", "favicon"]
                 is_logolike = any(kw in image_url.lower() for kw in logolike_keywords)
                 
+                from image_cache import image_cache
+                
+                # Check cache before doing any network requests
+                cached_s3 = image_cache.get_s3_url(image_url)
+                if cached_s3:
+                    print(f"INFO: IMAGE CACHE HIT. Skipping download for {image_url}")
+                    product["s3_image_url"] = cached_s3
+                    product["original_image_url"] = image_url
+                    processed_products.append(product)
+                    continue
+
                 if image_url.startswith("http") and is_image and not is_logolike:
                     try:
                         print(f"INFO: Attempting to download image: {image_url}")
@@ -93,26 +102,27 @@ class AssetProcessor:
                         headers = self._get_headers(image_url)
                         response = self.client.get(image_url, timeout=10.0, headers=headers)
                         
-                        # SIZE FILTER: Skip images under 5KB (likely logos or placeholders)
+                        # SIZE FILTER: Skip images under 1KB (likely tiny invisible pixels)
                         content_len = len(response.content)
-                        if response.status_code == 200 and content_len < 5000:
+                        if response.status_code == 200 and content_len < 1000:
                             print(f"SKIP: Image too small ({content_len} bytes), likely a logo or icon: {image_url}")
                             continue
-
-                        print(f"INFO: Image download status: {response.status_code}")
+                        print(f"INFO: Image download status: {response.status_code} ({content_len} bytes)")
                         
                         if response.status_code != 200 and "original_image_url" in product:
-                             print(f"WARNING: Cleaned URL failed ({response.status_code}). Retrying original: {product['original_image_url']}")
+                             # Don't split on '?' for Shopify URLs as they might need v=...
                              image_url = product["original_image_url"]
+                             print(f"WARNING: Initial URL failed ({response.status_code}). Retrying with original: {image_url}")
                              headers = self._get_headers(image_url)
                              response = self.client.get(image_url, timeout=10.0, headers=headers)
                              print(f"INFO: Original image download status: {response.status_code}")
-
                         if response.status_code == 200:
-                            # Generate a unique file name
+                            # Generate a unique file name with category structure
                             ext = image_url.split(".")[-1].split("?")[0]
                             if len(ext) > 4: ext = "jpg" # Fallback
-                            filename = f"products/{uuid.uuid4()}.{ext}"
+                            
+                            # Use categorized structure for S3
+                            filename = f"products/{category}/{subcategory}/{uuid.uuid4()}.{ext}"
                             
                             # Upload to S3
                             s3_url = s3_service.upload_image(
@@ -125,6 +135,8 @@ class AssetProcessor:
                                 product["s3_image_url"] = s3_url
                                 # Keep original as backup or reference
                                 product["original_image_url"] = image_url
+                                # Save to DB Cache
+                                image_cache.save_s3_url(image_url, s3_url)
                             else:
                                 print(f"WARNING: S3 upload failed for {image_url}")
                         else:
@@ -139,5 +151,38 @@ class AssetProcessor:
             processed_products.append(product)
         
         return processed_products
-
+        
+    async def process_raw_content(self, content, category="uncategorized", subcategory="general"):
+        """
+        Scans raw markdown for images, uploads them to S3, and returns cleaned content and first S3 image.
+        """
+        import re
+        # Find all markdown images: ![alt](url)
+        img_matches = re.findall(r'!\[.*?\]\((.*?)\)', content)
+        # Find all HTML images: <img src="url" ...>
+        html_matches = re.findall(r'<img.*?src=["\'](.*?)["\']', content, flags=re.IGNORECASE)
+        
+        all_urls = list(set(img_matches + html_matches))
+        if not all_urls:
+            return content, None
+            
+        first_s3_url = None
+        for url in all_urls:
+            # Skip if already an S3 URL
+            if "amazonaws.com" in url:
+                if not first_s3_url: first_s3_url = url
+                continue
+                
+            try:
+                # Prepare a mini-product for existing logic
+                mini_products = [{"image_url": url}]
+                processed = self.process_product_images(mini_products, category, subcategory)
+                if processed and processed[0].get("s3_image_url"):
+                    s3_url = processed[0]["s3_image_url"]
+                    content = content.replace(url, s3_url)
+                    if not first_s3_url: first_s3_url = s3_url
+            except Exception:
+                continue
+                
+        return content, first_s3_url
 asset_processor = AssetProcessor()

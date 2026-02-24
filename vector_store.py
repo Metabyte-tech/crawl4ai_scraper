@@ -26,8 +26,11 @@ def clear_vector_store():
         collection_data = vector_store.get()
         ids = collection_data.get("ids", [])
         if ids:
-            vector_store.delete(ids)
-            print(f"Vector store cleared. Deleted {len(ids)} documents.")
+            # SQLite limit is typically 999 or 32766 variables. We chunk the deletions.
+            chunk_size = 500
+            for i in range(0, len(ids), chunk_size):
+                vector_store.delete(ids[i:i + chunk_size])
+            print(f"Vector store cleared. Deleted {len(ids)} documents in chunks.")
         else:
             print("Vector store is already empty.")
     except Exception as e:

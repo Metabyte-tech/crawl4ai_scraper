@@ -5,9 +5,7 @@ import time
 import re
 from anthropic import Anthropic
 from dotenv import load_dotenv
-
 load_dotenv()
-
 class KimiService:
     def __init__(self):
         self.api_key = os.getenv("MOONSHOT_API_KEY")
@@ -21,13 +19,13 @@ class KimiService:
             "amazon.in", "flipkart.com", "ajio.com", "myntra.com",
             "firstcry.com", "nykaa.com", "jiomart.com", "meesho.com",
             "m.media-amazon.com", "assets.ajio.com", "cdn.fcglcdn.com"
+            "m.media-amazon.com", "assets.ajio.com", "cdn.fcglcdn.com",
+            "mxwholesale.co.uk", "brightminds.co.uk"
         ]
-
     def _normalize_url(self, url, host=None):
         """Ensures URL starts with https:// and handles relative paths."""
         if not url or not isinstance(url, str):
             return None
-
         url = url.strip()
         if url.startswith("//"):
             return "https:" + url
@@ -35,9 +33,7 @@ class KimiService:
             # If it's just a domain like amazon.in/dp/..., prepend https://
             if any(domain in url for domain in self.base_retail_domains) or url.count("/") > 0:
                 return "https://" + url.lstrip("/")
-
         return url
-
     def _safe_json_parse(self, text, default_key):
         """
         Safely parses JSON from LLM response, handling markdown blocks,
@@ -51,17 +47,14 @@ class KimiService:
                 match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
                 if match:
                     text = match.group(1).strip()
-
             # Handle trailing commas in JSON lists/objects
             text = re.sub(r',\s*([\]}])', r'\1', text)
-
             # Remove any non-JSON text after the final closing bracket/brace
             last_bracket = text.rfind(']')
             last_brace = text.rfind('}')
             end_idx = max(last_bracket, last_brace)
             if end_idx != -1:
                 text = text[:end_idx+1]
-
             return json.loads(text)
         except json.JSONDecodeError as e:
             try:
@@ -73,7 +66,6 @@ class KimiService:
                     last = s.rfind(close_char)
                     if last == -1 or last < first: return None
                     return s[first:last+1]
-
                 potential = find_balanced(text, '[', ']') or find_balanced(text, '{', '}')
                 if potential:
                     # Stage 2: Recursive Cleaning
@@ -81,7 +73,6 @@ class KimiService:
                     potential = re.sub(r',\s*([\]}])', r'\1', potential)
                     # Remove potential unescaped control characters
                     potential = re.sub(r'[\x00-\x1F\x7F]', '', potential)
-
                     try:
                         return json.loads(potential)
                     except json.JSONDecodeError:
@@ -97,9 +88,7 @@ class KimiService:
                                 return json.loads(truncated)
             except Exception as inner_e:
                 print(f"JSON Parse Failure: {e} | Recovery failed: {inner_e}")
-
         return {default_key: []}
-
     async def _call_with_retry(self, func, max_retries=3):
         """
         Calls an Anthropic method with basic exponential backoff for 429s.
@@ -115,19 +104,15 @@ class KimiService:
                     await asyncio.sleep(wait_time)
                 else:
                     raise e
-
     async def search_sources(self, topic):
         """
         Uses Kimi's native reasoning to identify top authoritative URLs for any topic.
         """
         is_retail = any(kw in topic.lower() for kw in ["shoes", "kids", "shopping", "clothes", "toys", "products"])
-
         system_msg = "You are a research expert. Output a JSON list of REAL, official documentation or resource URLs. NEVER hallucinate URLs. Return ONLY the JSON object."
         if is_retail:
             system_msg = "You are a shopping expert. Find REAL product catalog or category pages from top retailers like Amazon, Ajio, Flipkart, Myntra. Output ONLY a JSON list of URLs."
-
         prompt = f"Find the best 5 authoritative and official website URLs for the topic: '{topic}'. Prioritize official documentation, GitHub repositories, or high-quality technical guides. IMPORTANT: Only provide valid, direct, and real URLs. Output ONLY a JSON list."
-
         async with self.semaphore:
             try:
                 response = await self._call_with_retry(
@@ -142,7 +127,6 @@ class KimiService:
                 data = self._safe_json_parse(response.content[0].text, "urls")
                 urls = data if isinstance(data, list) else data.get("urls", [])
                 print(f"DEBUG: Raw seeds from Kimi: {urls}")
-
                 # Validation: Filter out hallucinated/dummy URLs and ensure they look like real domains
                 valid_urls = []
                 for u in urls:
@@ -156,13 +140,11 @@ class KimiService:
                             valid_urls.append(self._normalize_url(u))
                     else:
                         valid_urls.append(self._normalize_url(u))
-
                 print(f"DEBUG: Discovered source seeds: {valid_urls}")
                 return valid_urls
             except Exception as e:
                 print(f"Error in search_sources: {e}")
                 return []
-
     async def extract_product_data(self, markdown_content, target_category="relevant"):
         """
         Extracts structured product data. Truncates content to fit token limits.
@@ -179,12 +161,11 @@ class KimiService:
             f"CRITICAL URL RULES:\n"
             f"1. **STRICT EXTRACTION**: ONLY use image URLs explicitly found in <img> tags or markdown image links (![...](...)).\n"
             f"2. **LOGO PREVENTION**: NEVER extract URLs containing 'logo', 'sprite', 'icon', 'banner', 'nav', or 'header' as product images.\n"
-            f"3. **ZERO TOLERANCE FOR HALLUCINATION**: If the markdown doesn't have a working image link, set image_url to null. NEVER combine names to make a URL.\n"
+            f"3. **ZERO TOLERANCE FOR HALLUCINATION**: If the markdown doesn't have a working image link, set image_url to null. NEVER combine names to make a URL like 'product-name.com/img.jpg'.\n"
             f"4. **AVOID PLACEHOLDERS**: NEVER extract base64 data-URIs, '1x1.gif', or 'pixel.gif' as image_url.\n"
-            f"5. **ABSOLUTE ONLY**: Favor absolute URLs starting with http:// or https://.\n\n"
+            f"5. **REAL DOMAINS ONLY**: Favor URLs from known CDNs. If a URL looks like it was generated (e.g., 'zig-and-go.s3.amazonaws.com'), it is likely a hallucination and MUST be ignored.\n\n"
             f"Markdown:\n{truncated_content}"
         )
-
         async with self.semaphore:
             try:
                 response = await self._call_with_retry(
@@ -197,6 +178,7 @@ class KimiService:
                 )
                 data = self._safe_json_parse(response.content[0].text, "products")
                 products = data if isinstance(data, list) else data.get("products", [])
+                print(f"DEBUG: Kimi raw extraction (truncated): {str(products)[:500]}...")
                 
                 # Basic normalization of extracted products
                 for p in products:
@@ -209,5 +191,4 @@ class KimiService:
             except Exception as e:
                 print(f"Error in extract_product_data: {e}")
                 return []
-
 kimi_service = KimiService()

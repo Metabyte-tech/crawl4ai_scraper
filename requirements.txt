@@ -1,7 +1,7 @@
 crawl4ai
 langchain
 langchain-community
-langchain-ollama
+langchain-anthropic
 chromadb
 playwright
 beautifulsoup4

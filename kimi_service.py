@@ -126,28 +126,28 @@ class KimiService:
                     messages=[{"role": "user", "content": prompt}],
                 )
             )
-                print(f"DEBUG: Kimi search topic: '{topic}' | is_retail: {is_retail}")
-                data = self._safe_json_parse(response.content[0].text, "urls")
-                urls = data if isinstance(data, list) else data.get("urls", [])
-                print(f"DEBUG: Raw seeds from Kimi: {urls}")
-                # Validation: Filter out hallucinated/dummy URLs and ensure they look like real domains
-                valid_urls = []
-                for u in urls:
-                    if not isinstance(u, str) or len(u) < 10: continue
-                    if any(bad in u for bad in ["example.com", "placeholder", "dummy", "hallucinated"]):
-                        continue
-                    # If retail, try to ensure it's a known or plausible shopping domain
-                    if is_retail:
-                        # Allow known domains or anything with /dp/, /p/, /product/
-                        if any(d in u for d in self.base_retail_domains) or "/dp/" in u or "/p/" in u or "product" in u:
-                            valid_urls.append(self._normalize_url(u))
-                    else:
+            print(f"DEBUG: Kimi search topic: '{topic}' | is_retail: {is_retail}")
+            data = self._safe_json_parse(response.content[0].text, "urls")
+            urls = data if isinstance(data, list) else data.get("urls", [])
+            print(f"DEBUG: Raw seeds from Kimi: {urls}")
+            # Validation: Filter out hallucinated/dummy URLs and ensure they look like real domains
+            valid_urls = []
+            for u in urls:
+                if not isinstance(u, str) or len(u) < 10: continue
+                if any(bad in u for bad in ["example.com", "placeholder", "dummy", "hallucinated"]):
+                    continue
+                # If retail, try to ensure it's a known or plausible shopping domain
+                if is_retail:
+                    # Allow known domains or anything with /dp/, /p/, /product/
+                    if any(d in u for d in self.base_retail_domains) or "/dp/" in u or "/p/" in u or "product" in u:
                         valid_urls.append(self._normalize_url(u))
-                print(f"DEBUG: Discovered source seeds: {valid_urls}")
-                return valid_urls
-            except Exception as e:
-                print(f"Error in search_sources: {e}")
-                return []
+                else:
+                    valid_urls.append(self._normalize_url(u))
+            print(f"DEBUG: Discovered source seeds: {valid_urls}")
+            return valid_urls
+        except Exception as e:
+            print(f"Error in search_sources: {e}")
+            return []
     async def extract_product_data(self, markdown_content, target_category="relevant"):
         """
         Extracts structured product data. Truncates content to fit token limits.
@@ -178,19 +178,19 @@ class KimiService:
                     messages=[{"role": "user", "content": prompt}],
                 )
             )
-                data = self._safe_json_parse(response.content[0].text, "products")
-                products = data if isinstance(data, list) else data.get("products", [])
-                print(f"DEBUG: Kimi raw extraction (truncated): {str(products)[:500]}...")
+            data = self._safe_json_parse(response.content[0].text, "products")
+            products = data if isinstance(data, list) else data.get("products", [])
+            print(f"DEBUG: Kimi raw extraction (truncated): {str(products)[:500]}...")
+            
+            # Basic normalization of extracted products
+            for p in products:
+                if "image_url" in p:
+                    p["image_url"] = self._normalize_url(p["image_url"])
+                if "url" in p:
+                    p["url"] = self._normalize_url(p["url"])
                 
-                # Basic normalization of extracted products
-                for p in products:
-                    if "image_url" in p:
-                        p["image_url"] = self._normalize_url(p["image_url"])
-                    if "url" in p:
-                        p["url"] = self._normalize_url(p["url"])
-                    
-                return products
-            except Exception as e:
-                print(f"Error in extract_product_data: {e}")
-                return []
+            return products
+        except Exception as e:
+            print(f"Error in extract_product_data: {e}")
+            return []
 kimi_service = KimiService()

@@ -10,16 +10,25 @@ from bot import chat_with_bot
 from retail_crawler import retail_crawler
 from kimi_service import kimi_service
 
-async def deep_crawl_endpoint_logic(url: str):
-    """Internal logic for deep crawling and ingestion."""
+async def background_ingest(url: str, max_pages: int = 1):
+    """Generic background task for crawling and ingestion."""
     try:
-        print(f"Background deep crawl started for: {url}")
-        results = await crawl_site_recursive(url, max_pages=15)
-        if results:
-            await add_multiple_contents_to_store(results)
-            print(f"Background ingestion complete for {url}")
+        print(f"Background ingestion started for: {url} (max_pages={max_pages})")
+        if max_pages <= 1:
+            content, _ = await crawl_site(url)
+            if content and len(content.strip()) > 10:
+                add_content_to_store(content, {"source": url})
+            else:
+                print(f"Background crawl failed for {url}: No content")
+        else:
+            results = await crawl_site_recursive(url, max_pages=max_pages)
+            if results:
+                await add_multiple_contents_to_store(results)
+                print(f"Background deep ingestion complete for {url}")
+            else:
+                print(f"Background deep crawl failed for {url}: No results")
     except Exception as e:
-        print(f"Error in background crawl for {url}: {e}")
+        print(f"Error in background ingestion for {url}: {e}")
 
 app = FastAPI(title="Retail AI RAG API")
 
@@ -39,32 +48,30 @@ class ChatRequest(BaseModel):
     message: str
 
 @app.post("/crawl")
-async def crawl_endpoint(request: CrawlRequest):
+async def crawl_endpoint(request: CrawlRequest, background_tasks: BackgroundTasks):
     try:
-        content, _ = await crawl_site(request.url)
-        if content and len(content.strip()) > 10:
-            add_content_to_store(content, {"source": request.url})
-            return {"status": "success", "message": f"Successfully crawled and ingested {request.url}"}
-        else:
-            return {"status": "error", "message": "No meaningful content extracted. The site might require JavaScript or be blocking the crawler."}
+        # Check if URL looks valid
+        if not request.url.startswith("http"):
+            raise HTTPException(status_code=400, detail="Invalid URL protocol")
+            
+        background_tasks.add_task(background_ingest, request.url, max_pages=1)
+        return {"status": "success", "message": f"Ingestion for {request.url} started in background."}
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/crawl/deep")
-async def deep_crawl_endpoint(request: CrawlRequest):
+async def deep_crawl_endpoint(request: CrawlRequest, background_tasks: BackgroundTasks):
     try:
-        print(f"Starting deep crawl for: {request.url}")
-        results = await crawl_site_recursive(request.url, max_pages=100)
-        
-        if not results:
-            return {"status": "error", "message": "Deep crawl failed to extract any content."}
+        # Check if URL looks valid
+        if not request.url.startswith("http"):
+            raise HTTPException(status_code=400, detail="Invalid URL protocol")
             
-        print(f"Pages crawled: {len(results)}. Starting batch ingestion...")
-        await add_multiple_contents_to_store(results)
+        print(f"Deep crawl requested for: {request.url}")
+        background_tasks.add_task(background_ingest, request.url, max_pages=100)
             
-        return {"status": "success", "message": f"Deep crawl complete. Ingested {len(results)} pages from {request.url}"}
+        return {"status": "success", "message": f"Deep ingestion for {request.url} (up to 100 pages) started in background."}
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -214,7 +221,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                 print(f"General discovery triggered for topic: {topic}")
                 seeds = await kimi_service.search_sources(topic)
                 for seed in seeds[:2]:
-                    background_tasks.add_task(deep_crawl_endpoint_logic, seed)
+                    background_tasks.add_task(background_ingest, seed, max_pages=15)
         
         # 1. Get Response from Bot (RAG) with knowledge of discovered seeds and LIVE products
         # Pass intent_type to bot for specialized prompting

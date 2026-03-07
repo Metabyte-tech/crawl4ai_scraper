@@ -13,6 +13,8 @@ embeddings = HuggingFaceEmbeddings(
 vector_store = Chroma(
     persist_directory=DB_DIR,
     embedding_function=embeddings,
+
+
     collection_name="crawl4ai_collection"
 )
 print("Vector Store Initialized.")

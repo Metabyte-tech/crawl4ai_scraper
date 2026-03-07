@@ -92,15 +92,19 @@ class KimiService:
     async def _call_with_retry(self, func, max_retries=3):
         """
         Calls an Anthropic method with basic exponential backoff for 429s.
+        Releases semaphore during sleep to avoid blocking other tasks.
         """
         for i in range(max_retries):
             try:
-                loop = asyncio.get_event_loop()
-                return await loop.run_in_executor(None, func)
+                async with self.semaphore:
+                    loop = asyncio.get_event_loop()
+                    return await loop.run_in_executor(None, func)
             except Exception as e:
-                if "429" in str(e) and i < max_retries - 1:
-                    wait_time = (5 ** i) + 5 # More aggressive backoff
-                    print(f"Rate limited (429). Retrying in {wait_time}s...")
+                # Handle 429 (Rate Limit) by sleeping and retrying
+                is_rate_limit = "429" in str(e) or "rate_limit" in str(e).lower()
+                if is_rate_limit and i < max_retries - 1:
+                    wait_time = (5 ** i) + 5 # Exponential backoff
+                    print(f"Rate limited (429). Task releasing semaphore and retrying in {wait_time}s...")
                     await asyncio.sleep(wait_time)
                 else:
                     raise e
@@ -113,16 +117,15 @@ class KimiService:
         if is_retail:
             system_msg = "You are a shopping expert. Find REAL product catalog or category pages from top retailers like Amazon, Ajio, Flipkart, Myntra. Output ONLY a JSON list of URLs."
         prompt = f"Find the best 5 authoritative and official website URLs for the topic: '{topic}'. Prioritize official documentation, GitHub repositories, or high-quality technical guides. IMPORTANT: Only provide valid, direct, and real URLs. Output ONLY a JSON list."
-        async with self.semaphore:
-            try:
-                response = await self._call_with_retry(
-                    lambda: self.client.messages.create(
-                        model=self.model,
-                        max_tokens=1024,
-                        system=system_msg,
-                        messages=[{"role": "user", "content": prompt}],
-                    )
+        try:
+            response = await self._call_with_retry(
+                lambda: self.client.messages.create(
+                    model=self.model,
+                    max_tokens=1024,
+                    system=system_msg,
+                    messages=[{"role": "user", "content": prompt}],
                 )
+            )
                 print(f"DEBUG: Kimi search topic: '{topic}' | is_retail: {is_retail}")
                 data = self._safe_json_parse(response.content[0].text, "urls")
                 urls = data if isinstance(data, list) else data.get("urls", [])
@@ -166,16 +169,15 @@ class KimiService:
             f"5. **REAL DOMAINS ONLY**: Favor URLs from known CDNs. If a URL looks like it was generated (e.g., 'zig-and-go.s3.amazonaws.com'), it is likely a hallucination and MUST be ignored.\n\n"
             f"Markdown:\n{truncated_content}"
         )
-        async with self.semaphore:
-            try:
-                response = await self._call_with_retry(
-                    lambda: self.client.messages.create(
-                        model=self.model,
-                        max_tokens=2048,
-                        system="You are a strict data extractor. Return a JSON list of products. Return ONLY the JSON object. NEVER hallucinate or make up URLs based on product names. If no URL is found, return null for that field.",
-                        messages=[{"role": "user", "content": prompt}],
-                    )
+        try:
+            response = await self._call_with_retry(
+                lambda: self.client.messages.create(
+                    model=self.model,
+                    max_tokens=2048,
+                    system="You are a strict data extractor. Return a JSON list of products. Return ONLY the JSON object. NEVER hallucinate or make up URLs based on product names. If no URL is found, return null for that field.",
+                    messages=[{"role": "user", "content": prompt}],
                 )
+            )
                 data = self._safe_json_parse(response.content[0].text, "products")
                 products = data if isinstance(data, list) else data.get("products", [])
                 print(f"DEBUG: Kimi raw extraction (truncated): {str(products)[:500]}...")

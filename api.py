@@ -19,6 +19,8 @@ def update_last_domain(url):
     try:
         domain = urlparse(url).netloc
         if domain:
+
+            
             last_crawled_domain = domain
             print(f"DEBUG: Updated last_crawled_domain to: {last_crawled_domain}")
     except Exception:
@@ -111,22 +113,31 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         # Determine topic and if it's retail or general info
         retail_keywords = [
             "shoes", "clothes", "shopping", "shop", "buy", "store", "find", "price", 
-            "laptop", "mobile", "electronics", "furniture", "toys", "watch", "camera", 
+            "laptop", "macbook", "iphone", "ipad", "mac", "apple", "samsung",
+            "mobile", "electronics", "furniture", "toys", "watch", "camera", 
             "sneakers", "sneaker", "footwear", "apparel", "gadgets", "phone",
             "shirt", "shirts", "t-shirt", "tshirts", "jeans", "pants", "clothing", "dress", "fashion",
             "walkie", "talkie", "game", "puzzle", "doll", "action figure", "plush", "bottle", "baby"
         ]
-        shopping_verbs = ["find", "buy", "shop", "search", "where can i", "get me", "show me", "looking for"]
+        shopping_verbs = ["find", "buy", "shop", "search", "where can i", "get me", "show me", "looking for", "how much"]
         question_starts = ["what", "how", "why", "who", "when", "tell", "explain", "describe", "define", "is there", "are there"]
         
+        # High-confidence shopping markers that override "is_question"
+        shopping_markers = ["price", "cost", "how much", "buy", "shop", "purchase", "where to buy"]
+        
         is_retail_query = any(kw in user_message for kw in retail_keywords)
-        has_shopping_intent = any(verb in user_message for verb in shopping_verbs)
+        has_shopping_intent = any(verb in user_message for verb in shopping_verbs) or any(m in user_message for m in shopping_markers)
         is_question = any(user_message.startswith(q) for q in question_starts) or "?" in user_message
         
         # Explicit intent detection
-        # 1. If it has shopping verbs or retail keywords, it's shopping
-        # 2. If it's a reasonably short query (<= 8 words) and NOT a question, assume shopping intent (likely a specific product search)
-        is_shopping = (is_retail_query or has_shopping_intent) and not (is_question and not has_shopping_intent)
+        # 1. If it has explicit shopping markers, it's shopping even if it's a question
+        # 2. If it has retail keywords but is NOT a general info question (why/how/explain)
+        is_shopping = False
+        if has_shopping_intent:
+            is_shopping = True
+        elif is_retail_query and not (is_question and any(q in user_message for q in ["why", "how", "explain", "describe", "define"])):
+            is_shopping = True
+        
         if not is_shopping and len(user_message.split()) <= 10 and not is_question:
             is_shopping = True
             
@@ -157,7 +168,9 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             ignore_list = [
                 "some", "show", "find", "this", "that", "with", "from", "for", "the", "and", "any", "all",
                 "products", "items", "give", "list", "search", "looking", "about", "please", "me", "after",
-                "toys", "toy", "games", "game", "products", "item", "related", "other", "some", "showing"
+                "toys", "toy", "games", "game", "products", "item", "related", "other", "some", "showing",
+                "price", "cost", "much", "how", "what", "is", "of", "best", "good", "nice", "great", 
+                "awesome", "perfect", "better", "top", "with", "configuration"
             ]
             query_keywords = [w.lower().strip("?!.,&") for w in user_message.split() if len(w.strip("?!.,&")) >= 2 and w.lower() not in ignore_list]
             
@@ -169,26 +182,22 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                 img_url = doc.metadata.get("image_url") or doc.metadata.get("s3_image_url")
                 source = doc.metadata.get("source") or doc.metadata.get("source_url") or ""
                 
-                # Check keyword match for semantic safety
-                keyword_match = any(kw in content_lower for kw in query_keywords) if query_keywords else True
+                # STICKY DB POLICY: Stricter Matching
+                # Require a meaningful percentage of unique keywords to match
+                matches = [kw for kw in query_keywords if kw in content_lower]
+                relevance_ratio = len(matches) / len(set(query_keywords)) if query_keywords else 1.0
                 
-                # STICKY DB POLICY: Consider it relevant if we have *any* keyword match in the local data
-                # This ensures that after crawling a site, we "stick" to it for relevant keywords.
-                # Added protection: Ensure it's not JUST category words, and respect preferred source if mentioned.
-                has_keyword = any(kw in content_lower for kw in query_keywords)
                 source_consistent = True
                 if preferred_source and preferred_source not in source.lower():
                     source_consistent = False
                 
-                # DB PRIORITY: If we found ANY documents with keyword matches, 
-                # OR if we have at least 5 local results even with loose matching,
-                # we treat the DB as sufficient.
-                if has_keyword and source_consistent:
+                # DB PRIORITY: Only skip external search if we have a high relevance match
+                if relevance_ratio >= 0.6 and source_consistent:
                     has_relevant_local = True
                     break
 
-            if has_relevant_local or len(local_results) >= 5:
-                print(f"DEBUG: Found relevant results locally ({len(local_results)} docs, relevant={has_relevant_local}). Skipping external search.")
+            if has_relevant_local:
+                print(f"DEBUG: Found relevant results locally ({len(local_results)} docs). Skipping external search.")
             else:
                 reason = "No relevant local images/keywords" if local_results else "No local results found"
                 print(f"DEBUG: {reason}. Triggering Kimi Search.")

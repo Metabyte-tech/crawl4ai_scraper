@@ -121,14 +121,19 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
         "amazon.in", "flipkart.com", "ajio.com", "myntra.com", 
         "firstcry.com", "nykaafashion.com", "m.media-amazon.com", 
         "static.ajio.com", "ai-gent-storage.s3.ap-south-1.amazonaws.com",
-        "brightminds.co.uk", "mxwholesale.co.uk", "babybrandsdirect.co.uk", "puckator-dropship.co.uk"
+        "brightminds.co.uk", "mxwholesale.co.uk", "babybrandsdirect.co.uk", "puckator-dropship.co.uk",
+        "apple.com", "store.apple.com"
     ]
     for domain in base_retail_domains:
         # Match "domain or //domain and replace with https://domain
+        # Only replace if it's NOT already prefixed by https:// or http://
         content = content.replace(f'"{domain}', f'"https://{domain}')
         content = content.replace(f'"//{domain}', f'"https://{domain}')
-        # Clean double https if accidentally created
-        content = content.replace("https://https://", "https://")
+        
+    # Final cleanup for protocol errors
+    content = content.replace("https://https://", "https://")
+    content = content.replace("https://http://", "https://")
+    content = content.replace("https:////", "https://")
     
     # Final cleanup: Remove any products with example.com image placeholders
     if "<product_carousel>" in content:

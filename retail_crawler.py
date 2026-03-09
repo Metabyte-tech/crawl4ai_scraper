@@ -54,27 +54,41 @@ class RetailCrawler:
             # Extract structured data via Kimi
             products = await kimi_service.extract_product_data(content, target_category=target_category)
             print(f"DEBUG: Kimi found {len(products or [])} raw products on {current_url}")
-            if not products:
-                return []
-                
-            processed_products = asset_processor.process_product_images(
-                products, 
-                category=page_cat, 
-                subcategory=page_sub
-            )
+            
+            # NEW: Also ingest the RAW page content to ensure we have a fallback even if structured extraction fails
+            # This uses the new async add_content_to_store which processes images globally for the page
+            from ingest import add_content_to_store
+            await add_content_to_store(content, {
+                "source": current_url,
+                "category": page_cat,
+                "subcategory": page_sub,
+                "type": "raw_retail_page"
+            })
+
+            # Process images for structured products if any were found
+            processed_products = []
+            if products:
+                processed_products = asset_processor.process_product_images(
+                    products, 
+                    category=page_cat, 
+                    subcategory=page_sub
+                )
             
             final_products = []
             for p in processed_products:
                 if p.get("s3_image_url"):
                     p["image_url"] = p["s3_image_url"]
-                    raw_url = p.get("url") or current_url
-                    p["source_url"] = kimi_service._normalize_url(raw_url)
-                    p["category"] = page_cat
-                    p["subcategory"] = page_sub
-                    
-                    for key in ["url", "s3_image_url", "original_image_url"]:
-                        if key in p: del p[key]
-                    final_products.append(p)
+                
+                # Consistently ensure source_url exists
+                raw_url = p.get("url") or current_url
+                p["source_url"] = kimi_service._normalize_url(raw_url)
+                p["category"] = page_cat
+                p["subcategory"] = page_sub
+                
+                # Cleanup internal fields
+                for key in ["url", "s3_image_url", "original_image_url"]:
+                    if key in p: del p[key]
+                final_products.append(p)
             print(f"DEBUG: Successfully processed {len(final_products)} products with S3 images from {current_url}")
             return final_products
 

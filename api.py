@@ -9,6 +9,20 @@ from query import fast_query
 from bot import chat_with_bot
 from retail_crawler import retail_crawler
 from kimi_service import kimi_service
+from urllib.parse import urlparse
+
+# Track the most recently crawled domain to prioritize it in RAG
+last_crawled_domain = None
+
+def update_last_domain(url):
+    global last_crawled_domain
+    try:
+        domain = urlparse(url).netloc
+        if domain:
+            last_crawled_domain = domain
+            print(f"DEBUG: Updated last_crawled_domain to: {last_crawled_domain}")
+    except Exception:
+        pass
 
 async def background_ingest(url: str, max_pages: int = 1):
     """Generic background task for crawling and ingestion."""
@@ -17,7 +31,8 @@ async def background_ingest(url: str, max_pages: int = 1):
         if max_pages <= 1:
             content, _ = await crawl_site(url)
             if content and len(content.strip()) > 10:
-                add_content_to_store(content, {"source": url})
+                await add_content_to_store(content, {"source": url})
+                update_last_domain(url)
             else:
                 print(f"Background crawl failed for {url}: No content")
         else:
@@ -98,10 +113,11 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             "shoes", "clothes", "shopping", "shop", "buy", "store", "find", "price", 
             "laptop", "mobile", "electronics", "furniture", "toys", "watch", "camera", 
             "sneakers", "sneaker", "footwear", "apparel", "gadgets", "phone",
-            "shirt", "shirts", "t-shirt", "tshirts", "jeans", "pants", "clothing", "dress", "fashion"
+            "shirt", "shirts", "t-shirt", "tshirts", "jeans", "pants", "clothing", "dress", "fashion",
+            "walkie", "talkie", "game", "puzzle", "doll", "action figure", "plush", "bottle", "baby"
         ]
         shopping_verbs = ["find", "buy", "shop", "search", "where can i", "get me", "show me", "looking for"]
-        question_starts = ["what", "how", "why", "who", "when", "tell", "explain", "describe", "define"]
+        question_starts = ["what", "how", "why", "who", "when", "tell", "explain", "describe", "define", "is there", "are there"]
         
         is_retail_query = any(kw in user_message for kw in retail_keywords)
         has_shopping_intent = any(verb in user_message for verb in shopping_verbs)
@@ -109,9 +125,9 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         
         # Explicit intent detection
         # 1. If it has shopping verbs or retail keywords, it's shopping
-        # 2. If it's a very short query (<= 3 words) and NOT a question, assume shopping intent
+        # 2. If it's a reasonably short query (<= 8 words) and NOT a question, assume shopping intent (likely a specific product search)
         is_shopping = (is_retail_query or has_shopping_intent) and not (is_question and not has_shopping_intent)
-        if not is_shopping and len(user_message.split()) <= 3 and not is_question:
+        if not is_shopping and len(user_message.split()) <= 10 and not is_question:
             is_shopping = True
             
         intent_type = "shopping" if is_shopping else "info"
@@ -120,9 +136,13 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         live_products = []
         if is_shopping:
             # 1. NEW: Identify preferred source domain (e.g., from query or context)
-            preferred_source = None
+            preferred_source = last_crawled_domain
             if "brightminds" in user_message:
                 preferred_source = "brightminds.co.uk"
+            elif "baby" in user_message or "brands" in user_message:
+                preferred_source = "babybrandsdirect.co.uk"
+            elif "puckator" in user_message:
+                preferred_source = "puckator-dropship.co.uk"
             
             # 2. Check LOCAL Database first
             print(f"DEBUG: Checking local DB for shopping query: '{request.message}' (Preferred: {preferred_source})")
@@ -160,12 +180,15 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                 if preferred_source and preferred_source not in source.lower():
                     source_consistent = False
                 
+                # DB PRIORITY: If we found ANY documents with keyword matches, 
+                # OR if we have at least 5 local results even with loose matching,
+                # we treat the DB as sufficient.
                 if has_keyword and source_consistent:
                     has_relevant_local = True
                     break
 
-            if has_relevant_local:
-                print(f"DEBUG: Found relevant results locally. Skipping external search.")
+            if has_relevant_local or len(local_results) >= 5:
+                print(f"DEBUG: Found relevant results locally ({len(local_results)} docs, relevant={has_relevant_local}). Skipping external search.")
             else:
                 reason = "No relevant local images/keywords" if local_results else "No local results found"
                 print(f"DEBUG: {reason}. Triggering Kimi Search.")
@@ -204,6 +227,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                     print(f"🔥 HOT SYNC STARTING: Primary source -> {seeds[0]} (Limiting to 3 pages for fast response)")
                     # Reduce initial sync from 15 to 3 pages to prevent frontend timeouts
                     sync_result = await retail_crawler.sync_store(seeds[0], max_pages=3, target_category=product_type)
+                    update_last_domain(seeds[0])
                     live_products = sync_result if isinstance(sync_result, list) else []
                     print(f"🔥 HOT SYNC COMPLETE: Found {len(live_products)} products.")
                     print("="*50)
@@ -245,6 +269,7 @@ async def sync_endpoint(request: CrawlRequest, background_tasks: BackgroundTasks
     Manually trigger sync for a specific retail site.
     """
     background_tasks.add_task(retail_crawler.sync_store, request.url)
+    update_last_domain(request.url)
     return {"status": "success", "message": f"Sync task for {request.url} added to background queue."}
 
 @app.get("/health")

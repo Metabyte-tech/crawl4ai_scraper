@@ -159,8 +159,8 @@ class AssetProcessor:
         import re
         # Find all markdown images: ![alt](url)
         img_matches = re.findall(r'!\[.*?\]\((.*?)\)', content)
-        # Find all HTML images: <img src="url" ...>
-        html_matches = re.findall(r'<img.*?src=["\'](.*?)["\']', content, flags=re.IGNORECASE)
+        # Find all HTML images: <img src="..." ...> OR <img data-src="..." ...> etc.
+        html_matches = re.findall(r'<img.*? (?:src|data-src|data-original|data-lazy)=["\'](.*?)["\']', content, flags=re.IGNORECASE)
         
         all_urls = list(set(img_matches + html_matches))
         if not all_urls:

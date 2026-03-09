@@ -19,13 +19,26 @@ async def crawl_site(url: str, crawler=None):
         proxy=proxy_url if proxy_url else None
     )
     
-    # Slower, more thorough scroll script
+    # Slower, more thorough scroll script with lazy-load attribute swap
     js_scroll = """
     (async () => {
+        const swapImages = () => {
+            document.querySelectorAll('img').forEach(img => {
+                const lazyAttrs = ['data-src', 'data-original', 'data-lazy', 'data-srcset'];
+                for (const attr of lazyAttrs) {
+                    if (img.getAttribute(attr)) {
+                        img.src = img.getAttribute(attr);
+                    }
+                }
+            });
+        };
+        
         for (let i = 0; i < 5; i++) {
             window.scrollBy(0, window.innerHeight);
+            swapImages();
             await new Promise(resolve => setTimeout(resolve, 1500));
         }
+        swapImages(); // Final pass
     })();
     """
 

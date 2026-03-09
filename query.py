@@ -6,7 +6,7 @@ from typing import List
 
 # ✅ Fast Query Function
 # ✅ Fast Query Function
-def fast_query(query: str, category: str = None, threshold: float = 2.2, preferred_source: str = None, k: int = 25):
+def fast_query(query: str, category: str = None, threshold: float = 2.0, preferred_source: str = None, k: int = 25):
     """
     Returns a list of (document, score) tuples that meet the similarity threshold.
     If preferred_source is provided, it boosts results from that source (lower score).
@@ -33,8 +33,8 @@ def fast_query(query: str, category: str = None, threshold: float = 2.2, preferr
         if preferred_source:
             source = doc.metadata.get("source") or doc.metadata.get("source_url") or ""
             if preferred_source.lower() in source.lower():
-                # Aggressively boost by subtracting 0.4 from the distance (similar to 25-30% boost)
-                final_score -= 0.4
+                # Aggressively boost by subtracting 0.5 from the distance (stronger boost)
+                final_score -= 0.5
         
         if final_score < threshold:
             # Image Boost: Prioritize results with visual content

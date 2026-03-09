@@ -9,4 +9,4 @@ def inspect_docs(query):
         print(f"Metadata: {doc.metadata}")
 
 if __name__ == "__main__":
-    inspect_docs("Zig")
+    inspect_docs("Mam")

@@ -31,6 +31,21 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
         item = f"CONTENT: {doc.page_content}"
         # Standardize to IMAGE_URL and SOURCE_URL for LLM consistency
         img = doc.metadata.get("image_url") or doc.metadata.get("s3_image_url") or doc.metadata.get("Image URL")
+        
+        # Fallback: Extraction from content if metadata is missing
+        if not img:
+            import re
+            markdown_imgs = re.findall(r'!\[.*?\]\((.*?)\)', doc.page_content)
+            html_imgs = re.findall(r'<img.*?src=["\'](.*?)["\']', doc.page_content, flags=re.IGNORECASE)
+            all_content_imgs = markdown_imgs + html_imgs
+            if all_content_imgs:
+                # Basic filter to avoid tiny icons/logos if possible
+                for u in all_content_imgs:
+                    if "logo" not in u.lower() and "icon" not in u.lower():
+                        img = u
+                        break
+                if not img: img = all_content_imgs[0]
+
         src = doc.metadata.get("source") or doc.metadata.get("source_url") or doc.metadata.get("Source URL")
         name = doc.metadata.get("name") or doc.metadata.get("Product Name") or ""
         
@@ -76,10 +91,9 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
         
         CRITICAL PRODUCT RULES:
         1. **IMAGE ACCURACY**: ONLY use the URL labeled `IMAGE_URL` for the `image_url` field. NEVER use `SOURCE_URL` as an image.
-        2. **IMAGE NECESSITY**: ONLY include products in the carousel if they have a valid, non-empty `IMAGE_URL`.
         2. **IMAGE NECESSITY**: ONLY include products in the carousel if they have a valid, non-empty `IMAGE_URL` that starts with http or https.
-        3. **Source Consistency**: If the user is asking about a specific store (e.g., Brightminds), ONLY show products from that store in the carousel. Exclude generic marketplace matches (like Flipkart/Amazon) if they appear in the CONTEXT unless they are the only options found.
-        4. **Brand Matching**: Ensure the products shown match the brand/topic requested. Do not show irrelevant items.
+        3. **STRICT SOURCE**: If the user is asking about a specific store (e.g., Baby Brands Direct), ONLY show products from that store in the carousel. 
+        4. **ZERO HALLUCINATION**: NEVER guess or invent image URLs. If a product in the CONTEXT lacks a clear `IMAGE_URL`, do NOT put it in the carousel.
         5. **NO RAW JSON**: NEVER output raw JSON blocks or internal tags like `<product_carousel>` inside your natural language explanation text. They must be separate.
         Question: {question}
         Answer:"""
@@ -107,8 +121,7 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
         "amazon.in", "flipkart.com", "ajio.com", "myntra.com", 
         "firstcry.com", "nykaafashion.com", "m.media-amazon.com", 
         "static.ajio.com", "ai-gent-storage.s3.ap-south-1.amazonaws.com",
-        "brightminds.co.uk"
-        "brightminds.co.uk", "mxwholesale.co.uk"
+        "brightminds.co.uk", "mxwholesale.co.uk", "babybrandsdirect.co.uk", "puckator-dropship.co.uk"
     ]
     for domain in base_retail_domains:
         # Match "domain or //domain and replace with https://domain
@@ -116,6 +129,33 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
         content = content.replace(f'"//{domain}', f'"https://{domain}')
         # Clean double https if accidentally created
         content = content.replace("https://https://", "https://")
+    
+    # Final cleanup: Remove any products with example.com image placeholders
+    if "<product_carousel>" in content:
+        import re
+        import json
+        try:
+            match = re.search(r"<product_carousel>\s*(.*?)\s*</product_carousel>", content, re.DOTALL)
+            if match:
+                raw_json = match.group(1).strip()
+                carousel_data = json.loads(raw_json)
+                # Filter out items with example.com, known placeholders, or common broken tracking pixels
+                cleaned_data = [
+                    item for item in carousel_data 
+                    if "example.com" not in item.get("image_url", "").lower() 
+                    and "placeholder" not in item.get("image_url", "").lower()
+                    and ".gif" not in item.get("image_url", "").lower()
+                    and "icon" not in item.get("image_url", "").lower()
+                    and "http" in item.get("image_url", "")
+                ]
+                if cleaned_data:
+                    content = content.replace(raw_json, json.dumps(cleaned_data, indent=2))
+                else:
+                    # If no valid images, remove the carousel entirely to avoid broken UI
+                    content = re.sub(r"<product_carousel>.*?</product_carousel>", "", content, flags=re.DOTALL)
+        except Exception:
+            pass
+
     return content
 if __name__ == "__main__":
     # Test chat

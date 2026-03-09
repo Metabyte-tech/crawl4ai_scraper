@@ -18,9 +18,8 @@ class KimiService:
         self.base_retail_domains = [
             "amazon.in", "flipkart.com", "ajio.com", "myntra.com",
             "firstcry.com", "nykaa.com", "jiomart.com", "meesho.com",
-            "m.media-amazon.com", "assets.ajio.com", "cdn.fcglcdn.com"
             "m.media-amazon.com", "assets.ajio.com", "cdn.fcglcdn.com",
-            "mxwholesale.co.uk", "brightminds.co.uk"
+            "mxwholesale.co.uk", "brightminds.co.uk", "babybrandsdirect.co.uk", "puckator-dropship.co.uk"
         ]
     def _normalize_url(self, url, host=None):
         """Ensures URL starts with https:// and handles relative paths."""
@@ -115,7 +114,7 @@ class KimiService:
         is_retail = any(kw in topic.lower() for kw in ["shoes", "kids", "shopping", "clothes", "toys", "products"])
         system_msg = "You are a research expert. Output a JSON list of REAL, official documentation or resource URLs. NEVER hallucinate URLs. Return ONLY the JSON object."
         if is_retail:
-            system_msg = "You are a shopping expert. Find REAL product catalog or category pages from top retailers like Amazon, Ajio, Flipkart, Myntra. Output ONLY a JSON list of URLs."
+            system_msg = "You are a shopping expert. Find REAL product catalog or category pages from top, relevant retailers. Output ONLY a JSON list of URLs."
         prompt = f"Find the best 5 authoritative and official website URLs for the topic: '{topic}'. Prioritize official documentation, GitHub repositories, or high-quality technical guides. IMPORTANT: Only provide valid, direct, and real URLs. Output ONLY a JSON list."
         try:
             response = await self._call_with_retry(
@@ -152,8 +151,9 @@ class KimiService:
         """
         Extracts structured product data. Truncates content to fit token limits.
         """
-        # Further truncate content to ~8k characters to avoid 50k token/min limit
-        truncated_content = markdown_content[:8000]
+        # Further truncate content to ~20k characters to avoid 50k token/min limit
+        # Claude Haiku has 200k context, so 20k is safe and should cover most product pages.
+        truncated_content = markdown_content[:20000]
         prompt = (
             f"system_msg = \"You are a surgical data extraction tool. Extract product information ONLY from the provided markdown. DO NOT invent URLs. If an image link is not explicitly shown in the text (like ![alt](url) or <img src='url'>), you MUST return null. NEVER guess based on product names.\"\n\n"
             f"Identify and extract all products or items related to '{target_category}' from this markdown. For each item, include: name, price (convert to number), "
@@ -165,8 +165,9 @@ class KimiService:
             f"1. **STRICT EXTRACTION**: ONLY use image URLs explicitly found in <img> tags or markdown image links (![...](...)).\n"
             f"2. **LOGO PREVENTION**: NEVER extract URLs containing 'logo', 'sprite', 'icon', 'banner', 'nav', or 'header' as product images.\n"
             f"3. **ZERO TOLERANCE FOR HALLUCINATION**: If the markdown doesn't have a working image link, set image_url to null. NEVER combine names to make a URL like 'product-name.com/img.jpg'.\n"
-            f"4. **AVOID PLACEHOLDERS**: NEVER extract base64 data-URIs, '1x1.gif', or 'pixel.gif' as image_url.\n"
-            f"5. **REAL DOMAINS ONLY**: Favor URLs from known CDNs. If a URL looks like it was generated (e.g., 'zig-and-go.s3.amazonaws.com'), it is likely a hallucination and MUST be ignored.\n\n"
+            f"4. **AVOID PLACEHOLDERS**: NEVER extract base64 data-URIs, '1x1.gif', 'pixel.gif', 'spacer.gif', or ANY URL containing 'example.com' or 'placeholder' as image_url.\n"
+            f"5. **REAL DOMAINS ONLY**: Favor URLs from known CDNs. If a URL looks like it was generated (e.g., 'zig-and-go.s3.amazonaws.com'), it is likely a hallucination and MUST be ignored.\n"
+            f"6. **STRICT DOMAIN MATCH**: The image_url MUST be from a real, active domain (e.g. babybrandsdirect.co.uk). NEVER suggest fake domains.\n\n"
             f"Markdown:\n{truncated_content}"
         )
         try:

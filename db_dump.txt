@@ -1,0 +1,146 @@
+Initializing Embeddings and Vector Store...
+Vector Store Initialized.
+
+--- Inspecting docs for: 'Mam' ---
+
+[Result 0] Score: 1.2286
+Content Snippet: [![John
+Metadata: {'category': 's', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'subcategory': 'general', 'source': 'https://www.amazon.com/s?k=direct+macbook+product+search+and+catalog+pages+on+top+retailers', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'type': 'raw_retail_page'}
+
+[Result 1] Score: 1.2286
+Content Snippet: [![John
+Metadata: {'s3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'category': 's', 'subcategory': 'general', 'type': 'raw_retail_page', 'source': 'https://www.amazon.com/s?k=direct+macbook+product+search+and+catalog+pages+on+top+retailers'}
+
+[Result 2] Score: 1.3142
+Content Snippet: Whittaker](https://m.media-amazon.com/images/S/al-na-9d5791cf-3faf/1871b7d6-de84-42ec-bed1-bb4401ebda51._CR0,0,512,512_AC_SL278_CB1169409_QL70_.png)](https://aax-us-east-retail-direct.amazon.com/x/c/J
+Metadata: {'category': 's', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'source': 'https://www.amazon.com/s?k=direct+macbook+product+search+and+catalog+pages+on+top+retailers', 'type': 'raw_retail_page', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'subcategory': 'general'}
+
+[Result 3] Score: 1.3228
+Content Snippet: ![Sunil Pai speaking at React India](https://react.dev/images/home/community/react_india_sunil.webp
+![A hallway conversation between two people at React Conf](https://react.dev/images/home/community/r
+Metadata: {'type': 'crawl4ai', 'source': 'https://reactjs.org/', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/general/82f2c41b-c4a0-4fb9-9ea8-5ec7ff08eda3.jpg', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/general/82f2c41b-c4a0-4fb9-9ea8-5ec7ff08eda3.jpg'}
+
+[Result 4] Score: 1.3232
+Content Snippet: Whittaker](https://m.media-amazon.com/images/S/al-na-9d5791cf-3faf/63af1b80-0693-4e3b-ad83-15a099682db2._CR0,81,1536,805_SX920_CB1169409_QL70_.png)](https://aax-us-east-retail-direct.amazon.com/x/c/JK
+Metadata: {'source': 'https://www.amazon.com/s?k=direct+macbook+product+search+and+catalog+pages+on+top+retailers', 'type': 'raw_retail_page', 'subcategory': 'general', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'category': 's'}
+
+[Result 5] Score: 1.3249
+Content Snippet: Whittaker](https://m.media-amazon.com/images/S/al-na-9d5791cf-3faf/63af1b80-0693-4e3b-ad83-15a099682db2._CR0,81,1536,805_SX920_CB1169409_QL70_.png)](https://aax-us-east-retail-direct.amazon.com/x/c/JB
+Metadata: {'source': 'https://www.amazon.com/s?k=direct+macbook+product+search+and+catalog+pages+on+top+retailers', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'subcategory': 'general', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'type': 'raw_retail_page', 'category': 's'}
+
+[Result 6] Score: 1.3258
+Content Snippet: Seniors](https://aax-us-east-retail-direct.amazon.com/x/c/JB_58dSC78TFgyuEXB2pXZQAAAGc2248UQEAAAH2AQBvbm9fdHhuX2JpZDYgICBvbm9fdHhuX2ltcDEgICCGvh09/clv1c_ek-wBPHXFbbWzjK3YpscrxfcOWxCnjqP7-1aB93piw4wO-k
+Metadata: {'type': 'raw_retail_page', 'source': 'https://www.amazon.com/s?k=direct+macbook+product+search+and+catalog+pages+on+top+retailers', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'category': 's', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'subcategory': 'general'}
+
+[Result 7] Score: 1.3340
+Content Snippet: Seniors](https://aax-us-east-retail-direct.amazon.com/x/c/JOCXB8ve4x8M5YsE14dJlE8AAAGc2248TwEAAAH2AQBvbm9fdHhuX2JpZDYgICBvbm9fdHhuX2ltcDEgICA1bcQj/clv1c_ek-wBPHXLcTWnuOrE0snb8h9oB0Ri57qgREj0sTyVUhTG0u
+Metadata: {'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'source': 'https://www.amazon.com/s?k=direct+macbook+product+search+and+catalog+pages+on+top+retailers', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'category': 's', 'subcategory': 'general', 'type': 'raw_retail_page'}
+
+[Result 8] Score: 1.3362
+Content Snippet: Whittaker](https://m.media-amazon.com/images/S/al-na-9d5791cf-3faf/1871b7d6-de84-42ec-bed1-bb4401ebda51._CR0,0,512,512_AC_SL278_CB1169409_QL70_.png)](https://aax-us-east-retail-direct.amazon.com/x/c/J
+Metadata: {'s3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg', 'type': 'raw_retail_page', 'category': 's', 'subcategory': 'general', 'source': 'https://www.amazon.com/s?k=direct+macbook+product+search+and+catalog+pages+on+top+retailers', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/s/general/f74f42a5-9b55-423b-a779-f106acf68bdd.jpg'}
+
+[Result 9] Score: 1.3456
+Content Snippet: 38% claimed
+Shop Coway dealsShop Coway deals
+[](https://www.amazon.com/LEVOIT-Humidifiers-Humidifier-Shut-off-BPA-Free/dp/B0C2C9NHZW?ref=dlx_deals_dg_dcl_B0C2C9NHZW_dt_sl14_11_pi&pf_rd_r=34M2KBDXHNJQ4
+Metadata: {'s3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gp/goldbox/7b1d72b8-6d94-4c2f-bc22-ee68b43a8b04.jpg', 'source': 'https://www.amazon.com/gp/goldbox?ref_=nav_cs_gb', 'type': 'raw_retail_page', 'subcategory': 'goldbox', 'category': 'gp', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gp/goldbox/7b1d72b8-6d94-4c2f-bc22-ee68b43a8b04.jpg'}
+
+[Result 10] Score: 1.3508
+Content Snippet: Shop Shark deals
+[](https://www.amazon.com/LEVOIT-Tangle-Resistant-Rechargeable-Lightweight-Versatile/dp/B0CB6B2JWG?ref=dlx_deals_dg_dcl_B0CB6B2JWG_dt_sl14_11_pi&pf_rd_r=34M2KBDXHNJQ4S7E8M6T&pf_rd_p=6
+Metadata: {'s3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gp/goldbox/7b1d72b8-6d94-4c2f-bc22-ee68b43a8b04.jpg', 'source': 'https://www.amazon.com/gp/goldbox?ref_=nav_cs_gb', 'type': 'raw_retail_page', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gp/goldbox/7b1d72b8-6d94-4c2f-bc22-ee68b43a8b04.jpg', 'subcategory': 'goldbox', 'category': 'gp'}
+
+[Result 11] Score: 1.3518
+Content Snippet: [ Learning Toys](https://www.amazon.com/s/?_encoding=UTF8&k=learning%20toys&pd_rd_w=eActt&content-id=amzn1.sym.b378ed84-9ce7-4534-ab5a-a5a362ea6b4e&pf_rd_p=b378ed84-9ce7-4534-ab5a-a5a362ea6b4e&pf_rd_r
+Metadata: {'type': 'raw_retail_page', 'subcategory': 'general', 'source': 'https://www.amazon.com/ref=nav_logo', 'category': 'ref=nav_logo', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg'}
+
+[Result 12] Score: 1.3533
+Content Snippet: * [](https://www.amazon.com/Paulas-Choice-SKIN-PERFECTING-Exfoliant-Facial-Blackheads/dp/B00949CTQQ/?_encoding=UTF8&pd_rd_w=7HIA7&content-id=amzn1.sym.9929d3ab-edb7-4ef5-a232-26d90f828fa5&pf_rd_p=9929
+Metadata: {'source': 'https://www.amazon.com/ref=nav_logo', 'type': 'raw_retail_page', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg', 'category': 'ref=nav_logo', 'subcategory': 'general'}
+
+[Result 13] Score: 1.3543
+Content Snippet: © 1996-2026, Amazon.com, Inc. or its affiliates
+Test: amzn-nv-flyout-healthy-choice
+Test: nav-rufus-disc-txt
+Test: a-truncate-cut
+Test: sp-cc-wrapper
+Test: .mo-wp
+Test: .a-image-container
+Test: sp-cc
+
+Metadata: {'s3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gift-cards/b/985cd91f-b054-4ab8-952a-c509fea93682.png', 'subcategory': 'b', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gift-cards/b/985cd91f-b054-4ab8-952a-c509fea93682.png', 'source': 'https://www.amazon.com/gift-cards/b?ie=UTF8&node=2238192011&ref_=nav_cs_gc', 'category': 'gift-cards', 'type': 'raw_retail_page'}
+
+[Result 14] Score: 1.3555
+Content Snippet: [](https://www.amazon.com/ref=nav_logo)[](https://www.amazon.com/ref=nav_logo)
+* * *
+## Level up your beauty routine
+[ Makeup](https://www.amazon.com/s/?_encoding=UTF8&k=makeup&pd_rd_w=Ug4bO&content-i
+Metadata: {'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg', 'category': 'ref=nav_logo', 'type': 'raw_retail_page', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg', 'subcategory': 'general', 'source': 'https://www.amazon.com/ref=nav_logo'}
+
+[Result 15] Score: 1.3558
+Content Snippet: 3. [  ](https://www.amazon.com/s?i=gift-cards&rh=n%3A2238192011&s=popularity-rank&hidden-keywords=B08DLS6LK7|B08F3C99KN|B08B3PL6B1|B0F2F8DDF6|B0F2F51ZWQ|B0F2F6SSK8|B0F2F962VV|B0F2F6ZMHD|B0F2F6XRRN|B0F
+Metadata: {'subcategory': 'b', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gift-cards/b/985cd91f-b054-4ab8-952a-c509fea93682.png', 'type': 'raw_retail_page', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gift-cards/b/985cd91f-b054-4ab8-952a-c509fea93682.png', 'source': 'https://www.amazon.com/gift-cards/b?ie=UTF8&node=2238192011&ref_=nav_cs_gc', 'category': 'gift-cards'}
+
+[Result 16] Score: 1.3577
+Content Snippet: * ##### [Veeqo Shipping Software  
+Inventory Management](https://www.veeqo.com/?utm_source=amazon&utm_medium=website&utm_campaign=footer)
+Metadata: {'subcategory': 'b', 'type': 'raw_retail_page', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gift-cards/b/985cd91f-b054-4ab8-952a-c509fea93682.png', 'category': 'gift-cards', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/gift-cards/b/985cd91f-b054-4ab8-952a-c509fea93682.png', 'source': 'https://www.amazon.com/gift-cards/b?ie=UTF8&node=2238192011&ref_=nav_cs_gc'}
+
+[Result 17] Score: 1.3587
+Content Snippet: Learn more
+### [LDAP](https://docs.github.com/enterprise-server@latest/admin/identity-and-access-management/using-ldap-for-enterprise-iam/using-ldap
+Requires GitHub Enterprise
+Centralize repository ma
+Metadata: {'source': 'https://github.com/features', 'type': 'crawl4ai', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/general/9271db6b-14b5-41da-bf0d-65b39fcef54b.webp', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/general/9271db6b-14b5-41da-bf0d-65b39fcef54b.webp'}
+
+[Result 18] Score: 1.3589
+Content Snippet: [ Learning Toys](https://www.amazon.com/s/?_encoding=UTF8&k=learning%20toys&pd_rd_w=W5NA3&content-id=amzn1.sym.b378ed84-9ce7-4534-ab5a-a5a362ea6b4e&pf_rd_p=b378ed84-9ce7-4534-ab5a-a5a362ea6b4e&pf_rd_r
+Metadata: {'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg', 'subcategory': 'general', 'source': 'https://www.amazon.com/ref=nav_logo', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg', 'category': 'ref=nav_logo', 'type': 'raw_retail_page'}
+
+[Result 19] Score: 1.3611
+Content Snippet: [](https://www.amazon.com/ref=nav_logo)[](https://www.amazon.com/ref=nav_logo)
+* * *
+## Best Sellers in Beauty & Personal Care
+  * [](https://www.amazon.com/eos-Cashmere-Moisture-Lightweight-Non-Greas
+Metadata: {'category': 'ref=nav_logo', 'type': 'raw_retail_page', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg', 'source': 'https://www.amazon.com/ref=nav_logo', 's3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/uncategorized/general/b32f4cea-92ee-4c76-b355-83b495eb0a90.jpg', 'subcategory': 'general'}
+
+[Result 20] Score: 1.3632
+Content Snippet: Back to top
+Get to Know Us
+  * [Careers](https://www.amazon.jobs?initialSessionID=143-9812627-0346603&ld=AZUSSOA-seemore&pageName=US%3AAZ%3ASOA-learnmore)
+  * [Blog](https://blog.aboutamazon.com/?utm_
+Metadata: {'s3_image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/b/general/2abf51e6-1060-412a-9bf7-b76840c49080.png', 'image_url': 'https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/b/general/2abf51e6-1060-412a-9bf7-b76840c49080.png', 'subcategory': 'general', 'category': 'b', 'source': 'https://www.amazon.com/b?ld=AZUSSOA-seemore&node=18190131011&ref_=footer_seemore', 'type': 'raw_retail_page'}
+
+[Result 21] Score: 1.4217
+Content Snippet: Appearance settings
+Resetting focus
+You signed in with another tab or window. [Reload](https://github.com/mcp to refresh your session. You signed out in another tab or window. [Reload](https://github.
+Metadata: {'type': 'crawl4ai', 'source': 'https://github.com/mcp'}
+
+[Result 22] Score: 1.5072
+Content Snippet: Install
+MCP server for terminal commands, file operations, and process management
+By wonderwhy-er
+5,653
+![Notion logo](https://avatars.githubusercontent.com/u/4792552?v=4
+[Notion](https://github.com/m
+Metadata: {'source': 'https://github.com/mcp', 'type': 'crawl4ai'}
+
+[Result 23] Score: 1.6365
+Content Snippet: Install
+MCP server for Sentry - error monitoring, issue tracking, and debugging for AI assistants
+By getsentry
+590
+![Neon logo](https://avatars.githubusercontent.com/u/77690634?v=4
+[Neon](https://gith
+Metadata: {'source': 'https://github.com/mcp', 'type': 'crawl4ai'}
+
+[Result 24] Score: 1.6515
+Content Snippet: Install
+Real-time infrastructure monitoring with metrics, logs, alerts, and ML-based anomaly detection.
+By netdata
+78,019
+![Context7 logo](https://avatars.githubusercontent.com/u/74989412?v=4
+[Context
+Metadata: {'type': 'crawl4ai', 'source': 'https://github.com/mcp'}

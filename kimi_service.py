@@ -237,4 +237,83 @@ class KimiService:
         except Exception as e:
             print(f"Error in extract_product_data: {e}")
             return []
+
+    async def search_products(self, query: str):
+        """Uses Kimi to generate a list of 4-5 relevant products based on its knowledge."""
+        system_msg = "You are a shopping expert. Recommend 4-5 top products for the user's query. Return ONLY a JSON list of objects. No markdown."
+        prompt = (
+            f"Recommend 5 top/latest products for the search query: '{query}'.\n"
+            f"If the user asks for generic items like 'mens tshirts', recommend popular brands like Gildan, Hanes, Under Armour, etc.\n"
+            f"Output a raw JSON list of objects containing:\n"
+            f"  - name (string)\n"
+            f"  - brand (string)\n"
+            f"  - price (string, e.g. '$20.00' or null)\n"
+            f"  - image_url (string, try to provide a realistic public image URL if you remember one, otherwise use a placeholder URL like https://via.placeholder.com/300?text=Product)\n"
+            f"  - source_url (string, the official product page URL or an Amazon search URL)\n"
+        )
+        try:
+            response = await self._call_with_retry(
+                lambda: self.client.messages.create(
+                    model=self.model,
+                    max_tokens=1500,
+                    system=system_msg,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+            )
+            data = self._safe_json_parse(response.content[0].text, "products")
+            products = data if isinstance(data, list) else data.get("products", [])
+            print(f"DEBUG: Kimi direct products found: {len(products)}")
+            
+            # Normalize URLs
+            for p in products:
+                if "image_url" in p and isinstance(p["image_url"], str):
+                    p["image_url"] = self._normalize_url(p["image_url"])
+                if "source_url" in p and isinstance(p["source_url"], str):
+                    p["source_url"] = self._normalize_url(p["source_url"])
+                    
+            return products
+        except Exception as e:
+            print(f"Error in search_products: {e}")
+            return []
+
+    async def cache_and_store_products(self, products, crawler, target_category="products"):
+        """Background task to upload Kimi product images to S3 and add to ChromaDB"""
+        if not products: return
+        print(f"BACKGROUND: Caching {len(products)} Kimi products to S3 and DB...")
+        try:
+            from vector_store import add_documents
+            from langchain_core.documents import Document
+            
+            valid_docs = []
+            for p in products:
+                if not isinstance(p, dict): continue
+                img_url = str(p.get("image_url", ""))
+                s3_url = ""
+                if img_url and img_url.startswith("http") and "placeholder.com" not in img_url:
+                    s3_url = await crawler.process_image(img_url)
+                elif "placeholder.com" in img_url:
+                    s3_url = img_url
+                    
+                doc = Document(
+                    page_content=f"{p.get('name', '')} by {p.get('brand', '')}. Price: {p.get('price', 'N/A')}",
+                    metadata={
+                        "type": "product",
+                        "source": str(p.get("source_url", "Kimi_Search")),
+                        "name": str(p.get("name", "")),
+                        "brand": str(p.get("brand", "")),
+                        "price": str(p.get("price", "")),
+                        "image_url": str(img_url),
+                        "s3_image_url": str(s3_url) if s3_url else str(img_url),
+                        "target_category": target_category
+                    }
+                )
+                valid_docs.append(doc)
+                
+            if valid_docs:
+                add_documents(valid_docs)
+                print(f"BACKGROUND: Stored {len(valid_docs)} Kimi products into DB.")
+                
+        except Exception as e:
+            print(f"BACKGROUND ERROR in cache_and_store_products: {e}")
+
 kimi_service = KimiService()

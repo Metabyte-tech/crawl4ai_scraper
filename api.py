@@ -250,15 +250,17 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
 
                 if seeds:
                     print("="*50)
-                    print(f"🔥 HOT SYNC STARTING: Primary source -> {seeds[0]} (Limiting to 3 pages for fast response)")
-                    # Reduce initial sync from 15 to 3 pages to prevent frontend timeouts
-                    sync_result = await retail_crawler.sync_store(seeds[0], max_pages=3, target_category=product_type)
-                    update_last_domain(seeds[0])
-                    live_products = sync_result if isinstance(sync_result, list) else []
-                    print(f"🔥 HOT SYNC COMPLETE: Found {len(live_products)} products.")
+                    print(f"🔥 FAST RESPONSE: Fetching products directly from Kimi for '{product_type}'")
+                    live_products = await kimi_service.search_products(product_type)
+                    if seeds and len(seeds) > 0:
+                        update_last_domain(seeds[0])
+                    print(f"🔥 FAST RESPONSE COMPLETE: Found {len(live_products)} products.")
                     print("="*50)
                     
-                    # Background sync remaining pages — limit to 10 to prevent memory exhaustion
+                    # Background task to cache Kimi images to S3 and store in DB
+                    background_tasks.add_task(kimi_service.cache_and_store_products, live_products, retail_crawler, product_type)
+                    
+                    # Background sync the pages for future searches — limit to 10 to prevent memory exhaustion
                     background_tasks.add_task(retail_crawler.sync_store, seeds[0], max_pages=10, target_category=product_type)
                     for seed in seeds[1:3]: # Limit background sync
                         background_tasks.add_task(retail_crawler.sync_store, seed, max_pages=10, target_category=product_type)

@@ -162,6 +162,20 @@ class KimiService:
                 if not isinstance(u, str) or len(u) < 10: continue
                 if any(bad in u for bad in ["example.com", "placeholder", "dummy", "hallucinated"]):
                     continue
+                # Reject URLs with repeated www. subdomains (e.g. www.www.www.shopify.com)
+                if u.count("www.") > 1:
+                    print(f"DEBUG: Rejected repeated-www URL: {u}")
+                    continue
+                # Reject URLs where path/query is longer than 200 chars (URL-encoded topic strings)
+                from urllib.parse import urlparse
+                try:
+                    parsed = urlparse(u if u.startswith("http") else f"https://{u}")
+                    # If the query string or path contains the full topic verbatim, it's a bad URL
+                    if len(parsed.query) > 200 or len(parsed.path) > 200:
+                        print(f"DEBUG: Rejected overly long URL (likely encoded topic): {u[:80]}...")
+                        continue
+                except Exception:
+                    pass
                 # If retail, try to ensure it's a known or plausible shopping domain
                 if is_retail:
                     # Allow known domains or anything with /dp/, /p/, /product/
@@ -194,7 +208,7 @@ class KimiService:
             f"3. **ZERO TOLERANCE FOR HALLUCINATION**: If the markdown doesn't have a working image link immediately next to the product, set image_url to null. NEVER combine names to make a URL.\n"
             f"4. **AVOID PLACEHOLDERS**: NEVER extract base64 data-URIs, '1x1.gif', 'pixel.gif', 'spacer.gif', or ANY URL containing 'example.com' or 'placeholder' as image_url.\n"
             f"5. **REAL DOMAINS ONLY**: Favor URLs from known CDNs. If a URL looks like it was generated (e.g., 'zig-and-go.s3.amazonaws.com'), it is likely a hallucination and MUST be ignored.\n"
-            f"6. **STRICT DOMAIN MATCH**: The image_url MUST be from a real, active domain. NEVER suggest fake domains.\n\n"
+            f"6. **STRICT DOMAIN MATCH**: The image_url  be from a real, active domain. NEVER suggest fake domains.\n\n"
             f"7. **AVOID UNRELATED IMAGES**: Do NOT grab random images from the page (e.g. author photos, sponsor ads) just to fill the image_url field. Return null if you are not 100% sure the image is the product.\n\n"
             f"8. **REQUIRE ACTUAL PRODUCT NAME**: The 'name' field MUST be the full descriptive name of the product, not just 'macbook' or 'apple'.\n\n"
             f"Markdown:\n{truncated_content}"

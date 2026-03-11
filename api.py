@@ -86,9 +86,9 @@ async def deep_crawl_endpoint(request: CrawlRequest, background_tasks: Backgroun
             raise HTTPException(status_code=400, detail="Invalid URL protocol")
             
         print(f"Deep crawl requested for: {request.url}")
-        background_tasks.add_task(background_ingest, request.url, max_pages=100)
+        background_tasks.add_task(background_ingest, request.url, max_pages=15)
             
-        return {"status": "success", "message": f"Deep ingestion for {request.url} (up to 100 pages) started in background."}
+        return {"status": "success", "message": f"Deep ingestion for {request.url} (up to 15 pages) started in background."}
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -220,10 +220,11 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                 
                 # Special case: if "mac" and "macbook" are both there, "macbook" is earlier
                 
+                # Pass only the clean product keyword to Kimi, not a verbose sentence
                 if location == "local area":
-                    retail_topic = f"direct {product_type} product search and catalog pages on top retailers"
+                    retail_topic = product_type  # e.g. "macbook", "iphone", "t-shirt"
                 else:
-                    retail_topic = f"{product_type} products for sale in {location}"
+                    retail_topic = f"{product_type} {location}"  # e.g. "macbook london"
                     
                 seeds = await kimi_service.search_sources(retail_topic)
                 
@@ -246,10 +247,10 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                     print(f"🔥 HOT SYNC COMPLETE: Found {len(live_products)} products.")
                     print("="*50)
                     
-                    # Background sync the rest of the pages for this seed plus the others
-                    background_tasks.add_task(retail_crawler.sync_store, seeds[0], max_pages=100, target_category=product_type)
+                    # Background sync remaining pages — limit to 10 to prevent memory exhaustion
+                    background_tasks.add_task(retail_crawler.sync_store, seeds[0], max_pages=10, target_category=product_type)
                     for seed in seeds[1:3]: # Limit background sync
-                        background_tasks.add_task(retail_crawler.sync_store, seed, max_pages=100, target_category=product_type)
+                        background_tasks.add_task(retail_crawler.sync_store, seed, max_pages=10, target_category=product_type)
         else:
             # General Discovery: Handle non-retail fields dynamically
             is_question = "?" in user_message or any(user_message.startswith(q) for q in ["what", "how", "why", "who", "when", "tell", "explain", "describe", "define"])

@@ -19,7 +19,8 @@ class KimiService:
             "amazon.in", "flipkart.com", "ajio.com", "myntra.com",
             "firstcry.com", "nykaa.com", "jiomart.com", "meesho.com",
             "m.media-amazon.com", "assets.ajio.com", "cdn.fcglcdn.com",
-            "mxwholesale.co.uk", "brightminds.co.uk", "babybrandsdirect.co.uk", "puckator-dropship.co.uk"
+            "mxwholesale.co.uk", "brightminds.co.uk", "babybrandsdirect.co.uk", "puckator-dropship.co.uk",
+            "amazon.com", "walmart.com", "apple.com", "bestbuy.com", "ebay.com", "target.com", "costco.com"
         ]
     def _normalize_url(self, url, host=None):
         """Ensures URL starts with https:// and handles relative paths."""
@@ -111,11 +112,37 @@ class KimiService:
         """
         Uses Kimi's native reasoning to identify top authoritative URLs for any topic.
         """
-        is_retail = any(kw in topic.lower() for kw in ["shoes", "kids", "shopping", "clothes", "toys", "products"])
-        system_msg = "You are a research expert. Output a JSON list of REAL, official documentation or resource URLs. NEVER hallucinate URLs. Return ONLY the JSON object."
+        # Detect if the topic is for a specific tech device
+        tech_device_kws = ["macbook", "iphone", "ipad", "laptop", "phone", "smartphone", "tablet", "pixel", "galaxy", "airpods"]
+        is_tech_device = any(kw in topic.lower() for kw in tech_device_kws)
+        is_retail = is_tech_device or any(kw in topic.lower() for kw in ["shoes", "kids", "shopping", "clothes", "toys", "products", "electronics", "gadgets"])
         if is_retail:
-            system_msg = "You are a shopping expert. Find REAL product catalog or category pages from top, relevant retailers. Output ONLY a JSON list of URLs."
-        prompt = f"Find the best 5 authoritative and official website URLs for the topic: '{topic}'. Prioritize official documentation, GitHub repositories, or high-quality technical guides. IMPORTANT: Only provide valid, direct, and real URLs. Output ONLY a JSON list."
+            topic_str = topic.strip("'\"")
+            if is_tech_device:
+                # For specific devices, prioritize official brand stores and curated product listings
+                system_msg = "You are a tech shopping expert. Find REAL product pages for the specific device requested. Focus on official stores and direct product pages, NOT generic search result pages full of accessories. Output ONLY a JSON list of URLs."
+                # Extract the core device name for better URL construction
+                device_name = topic_str.split()[0] if topic_str else topic_str  # e.g. "macbook" from "direct macbook product..."
+                for kw in tech_device_kws:
+                    if kw in topic_str.lower():
+                        device_name = kw
+                        break
+                prompt = (
+                    f"Find the best 5 DIRECT product listing URLs for the device '{device_name}'. "
+                    f"Prefer:\n"
+                    f"  1. Apple.com/shop for Apple products (e.g. apple.com/shop/buy-mac/macbook-air)\n"
+                    f"  2. BestBuy.com category pages (e.g. bestbuy.com/site/searchpage.jsp?st={device_name})\n"
+                    f"  3. Amazon.com/s?k={device_name}&rh=n%3A565108 (Electronics category, NOT accessories)\n"
+                    f"NEVER use generic Amazon search pages that show mostly accessories or cases. "
+                    f"ONLY provide URLs that lead to a page where the DEVICE ITSELF is listed for purchase. "
+                    f"Output ONLY a JSON list of direct product URLs."
+                )
+            else:
+                system_msg = "You are a shopping expert. Find REAL product catalog or search result pages from top retailers. Output ONLY a JSON list of URLs."
+                prompt = f"Find the best 5 authoritative and official website SEARCH RESULT URLs for the specific product: '{topic_str}'. Use URLs like 'amazon.com/s?k={topic_str}' or similar for Walmart, BestBuy, etc. NEVER provide just the homepage. Output ONLY a JSON list of direct search result URLs."
+        else:
+            system_msg = "You are a research expert. Output a JSON list of REAL, official documentation or resource URLs. NEVER hallucinate URLs. Return ONLY the JSON object."
+            prompt = f"Find the best 5 authoritative and official website URLs for the topic: '{topic}'. Prioritize official documentation, GitHub repositories, or high-quality technical guides. Output ONLY a JSON list."
         try:
             response = await self._call_with_retry(
                 lambda: self.client.messages.create(
@@ -155,19 +182,21 @@ class KimiService:
         # Claude Haiku has 200k context, so 20k is safe and should cover most product pages.
         truncated_content = markdown_content[:20000]
         prompt = (
-            f"system_msg = \"You are a surgical data extraction tool. Extract product information ONLY from the provided markdown. DO NOT invent URLs. If an image link is not explicitly shown in the text (like ![alt](url) or <img src='url'>), you MUST return null. NEVER guess based on product names.\"\n\n"
-            f"Identify and extract all products or items related to '{target_category}' from this markdown. For each item, include: name, price (convert to number), "
+            f"system_msg = \"You are a surgical data extraction tool. Extract product information ONLY from the provided markdown. DO NOT invent URLs. If an image link is not explicitly shown IN IMMEDIATE PROXIMITY to the product name in the text, you MUST return null. NEVER guess.\"\n\n"
+            f"Identify and extract all products matching or closely related to the target category: '{target_category}' from this markdown. For each item, include: name, price (convert to number), "
             f"currency (default to INR/₹), age_group (if applicable), brand, image_url, and the direct product page link (absolute URL).\n\n"
             f"CRITICAL PRODUCT RULES:\n"
-            f"1. **RELEVANCE**: Only extract items that truly belong to the category '{target_category}'.\n"
+            f"1. **RELEVANCE**: Extract items that match the category '{target_category}' (including related accessories if present).\n"
             f"2. **REJECT NON-PRODUCTS**: Do NOT extract logos, advertising banners, site navigation icons, or promotional bundles that aren't the main items.\n\n"
             f"CRITICAL URL RULES:\n"
-            f"1. **STRICT EXTRACTION**: ONLY use image URLs explicitly found in <img> tags or markdown image links (![...](...)).\n"
-            f"2. **LOGO PREVENTION**: NEVER extract URLs containing 'logo', 'sprite', 'icon', 'banner', 'nav', or 'header' as product images.\n"
-            f"3. **ZERO TOLERANCE FOR HALLUCINATION**: If the markdown doesn't have a working image link, set image_url to null. NEVER combine names to make a URL like 'product-name.com/img.jpg'.\n"
+            f"1. **STRICT EXTRACTION**: ONLY use image URLs explicitly found in <img> tags or markdown image links (![...](...)). The image MUST be physically adjacent to the product name in the markdown.\n"
+            f"2. **LOGO PREVENTION**: NEVER extract URLs containing 'logo', 'sprite', 'icon', 'banner', 'nav', 'avatar', or 'header' as product images.\n"
+            f"3. **ZERO TOLERANCE FOR HALLUCINATION**: If the markdown doesn't have a working image link immediately next to the product, set image_url to null. NEVER combine names to make a URL.\n"
             f"4. **AVOID PLACEHOLDERS**: NEVER extract base64 data-URIs, '1x1.gif', 'pixel.gif', 'spacer.gif', or ANY URL containing 'example.com' or 'placeholder' as image_url.\n"
             f"5. **REAL DOMAINS ONLY**: Favor URLs from known CDNs. If a URL looks like it was generated (e.g., 'zig-and-go.s3.amazonaws.com'), it is likely a hallucination and MUST be ignored.\n"
-            f"6. **STRICT DOMAIN MATCH**: The image_url MUST be from a real, active domain (e.g. babybrandsdirect.co.uk). NEVER suggest fake domains.\n\n"
+            f"6. **STRICT DOMAIN MATCH**: The image_url MUST be from a real, active domain. NEVER suggest fake domains.\n\n"
+            f"7. **AVOID UNRELATED IMAGES**: Do NOT grab random images from the page (e.g. author photos, sponsor ads) just to fill the image_url field. Return null if you are not 100% sure the image is the product.\n\n"
+            f"8. **REQUIRE ACTUAL PRODUCT NAME**: The 'name' field MUST be the full descriptive name of the product, not just 'macbook' or 'apple'.\n\n"
             f"Markdown:\n{truncated_content}"
         )
         try:

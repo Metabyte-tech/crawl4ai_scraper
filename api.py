@@ -112,12 +112,12 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         
         # Determine topic and if it's retail or general info
         retail_keywords = [
-            "shoes", "clothes", "shopping", "shop", "buy", "store", "find", "price", 
-            "laptop", "macbook", "iphone", "ipad", "mac", "apple", "samsung",
+            "macbook", "iphone", "ipad", "laptop", "mac", "apple", "samsung",
             "mobile", "electronics", "furniture", "toys", "watch", "camera", 
             "sneakers", "sneaker", "footwear", "apparel", "gadgets", "phone",
             "shirt", "shirts", "t-shirt", "tshirts", "jeans", "pants", "clothing", "dress", "fashion",
-            "walkie", "talkie", "game", "puzzle", "doll", "action figure", "plush", "bottle", "baby"
+            "walkie", "talkie", "game", "puzzle", "doll", "action figure", "plush", "bottle", "baby",
+            "shoes", "clothes", "shopping", "shop", "buy", "store", "find", "price"
         ]
         shopping_verbs = ["find", "buy", "shop", "search", "where can i", "get me", "show me", "looking for", "how much"]
         question_starts = ["what", "how", "why", "who", "when", "tell", "explain", "describe", "define", "is there", "are there"]
@@ -138,6 +138,10 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         elif is_retail_query and not (is_question and any(q in user_message for q in ["why", "how", "explain", "describe", "define"])):
             is_shopping = True
         
+        # New: Force shopping if specific tech/product keywords are found with "best" or "latest"
+        if any(kw in user_message for kw in ["macbook", "iphone", "laptop", "phone"]) and any(w in user_message for w in ["best", "latest", "price", "config"]):
+            is_shopping = True
+
         if not is_shopping and len(user_message.split()) <= 10 and not is_question:
             is_shopping = True
             
@@ -168,8 +172,8 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             ignore_list = [
                 "some", "show", "find", "this", "that", "with", "from", "for", "the", "and", "any", "all",
                 "products", "items", "give", "list", "search", "looking", "about", "please", "me", "after",
-                "toys", "toy", "games", "game", "products", "item", "related", "other", "some", "showing",
-                "price", "cost", "much", "how", "what", "is", "of", "best", "good", "nice", "great", 
+                "toys", "toy", "related", "other", "some", "showing",
+                "price", "cost", "much", "how", "what", "is", "of", "good", "nice", "great", 
                 "awesome", "perfect", "better", "top", "with", "configuration"
             ]
             query_keywords = [w.lower().strip("?!.,&") for w in user_message.split() if len(w.strip("?!.,&")) >= 2 and w.lower() not in ignore_list]
@@ -207,18 +211,19 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                 
                 product_type = "products"
                 remaining_msg = re.sub(r"(?:find|buy|shop|search|for|in|near|at|around|get|show|me|some|any|all|the|about|want|to)\s+", "", user_message, flags=re.IGNORECASE).strip()
-                if remaining_msg:
-                    product_type = remaining_msg
-                
                 for kw in retail_keywords:
                     if kw in user_message:
                         product_type = kw
+                        # Continue searching to find the most specific keyword
+                        # Specific products are at the beginning of the list now
                         break
                 
+                # Special case: if "mac" and "macbook" are both there, "macbook" is earlier
+                
                 if location == "local area":
-                    retail_topic = f"direct online shopping links for {product_type} from top retailers"
+                    retail_topic = f"direct {product_type} product search and catalog pages on top retailers"
                 else:
-                    retail_topic = f"{product_type} shopping stores in {location}"
+                    retail_topic = f"{product_type} products for sale in {location}"
                     
                 seeds = await kimi_service.search_sources(retail_topic)
                 

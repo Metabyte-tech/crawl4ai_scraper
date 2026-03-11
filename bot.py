@@ -122,7 +122,7 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
         "firstcry.com", "nykaafashion.com", "m.media-amazon.com", 
         "static.ajio.com", "ai-gent-storage.s3.ap-south-1.amazonaws.com",
         "brightminds.co.uk", "mxwholesale.co.uk", "babybrandsdirect.co.uk", "puckator-dropship.co.uk",
-        "apple.com", "store.apple.com"
+        "apple.com", "store.apple.com", "amazon.com", "walmart.com", "bestbuy.com", "ebay.com", "target.com"
     ]
     for domain in base_retail_domains:
         # Match "domain or //domain and replace with https://domain
@@ -136,6 +136,7 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
     content = content.replace("https:////", "https://")
     
     # Final cleanup: Remove any products with example.com image placeholders
+    # and strip any potential markdown block backticks around the json
     if "<product_carousel>" in content:
         import re
         import json
@@ -143,22 +144,41 @@ def chat_with_bot(query: str, discovered_stores: list = None, live_context: list
             match = re.search(r"<product_carousel>\s*(.*?)\s*</product_carousel>", content, re.DOTALL)
             if match:
                 raw_json = match.group(1).strip()
-                carousel_data = json.loads(raw_json)
+                # Clean markdown blocks like ```json ... ``` that the LLM might hallucinate
+                clean_json_str = re.sub(r"^```(?:json)?\s*", "", raw_json)
+                clean_json_str = re.sub(r"\s*```$", "", clean_json_str).strip()
+                
+                # Check for missing array brackets often hallucinated by LLM (e.g. "{...}, {...}")
+                if clean_json_str.startswith("{") and clean_json_str.endswith("}"):
+                    try:
+                        carousel_data = json.loads(f"[{clean_json_str}]")
+                    except json.JSONDecodeError:
+                        carousel_data = json.loads(clean_json_str)
+                else:
+                    carousel_data = json.loads(clean_json_str)
+                
+                if not isinstance(carousel_data, list):
+                    carousel_data = [carousel_data]
+
                 # Filter out items with example.com, known placeholders, or common broken tracking pixels
                 cleaned_data = [
                     item for item in carousel_data 
-                    if "example.com" not in item.get("image_url", "").lower() 
+                    if isinstance(item, dict)
+                    and "example.com" not in item.get("image_url", "").lower() 
                     and "placeholder" not in item.get("image_url", "").lower()
                     and ".gif" not in item.get("image_url", "").lower()
                     and "icon" not in item.get("image_url", "").lower()
                     and "http" in item.get("image_url", "")
                 ]
                 if cleaned_data:
-                    content = content.replace(raw_json, json.dumps(cleaned_data, indent=2))
+                    # Replace the entire block with just the clean JSON without markdown ticks
+                    content = content.replace(match.group(0), f"<product_carousel>\n{json.dumps(cleaned_data, indent=2)}\n</product_carousel>")
                 else:
                     # If no valid images, remove the carousel entirely to avoid broken UI
-                    content = re.sub(r"<product_carousel>.*?</product_carousel>", "", content, flags=re.DOTALL)
-        except Exception:
+                    content = content.replace(match.group(0), "")
+        except Exception as e:
+            # If JSON parsing fails (even after stripping ticks), the frontend will fail to render it as a carousel.
+            print(f"DEBUG: Failed to parse carousel JSON: {e}")
             pass
 
     return content

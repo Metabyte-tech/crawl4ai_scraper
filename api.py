@@ -112,12 +112,21 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         
         # Determine topic and if it's retail or general info
         retail_keywords = [
-            "macbook", "iphone", "ipad", "laptop", "mac", "apple", "samsung",
-            "mobile", "electronics", "furniture", "toys", "watch", "camera", 
-            "sneakers", "sneaker", "footwear", "apparel", "gadgets", "phone",
-            "shirt", "shirts", "t-shirt", "tshirts", "jeans", "pants", "clothing", "dress", "fashion",
-            "walkie", "talkie", "game", "puzzle", "doll", "action figure", "plush", "bottle", "baby",
-            "shoes", "clothes", "shopping", "shop", "buy", "store", "find", "price"
+            # Specific tech products first (most specific → least specific order)
+            "macbook", "iphone", "ipad", "apple watch", "airpods", "iphone", "ipad",
+            "samsung galaxy", "pixel phone",
+            "laptop", "mac", "apple", "samsung",
+            "mobile", "electronics", "camera", "gadgets", "phone",
+            # Clothing — specific first
+            "t-shirt", "tshirt", "tshirts", "polo shirt",
+            "shirt", "shirts",
+            "jeans", "pants", "dress", "hoodie", "jacket", "sweater",
+            "sneakers", "sneaker", "footwear", "shoes",
+            "clothing", "apparel", "fashion", "clothes",
+            # Other retail
+            "furniture", "toys", "watch", "walkie", "talkie",
+            "game", "puzzle", "doll", "action figure", "plush", "bottle", "baby",
+            "shopping", "shop", "buy", "store", "find", "price"
         ]
         shopping_verbs = ["find", "buy", "shop", "search", "where can i", "get me", "show me", "looking for", "how much"]
         question_starts = ["what", "how", "why", "who", "when", "tell", "explain", "describe", "define", "is there", "are there"]
@@ -178,7 +187,14 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             ]
             query_keywords = [w.lower().strip("?!.,&") for w in user_message.split() if len(w.strip("?!.,&")) >= 2 and w.lower() not in ignore_list]
             
-            print(f"DEBUG: Local results count: {len(local_results)}. Query keywords: {query_keywords}")
+            # Extract product_type here so it's available in the relevance check below
+            product_type = "products"
+            for kw in retail_keywords:
+                if kw in user_message:
+                    product_type = kw
+                    break
+            
+            print(f"DEBUG: Local results count: {len(local_results)}. Query keywords: {query_keywords}. Product type: {product_type}")
             
             has_relevant_local = False
             for i, (doc, score) in enumerate(local_results):
@@ -186,17 +202,23 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                 img_url = doc.metadata.get("image_url") or doc.metadata.get("s3_image_url")
                 source = doc.metadata.get("source") or doc.metadata.get("source_url") or ""
                 
-                # STICKY DB POLICY: Stricter Matching
-                # Require a meaningful percentage of unique keywords to match
+                # STICKY DB POLICY: Strict Matching
+                # Require a high percentage of unique keywords to match
                 matches = [kw for kw in query_keywords if kw in content_lower]
                 relevance_ratio = len(matches) / len(set(query_keywords)) if query_keywords else 1.0
+                
+                # Extra check: at least the core product keyword must be in the document
+                # e.g. if user asks for "t-shirt", shoes shouldn't match just because of "mens"
+                core_kw = product_type if product_type != "products" else None
+                product_type_match = (core_kw is None) or (core_kw.replace("-", " ") in content_lower) or (core_kw in content_lower)
                 
                 source_consistent = True
                 if preferred_source and preferred_source not in source.lower():
                     source_consistent = False
                 
                 # DB PRIORITY: Only skip external search if we have a high relevance match
-                if relevance_ratio >= 0.6 and source_consistent:
+                # Raise threshold to 0.8 (from 0.6) to prevent cross-category false positives
+                if relevance_ratio >= 0.8 and source_consistent and product_type_match:
                     has_relevant_local = True
                     break
 
@@ -208,17 +230,6 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                 import re
                 match = re.search(r"(?:in|near|at|around)\s+([a-zA-Z\s,]+)", request.message, re.IGNORECASE)
                 location = match.group(1).strip() if match else "local area"
-                
-                product_type = "products"
-                remaining_msg = re.sub(r"(?:find|buy|shop|search|for|in|near|at|around|get|show|me|some|any|all|the|about|want|to)\s+", "", user_message, flags=re.IGNORECASE).strip()
-                for kw in retail_keywords:
-                    if kw in user_message:
-                        product_type = kw
-                        # Continue searching to find the most specific keyword
-                        # Specific products are at the beginning of the list now
-                        break
-                
-                # Special case: if "mac" and "macbook" are both there, "macbook" is earlier
                 
                 # Pass only the clean product keyword to Kimi, not a verbose sentence
                 if location == "local area":

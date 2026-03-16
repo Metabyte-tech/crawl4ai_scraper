@@ -76,9 +76,17 @@ class AssetProcessor:
                 
                 product["image_url"] = image_url
                 
-                # Strict Filtering: Only process actual image files
+                # Relaxed Filtering: Accept known file extensions AND known CDN URL patterns
                 clean_url = image_url.split('?')[0].lower()
-                is_image = any(clean_url.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
+                known_image_cdns = [
+                    "media-amazon.com", "cloudinary", "shopify", "cdn.", "images.",
+                    "img.", "photos.", "static.", "assets.", "media.", "picture.",
+                    "bestbuy.com", "apple.com", "target.com", "walmart.com", "ebay.com"
+                ]
+                is_image = (
+                    any(clean_url.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.jfif'])
+                    or any(cdn in image_url.lower() for cdn in known_image_cdns)
+                )
                 
                 # Filter out obvious logos/sprites based on URL
                 logolike_keywords = ["logo", "sprite", "icon", "banner", "header", "footer", "favicon"]
@@ -95,58 +103,73 @@ class AssetProcessor:
                     processed_products.append(product)
                     continue
 
-                if image_url.startswith("http") and is_image and not is_logolike:
-                    try:
-                        print(f"INFO: Attempting to download image: {image_url}")
-                        # Use rotating stealth headers for each request
-                        headers = self._get_headers(image_url)
-                        response = self.client.get(image_url, timeout=10.0, headers=headers)
-                        
-                        # SIZE FILTER: Skip images under 1KB (likely tiny invisible pixels)
-                        content_len = len(response.content)
-                        if response.status_code == 200 and content_len < 1000:
-                            print(f"SKIP: Image too small ({content_len} bytes), likely a logo or icon: {image_url}")
-                            continue
-                        print(f"INFO: Image download status: {response.status_code} ({content_len} bytes)")
-                        
-                        if response.status_code != 200 and "original_image_url" in product:
-                             # Don't split on '?' for Shopify URLs as they might need v=...
-                             image_url = product["original_image_url"]
-                             print(f"WARNING: Initial URL failed ({response.status_code}). Retrying with original: {image_url}")
-                             headers = self._get_headers(image_url)
-                             response = self.client.get(image_url, timeout=10.0, headers=headers)
-                             print(f"INFO: Original image download status: {response.status_code}")
-                        if response.status_code == 200:
-                            # Generate a unique file name with category structure
-                            ext = image_url.split(".")[-1].split("?")[0]
-                            if len(ext) > 4: ext = "jpg" # Fallback
+                # If URL doesn't match typical image extensions/CDNs, attempt a lightweight HEAD check
+                if image_url.startswith("http") and not is_logolike:
+                    # If we don't already think it's an image, check Content-Type via HEAD
+                    if not is_image:
+                        try:
+                            head_resp = self.client.head(image_url, timeout=6.0, headers=self._get_headers(image_url))
+                            ct = head_resp.headers.get("Content-Type", "")
+                            if head_resp.status_code == 200 and ct.startswith("image/"):
+                                is_image = True
+                                print(f"INFO: Confirmed image via HEAD Content-Type ({ct}): {image_url}")
+                        except Exception:
+                            pass
+
+                    if is_image:
+                        try:
+                            print(f"INFO: Attempting to download image: {image_url}")
+                            # Use rotating stealth headers for each request
+                            headers = self._get_headers(image_url)
+                            response = self.client.get(image_url, timeout=10.0, headers=headers)
                             
-                            # Use categorized structure for S3
-                            filename = f"products/{category}/{subcategory}/{uuid.uuid4()}.{ext}"
+                            # SIZE FILTER: Skip images under 1KB (likely tiny invisible pixels)
+                            # But allow if Content-Type confirms it's actually an image
+                            content_len = len(response.content)
+                            content_type = response.headers.get("Content-Type", "")
+                            if response.status_code == 200 and content_len < 1000 and "image" not in content_type:
+                                print(f"SKIP: Image too small ({content_len} bytes) and not an image content-type, likely a pixel: {image_url}")
+                                continue
+                            print(f"INFO: Image download status: {response.status_code} ({content_len} bytes)")
                             
-                            # Upload to S3
-                            s3_url = s3_service.upload_image(
-                                response.content, 
-                                filename,
-                                content_type=response.headers.get("Content-Type", "image/jpeg")
-                            )
-                            
-                            if s3_url:
-                                product["s3_image_url"] = s3_url
-                                # Keep original as backup or reference
-                                product["original_image_url"] = image_url
-                                # Save to DB Cache
-                                image_cache.save_s3_url(image_url, s3_url)
+                            if response.status_code != 200 and "original_image_url" in product:
+                                 # Don't split on '?' for Shopify URLs as they might need v=...
+                                 image_url = product["original_image_url"]
+                                 print(f"WARNING: Initial URL failed ({response.status_code}). Retrying with original: {image_url}")
+                                 headers = self._get_headers(image_url)
+                                 response = self.client.get(image_url, timeout=10.0, headers=headers)
+                                 print(f"INFO: Original image download status: {response.status_code}")
+                            if response.status_code == 200:
+                                # Generate a unique file name with category structure
+                                ext = image_url.split(".")[-1].split("?")[0]
+                                if len(ext) > 4: ext = "jpg" # Fallback
+                                
+                                # Use categorized structure for S3
+                                filename = f"products/{category}/{subcategory}/{uuid.uuid4()}.{ext}"
+                                
+                                # Upload to S3
+                                s3_url = s3_service.upload_image(
+                                    response.content, 
+                                    filename,
+                                    content_type=response.headers.get("Content-Type", "image/jpeg")
+                                )
+                                
+                                if s3_url:
+                                    product["s3_image_url"] = s3_url
+                                    # Keep original as backup or reference
+                                    product["original_image_url"] = image_url
+                                    # Save to DB Cache
+                                    image_cache.save_s3_url(image_url, s3_url)
+                                else:
+                                    print(f"WARNING: S3 upload failed for {image_url}")
                             else:
-                                print(f"WARNING: S3 upload failed for {image_url}")
-                        else:
-                            print(f"WARNING: All download attempts failed for {image_url}")
-                    except httpx.ConnectError as e:
-                        print(f"ERROR: DNS/Connection failure for {image_url}: {e}")
-                    except Exception as e:
-                        print(f"ERROR: Failed to process image {image_url}: {e}")
-                        import traceback
-                        traceback.print_exc()
+                                print(f"WARNING: All download attempts failed for {image_url}")
+                        except httpx.ConnectError as e:
+                            print(f"ERROR: DNS/Connection failure for {image_url}: {e}")
+                        except Exception as e:
+                            print(f"ERROR: Failed to process image {image_url}: {e}")
+                            import traceback
+                            traceback.print_exc()
             
             processed_products.append(product)
         

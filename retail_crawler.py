@@ -42,7 +42,45 @@ class RetailCrawler:
             return []
         
         all_retail_data = []
-        
+
+        def _find_image_near_keyword(content: str, keyword: str):
+            """Return the first image URL near the keyword in the markdown/HTML content."""
+            import re
+            keyword = keyword.lower().strip()
+            if not keyword:
+                return None
+
+            # Find all image URLs in the content
+            images = re.findall(r'!\[.*?\]\((.*?)\)', content) + re.findall(r'<img[^>]+(?:src|data-src|data-original|data-lazy)=["\'](.*?)["\']', content, flags=re.IGNORECASE)
+            if not images:
+                return None
+
+            # Find the first occurrence of the keyword and look nearby for an image URL
+            idx = content.lower().find(keyword)
+            if idx == -1:
+                return images[0]
+
+            window = 500  # characters around the keyword
+            start = max(0, idx - window)
+            end = min(len(content), idx + window)
+            snippet = content[start:end].lower()
+
+            for img in images:
+                if img.lower() in snippet:
+                    return img
+
+            # If none found nearby, just return first image as fallback
+            return images[0]
+
+        def _find_meta_image(content: str):
+            """Try to find an OG/Twitter image from page metadata."""
+            import re
+            # Common tags: <meta property="og:image" content="..." />, <meta name="twitter:image" content="..." />
+            match = re.search(r'<meta\s+(?:property|name)=["\'](?:og:image|twitter:image)["\']\s+content=["\'](.*?)["\']', content, flags=re.IGNORECASE)
+            if match:
+                return match.group(1)
+            return None
+
         # 2. Concurrent Intelligent Extraction & Asset Processing
         async def process_single_page(page):
             current_url = page.get("url")
@@ -54,6 +92,9 @@ class RetailCrawler:
             # Extract structured data via Kimi
             products = await kimi_service.extract_product_data(content, target_category=target_category)
             print(f"DEBUG: Kimi found {len(products or [])} raw products on {current_url}")
+            if products:
+                missing = sum(1 for p in products if not p.get("image_url"))
+                print(f"DEBUG: {missing}/{len(products)} products missing image_url")
             
             # NEW: Also ingest the RAW page content to ensure we have a fallback even if structured extraction fails
             # This uses the new async add_content_to_store which processes images globally for the page
@@ -64,6 +105,25 @@ class RetailCrawler:
                 "subcategory": page_sub,
                 "type": "raw_retail_page"
             })
+
+            # Attempt to assign a likely image URL for products missing one
+            page_meta_img = _find_meta_image(content)
+            if products:
+                for p in products:
+                    if not p.get("image_url") and p.get("name"):
+                        inferred = _find_image_near_keyword(content, p.get("name"))
+                        if inferred:
+                            p["image_url"] = inferred
+                        elif page_meta_img:
+                            # Fallback to a generic page image if keyword-based lookup fails
+                            p["image_url"] = page_meta_img
+
+            # Normalize relative image URLs (e.g. '/images/..' or '//cdn...') to absolute URLs
+            from urllib.parse import urljoin
+            for p in (products or []):
+                img = p.get("image_url")
+                if img and not img.startswith("http"):
+                    p["image_url"] = urljoin(current_url, img)
 
             # Process images for structured products if any were found
             processed_products = []

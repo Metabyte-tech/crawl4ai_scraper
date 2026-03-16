@@ -13,8 +13,10 @@ class KimiService:
             api_key=self.api_key,
         )
         self.model = "claude-3-haiku-20240307"
-        # Strict concurrency: 1 request at a time to stay under 50k tokens/min
-        self.semaphore = asyncio.Semaphore(1)
+        # Two separate semaphores: foreground (user query path) and background (crawl extraction)
+        # This prevents background crawl extraction from blocking incoming user queries
+        self.foreground_semaphore = asyncio.Semaphore(1)  # For search_sources() - must be fast
+        self.background_semaphore = asyncio.Semaphore(1)  # For extract_product_data() - can queue
         self.base_retail_domains = [
             "amazon.in", "flipkart.com", "ajio.com", "myntra.com",
             "firstcry.com", "nykaa.com", "jiomart.com", "meesho.com",
@@ -89,14 +91,15 @@ class KimiService:
             except Exception as inner_e:
                 print(f"JSON Parse Failure: {e} | Recovery failed: {inner_e}")
         return {default_key: []}
-    async def _call_with_retry(self, func, max_retries=3):
+    async def _call_with_retry(self, func, max_retries=3, semaphore=None):
         """
         Calls an Anthropic method with basic exponential backoff for 429s.
-        Releases semaphore during sleep to avoid blocking other tasks.
+        Accepts an optional semaphore to use (foreground or background).
         """
+        sem = semaphore or self.foreground_semaphore
         for i in range(max_retries):
             try:
-                async with self.semaphore:
+                async with sem:
                     loop = asyncio.get_event_loop()
                     return await loop.run_in_executor(None, func)
             except Exception as e:
@@ -144,13 +147,19 @@ class KimiService:
             system_msg = "You are a research expert. Output a JSON list of REAL, official documentation or resource URLs. NEVER hallucinate URLs. Return ONLY the JSON object."
             prompt = f"Find the best 5 authoritative and official website URLs for the topic: '{topic}'. Prioritize official documentation, GitHub repositories, or high-quality technical guides. Output ONLY a JSON list."
         try:
-            response = await self._call_with_retry(
-                lambda: self.client.messages.create(
-                    model=self.model,
-                    max_tokens=1024,
-                    system=system_msg,
-                    messages=[{"role": "user", "content": prompt}],
-                )
+            # Use foreground_semaphore so this is never blocked by background crawl tasks
+            # Also apply a hard 30s timeout so the chat endpoint always gets a response
+            response = await asyncio.wait_for(
+                self._call_with_retry(
+                    lambda: self.client.messages.create(
+                        model=self.model,
+                        max_tokens=1024,
+                        system=system_msg,
+                        messages=[{"role": "user", "content": prompt}],
+                    ),
+                    semaphore=self.foreground_semaphore
+                ),
+                timeout=30.0
             )
             print(f"DEBUG: Kimi search topic: '{topic}' | is_retail: {is_retail}")
             data = self._safe_json_parse(response.content[0].text, "urls")
@@ -171,6 +180,9 @@ class KimiService:
                     valid_urls.append(self._normalize_url(u))
             print(f"DEBUG: Discovered source seeds: {valid_urls}")
             return valid_urls
+        except asyncio.TimeoutError:
+            print(f"WARNING: search_sources timed out after 30s for topic: '{topic}'. Returning empty.")
+            return []
         except Exception as e:
             print(f"Error in search_sources: {e}")
             return []
@@ -200,13 +212,15 @@ class KimiService:
             f"Markdown:\n{truncated_content}"
         )
         try:
+            # Use background_semaphore — this is a crawl task and should not block user queries
             response = await self._call_with_retry(
                 lambda: self.client.messages.create(
                     model=self.model,
                     max_tokens=2048,
                     system="You are a strict data extractor. Return a JSON list of products. Return ONLY the JSON object. NEVER hallucinate or make up URLs based on product names. If no URL is found, return null for that field.",
                     messages=[{"role": "user", "content": prompt}],
-                )
+                ),
+                semaphore=self.background_semaphore
             )
             data = self._safe_json_parse(response.content[0].text, "products")
             products = data if isinstance(data, list) else data.get("products", [])
@@ -218,6 +232,11 @@ class KimiService:
                     p["image_url"] = self._normalize_url(p["image_url"])
                 if "url" in p:
                     p["url"] = self._normalize_url(p["url"])
+                # Fallback: If no image URL was found, inject a text placeholder
+                # so the product still appears in the carousel instead of being dropped
+                if not p.get("image_url") and p.get("name"):
+                    encoded = p["name"].replace(" ", "+")[:40]  # Limit length
+                    p["image_url"] = f"https://placehold.co/300x200?text={encoded}"
                 
             return products
         except Exception as e:

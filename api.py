@@ -142,12 +142,9 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         if any(kw in user_message for kw in ["macbook", "iphone", "laptop", "phone"]) and any(w in user_message for w in ["best", "latest", "price", "config"]):
             is_shopping = True
 
-        # If the query is very short and not a question, it might still be a casual shopping request
-        # (e.g., "buy shoes", "iphone price"). Only treat it as shopping when it contains retail keywords.
-        if not is_shopping and len(user_message.split()) <= 4 and not is_question:
-            if any(kw in user_message for kw in retail_keywords + shopping_verbs):
-                is_shopping = True
-
+        if not is_shopping and len(user_message.split()) <= 10 and not is_question:
+            is_shopping = True
+            
         intent_type = "shopping" if is_shopping else "info"
         
         seeds = []
@@ -242,10 +239,11 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                 if seeds:
                     print("="*50)
                     print(f"🔥 HOT SYNC STARTING: Primary source -> {seeds[0]} (Limiting to 3 pages for fast response)")
-                    # Move sync to background to prevent frontend timeouts
-                    background_tasks.add_task(retail_crawler.sync_store, seeds[0], max_pages=3, target_category=product_type)
-                    live_products = []  # Don't wait for sync, return response immediately
-                    print(f"🔥 HOT SYNC SCHEDULED: Will find products in background.")
+                    # Reduce initial sync from 15 to 3 pages to prevent frontend timeouts
+                    sync_result = await retail_crawler.sync_store(seeds[0], max_pages=3, target_category=product_type)
+                    update_last_domain(seeds[0])
+                    live_products = sync_result if isinstance(sync_result, list) else []
+                    print(f"🔥 HOT SYNC COMPLETE: Found {len(live_products)} products.")
                     print("="*50)
                     
                     # Background sync the rest of the pages for this seed plus the others

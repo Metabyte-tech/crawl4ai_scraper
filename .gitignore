@@ -11,6 +11,8 @@ env/
 # Project Specific
 chroma_db/
 .env
+image_cache.sqlite3
+chat_output.json
 
 # Node
 node_modules/

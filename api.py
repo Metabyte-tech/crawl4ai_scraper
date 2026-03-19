@@ -190,8 +190,7 @@ async def background_crawl_and_ingest(query: str, fast_products: list):
         deep_results = await kimi_service.run_deep_crawl_process(query, fast_products)
         if deep_results:
             print(f"🔄 BACKGROUND: Deep crawl yielded {len(deep_results)} rich products. Saving to DB...")
-            from crawler import retail_crawler
-            await kimi_service.cache_and_store_products(deep_results, retail_crawler, query)
+            await kimi_service.cache_and_store_products(deep_results, query)
         print(f"✅ BACKGROUND: Completely finished processing '{query}'!")
     except Exception as e:
         print(f"❌ BACKGROUND: Failed deep crawl for '{query}': {e}")

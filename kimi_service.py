@@ -378,7 +378,7 @@ class KimiService:
                     print(f"LLM error: {e}. Retrying...")
                     await asyncio.sleep(1)
 
-    async def cache_and_store_products(self, products, crawler, query):
+    async def cache_and_store_products(self, products, query):
         """
         Background task to ingest live product data into the local vector store.
         """

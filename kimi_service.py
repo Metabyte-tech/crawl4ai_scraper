@@ -412,6 +412,7 @@ class KimiService:
                 metadata = {
                     "source": source_url,
                     "type": "live_cache",
+                    "category": "retail",
                     "image_url": image_url,
                     "s3_image_url": image_url, # Fallback if already uploaded
                     "name": product.get("name"),

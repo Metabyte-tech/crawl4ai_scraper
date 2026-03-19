@@ -304,6 +304,31 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         # Rebuild the carousel from our verified map to prevent hallucinations!
         final_response = rebuild_carousel_with_map(final_response, lookup_map)
 
+        # 5. If the carousel still has < 5 products, forcefully pad from the lookup_map
+        #    This happens when strong RAG data exists but the bot only mentioned 3 names.
+        if intent == "shopping" and lookup_map:
+            carousel_match = re.search(r'<product_carousel>\s*(\[.*?\])\s*</product_carousel>', final_response, re.DOTALL)
+            if carousel_match:
+                try:
+                    current_items = json.loads(carousel_match.group(1))
+                    if len(current_items) < 5:
+                        print(f"DEBUG: Carousel has only {len(current_items)} items. Padding from lookup_map...")
+                        # Collect current source_urls to de-duplicate
+                        existing_sources = {p.get('source_url') for p in current_items}
+                        # Pick diverse items from the lookup_map, skipping already shown ones
+                        for p in lookup_map.values():
+                            if len(current_items) >= 10:
+                                break
+                            if p.get('source_url') not in existing_sources and p.get('image_url'):
+                                current_items.append(p)
+                                existing_sources.add(p.get('source_url'))
+                        # Replace the carousel in the final response
+                        rebuilt = json.dumps(current_items, separators=(',', ':'), ensure_ascii=False)
+                        final_response = final_response[:carousel_match.start(1)] + rebuilt + final_response[carousel_match.end(1):]
+                        print(f"DEBUG: Padded carousel to {len(current_items)} items.")
+                except Exception as pad_err:
+                    print(f"DEBUG: Carousel padding failed: {pad_err}")
+
         print(f"✅ Bot Done (Took {time.time() - bot_start:.2f}s)")
         print(f"🚀 Total Response Time: {time.time() - start_time:.2f}s")
 

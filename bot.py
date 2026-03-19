@@ -75,15 +75,21 @@ async def chat_with_bot(query: str, discovered_stores: list = None, live_context
     context = f"{live_context_str}\n\n{rag_context}".strip()
     
     if intent_type == "shopping":
-        template = """You are a Hybrid AI Shopping Assistant.
-        CONTEXT: {context}
-        INSTRUCTIONS:
-        1. Summarize the best options.
+        has_images = "IMAGE_URL" in context
+        carousel_instruction = ""
+        if has_images:
+            carousel_instruction = """
         2. Provide a product carousel.
-        3. Format: <product_carousel> [ {{ "name": "...", "price": "...", "image_url": "...", "source_url": "..." }} ] </product_carousel>
-        CRITICAL: ONLY use the <product_carousel> tag for images. NEVER use markdown image syntax ![alt](url).
+        3. Format: <product_carousel> ["Product Name 1", "Product Name 2"] </product_carousel>
+        CRITICAL: ONLY use REAL names from CONTEXT. No hallucination.
+        CRITICAL: The list MUST be a compact, SINGLE-LINE string."""
+        
+        template = f"""You are a Hybrid AI Shopping Assistant.
+        CONTEXT: {{context}}
+        INSTRUCTIONS:
+        1. Summarize the best options.{carousel_instruction}
         CRITICAL: ONLY use REAL URLs from CONTEXT. No hallucination.
-        Question: {question}
+        Question: {{question}}
         Answer:"""
     else:
         template = """You are an Intelligent Informational Assistant.
@@ -99,4 +105,9 @@ async def chat_with_bot(query: str, discovered_stores: list = None, live_context
     # Simple URL cleaning
     content = content.replace("https://https://", "https://").replace("https://http://", "https://")
     
+    if not content.strip():
+        if intent_type == "shopping":
+            return "I couldn't find any specific products matching your query at the moment. Please try searching for something else or let me know if you need help with anything else!"
+        return "I'm sorry, I couldn't find any information on that. Could you please rephrase your question?"
+        
     return content

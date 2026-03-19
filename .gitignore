@@ -18,3 +18,8 @@ frontend/node_modules/
 dist/
 frontend/dist/
 .DS_Store
+
+# Temp and Debug files
+*.sqlite3
+*.json
+api_logs.txt

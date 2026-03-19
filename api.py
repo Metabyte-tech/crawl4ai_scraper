@@ -1,7 +1,10 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import List, Optional
 import time
+import re
+import json
 from crawler import crawl_site, crawl_site_recursive
 from ingest import add_content_to_store, add_multiple_contents_to_store
 from vector_store import clear_vector_store
@@ -42,7 +45,6 @@ def format_response(res):
 
     # 🖼️ Images (Horizontal Carousel)
     if isinstance(res, dict) and res.get("type") == "images":
-        import json
         results = res.get("results", [])
         carousel_json = json.dumps(results)
         # Use newlines to ensure markdown renderer treats this as a block
@@ -57,6 +59,68 @@ def format_response(res):
         ])
 
     return str(res)
+
+
+# ✅ UTILITY: ENSURE CAROUSEL JSON IS ROBUST
+# We now reconstruct the carousel from a lookup map to prevent bot hallucinations.
+def rebuild_carousel_with_map(content, lookup_map):
+    if not isinstance(content, str): return content
+    
+    patterns = [
+        r'(<product_carousel>)(.*?)(</product_carousel>)',
+        r'(<product_carousel>\s*)(.*?)(\s*</product_carousel>)'
+    ]
+    
+    def reconstruct(match):
+        tags_open = match.group(1)
+        names_str = match.group(2).strip()
+        tags_close = match.group(3)
+        
+        try:
+            # The bot now outputs a list of names: ["Nike Air", "Nike Air Max"]
+            names = json.loads(names_str)
+            if not isinstance(names, list): names = [names]
+            
+            rebuilt_data = []
+            for name in names:
+                name_clean = str(name).strip().lower()
+                # Find the best match in our lookup map
+                match_data = None
+                # Exact match first
+                if name_clean in lookup_map:
+                    match_data = lookup_map[name_clean]
+                else:
+                    # Fuzzy match: Is the bot's name contained in any of our real names?
+                    for real_name, data in lookup_map.items():
+                        if name_clean in real_name or real_name in name_clean:
+                            match_data = data
+                            break
+                
+                if match_data:
+                    rebuilt_data.append(match_data)
+                    
+            if not rebuilt_data and names:
+                # If fuzzy matching completely failed (bot hallucinated names from URL slugs),
+                # but we DO have live products available in the lookup map, forcefully inject them!
+                if lookup_map:
+                    print(f"DEBUG: Carousel fuzzy match failed for names: {names}. Forcefully injecting top 5 available products.")
+                    rebuilt_data = list(lookup_map.values())[:5]
+                else:
+                    # If we truly have absolutely no data, remove the tag completely to prevent UI gray box
+                    return ""
+                
+            compact = json.dumps(rebuilt_data, separators=(',', ':'), ensure_ascii=False)
+            return f"\n\n{tags_open}\n{compact}\n{tags_close}\n\n"
+            
+        except Exception as e:
+            print(f"DEBUG Reconstruct fail: {e}")
+            return match.group(0) # Return original if parsing fails
+
+    result = content
+    for p in patterns:
+        result = re.sub(p, reconstruct, result, flags=re.DOTALL)
+    
+    return result
 
 
 async def background_ingest(url: str, max_pages: int = 1):
@@ -117,6 +181,23 @@ async def clear_endpoint():
     return {"status": "success", "message": "Memory cleared successfully"}
 
 
+# -------------------------------
+# BACKGROUND TASK HELPER
+# -------------------------------
+async def background_crawl_and_ingest(query: str, fast_products: list):
+    try:
+        print(f"🔄 BACKGROUND: Starting deep crawl for '{query}'...")
+        deep_results = await kimi_service.run_deep_crawl_process(query, fast_products)
+        if deep_results:
+            print(f"🔄 BACKGROUND: Deep crawl yielded {len(deep_results)} rich products. Saving to DB...")
+            from crawler import retail_crawler
+            await kimi_service.cache_and_store_products(deep_results, retail_crawler, query)
+        print(f"✅ BACKGROUND: Completely finished processing '{query}'!")
+    except Exception as e:
+        print(f"❌ BACKGROUND: Failed deep crawl for '{query}': {e}")
+        import traceback
+        traceback.print_exc()
+
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks):
     start_time = time.time()
@@ -130,6 +211,16 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         # -------------------------------
         intent = kimi_service.detect_intent(query_lower)
         print(f"🧠 Intent: {intent} (Took {time.time() - start_time:.2f}s)")
+
+        # -------------------------------
+        # 🖼️ IMAGE SEARCH OVERRIDE (PRIORITY)
+        # -------------------------------
+        # If user explicitly asks for images/photos, use the optimized Bing searcher
+        if any(x in query_lower for x in ["image", "photo", "pic", "picture", "show me", "images"]):
+            print(f"🖼️ Image Search Override for: {query}")
+            img_results = await kimi_service.search_images(query)
+            if img_results and img_results.get("results"):
+                return {"status": "success", "response": format_response(img_results)}
 
         # -------------------------------
         # 🚗 VEHICLE FLOW
@@ -146,35 +237,78 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         local_results = []
         if intent == "shopping":
             rag_start = time.time()
-            local_results = fast_query(query, threshold=2.2)
+            # ONLY search in 'retail' category to avoid pulling generic docs/tutorials
+            local_results = fast_query(query, category="retail", threshold=2.2)
             print(f"🛒 RAG Check: Found {len(local_results)} docs (Took {time.time() - rag_start:.2f}s)")
 
-            if len(local_results) < 3:
+            # Check if we have at least 2 items with images. 
+            # If not, we definitely need live data.
+            results_with_images = [r for r in local_results if r[0].metadata.get("image_url") or r[0].metadata.get("s3_image_url")]
+            
+            # PROACTIVE: Even if we have some RAG hits, if it's a "fresh" shopping query (few visual hits)
+            # we fetch fast basic data to show instantly, and do the heavy crawl in the background!
+            if len(results_with_images) < 4:
+                print(f"🛒 Limited visual local results ({len(results_with_images)}). Fetching fast Bing data...")
                 kimi_start = time.time()
-                live_products = await kimi_service.get_product_data(query)
-                print(f"⚡ Kimi Search: Found {len(live_products)} products (Took {time.time() - kimi_start:.2f}s)")
+                live_products = await kimi_service.get_fast_bing_data(query) # INSTANT RESPONSE!
+                print(f"⚡ Fast Search: Found {len(live_products)} basic products (Took {time.time() - kimi_start:.2f}s)")
 
                 if live_products:
-                    background_tasks.add_task(kimi_service.cache_and_store_products, live_products, retail_crawler, query)
-                    # For extremely fast response, we can return live products directly
-                    # return {"status": "success", "response": format_response(live_products)}
+                    # Fire-and-forget the heavy crawling and S3 uploading!
+                    # It will run transparently after we send the fast UI response.
+                    background_tasks.add_task(background_crawl_and_ingest, query, live_products)
+            else:
+                print(f"🛒 Strong RAG Presence ({len(results_with_images)} visual docs). Using local store.")
 
         # -------------------------------
         # 🌐 FALLBACK / BOT RESPONSE
         # -------------------------------
+        # 🤖 BOT RESPONSE GENERATION
+        # -------------------------------
+        # Build a lookup map for the re-constructor
+        lookup_map = {}
+        # From Live Products
+        for p in live_products:
+            name = str(p.get("name") or "Product").strip().lower()
+            if name not in lookup_map:
+                lookup_map[name] = {
+                    "name": p.get("name"),
+                    "price": p.get("price") or "Check Site",
+                    "image_url": p.get("image_url"),
+                    "source_url": p.get("url") or p.get("source_url")
+                }
+        # From RAG Results
+        for doc, score in local_results:
+            name = str(doc.metadata.get("name") or doc.metadata.get("Product Name") or f"Option {len(lookup_map)+1}").strip().lower()
+            if name not in lookup_map:
+                lookup_map[name] = {
+                    "name": doc.metadata.get("name") or "Product",
+                    "price": doc.metadata.get("price") or "Market Price",
+                    "image_url": doc.metadata.get("image_url") or doc.metadata.get("s3_image_url"),
+                    "source_url": doc.metadata.get("source") or doc.metadata.get("source_url")
+                }
+
         bot_start = time.time()
-        print("🧠 Waiting for Bot response...")
-        response = await chat_with_bot(
-            query,
-            discovered_stores=[], # Can be populated if needed
+        print(f"🤖 Bot is generating response for: {query}")
+        bot_response = await chat_with_bot(
+            query=query, 
             live_context=live_products,
             intent_type=intent,
             local_docs=local_results
         )
+        
+        # ✅ UTILITY: SHARING LOGS FOR DEBUGGING
+        print(f"✅ Bot Done. Response length: {len(bot_response)}")
+        
+        # 4. Final Formatting & Re-construction
+        final_response = format_response(bot_response)
+        # Rebuild the carousel from our verified map to prevent hallucinations!
+        final_response = rebuild_carousel_with_map(final_response, lookup_map)
+
         print(f"✅ Bot Done (Took {time.time() - bot_start:.2f}s)")
         print(f"🚀 Total Response Time: {time.time() - start_time:.2f}s")
 
-        return {"status": "success", "response": format_response(response)}
+        return {"status": "success", "response": final_response}
 
     except Exception as e:
         import traceback

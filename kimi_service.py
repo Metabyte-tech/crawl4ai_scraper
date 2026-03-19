@@ -3,6 +3,7 @@ import json
 import asyncio
 import re
 import aiohttp
+from urllib.parse import urljoin, urlparse
 from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
 from crawl4ai import AsyncWebCrawler
@@ -34,10 +35,20 @@ class KimiService:
 
     def detect_intent(self, query):
         q = query.lower()
-        if any(x in q for x in ["car", "bike", "vehicle", "mileage"]):
+        # 🚗 Vehicle / Mobility
+        if any(x in q for x in ["car", "bike", "vehicle", "mileage", "scooter", "truck"]):
             return "vehicle"
-        if any(x in q for x in ["buy", "price", "shop", "laptop", "phone", "macbook", "iphone", "toy", "gift"]):
+        
+        # 🛒 Shopping / Products
+        shopping_keywords = [
+            "buy", "price", "shop", "laptop", "phone", "macbook", "iphone", 
+            "toy", "gift", "tshirt", "t-shirt", "shirt", "shoes", "shoe", 
+            "cloth", "clothing", "wear", "jean", "pant", "fashion", "brand",
+            "electronics", "gadget", "watch", "accessory"
+        ]
+        if any(x in q for x in shopping_keywords):
             return "shopping"
+            
         return "general"
 
     async def get_vehicle_data(self, query):
@@ -145,40 +156,102 @@ class KimiService:
             ]
         }
 
-    async def get_product_data(self, query):
-        print(f"DEBUG: Starting get_product_data for {query}")
-        urls = await self.search_sources(query, intent="shopping")
-        if not urls: 
-            print("DEBUG: No URLs found via search_sources")
-            return []
+    async def get_fast_bing_data(self, query, num_results=10):
+        print(f"DEBUG: Starting get_fast_bing_data for {query}")
+        # 1. Parallel Search and Image Lookup
+        urls_task = self.search_sources(query, intent="shopping", limit=num_results)
+        images_task = self.search_images(query) # Proactive image lookup as fallback
+        
+        urls, images_res = await asyncio.gather(urls_task, images_task)
+        
+        fast_results = []
+        bing_images = images_res.get("results", []) if images_res else []
+        
+        # Combine them
+        for idx, url in enumerate(urls):
+            img_url = bing_images[idx].get("image_url") if idx < len(bing_images) else None
+            fast_results.append({
+                "name": f"Product Option {idx+1}",
+                "url": url,
+                "source_url": url,
+                "image_url": img_url,
+                "price": "Pending Background Check...",
+                "brand": "Search"
+            })
+            
+        # Pad with bing images if we need more to reach num_results
+        if len(fast_results) < num_results:
+            for img in bing_images[len(fast_results):num_results]:
+                if not any(r.get("source_url") == img.get("source_url") for r in fast_results):
+                    fast_results.append({
+                        "name": img.get("name"),
+                        "url": img.get("source_url"),
+                        "source_url": img.get("source_url"),
+                        "image_url": img.get("image_url"),
+                        "price": "Pending Background Check...",
+                        "brand": "Search"
+                    })
+        return fast_results
 
-        print(f"DEBUG: Found {len(urls)} URLs. Fetching pages...")
+    async def run_deep_crawl_process(self, query, fast_bing_products):
+        print(f"DEBUG: Starting background run_deep_crawl_process for {query}")
+        urls = [p["source_url"] for p in fast_bing_products if p.get("source_url")]
+        
         results = []
-        async with aiohttp.ClientSession() as session:
-            # Parallel Fetch
-            fetch_tasks = [self._fetch_page(session, url) for url in urls]
-            pages = await asyncio.gather(*fetch_tasks)
+        if urls:
+            print(f"DEBUG: Found {len(urls)} URLs. Starting advanced crawl for visibility...")
+            pages = []
+            from crawler import crawl_site
+            async with AsyncWebCrawler() as crawler:
+                for idx, url in enumerate(urls):
+                    print(f"🚀 [CRAWL] ({idx+1}/{len(urls)}) -> {url}")
+                    content, _ = await crawl_site(url, crawler=crawler)
+                    if content:
+                        pages.append(content)
+            
+            print(f"✅ [COMPLETE] Crawled {len(pages)} product pages successfully.")
 
             print(f"DEBUG: Fetched {len(pages)} pages. Starting parallel extraction...")
-            # Parallel Extraction
             extraction_tasks = []
-            for html in pages:
-                if not html or len(html) < 200: continue
-                # Simple cleaning for token efficiency
-                clean = re.sub(r"<script.*?</script>", "", html, flags=re.DOTALL)
+            for idx, content in enumerate(pages):
+                if not content or len(content) < 200: continue
+                source_url = urls[idx] if idx < len(urls) else query
+                
+                clean = re.sub(r"<script.*?</script>", "", content, flags=re.DOTALL)
                 clean = re.sub(r"<style.*?</style>", "", clean, flags=re.DOTALL)
                 clean = re.sub(r"<[^>]+>", " ", clean)
-                extraction_tasks.append(self.extract_product_data(clean, query))
+                extraction_tasks.append(self.extract_product_data(clean, query, base_url=source_url))
             
             if extraction_tasks:
                 extracted_batches = await asyncio.gather(*extraction_tasks)
                 for batch in extracted_batches:
                     results.extend(batch)
 
-        print(f"DEBUG: Finished get_product_data. Total products: {len(results)}")
+        # Fallback to the fast_bing_products for any URLs that failed to extract
+        extracted_source_urls = [p.get("source_url") or p.get("url") for p in results]
+        extracted_source_urls = [self._normalize_url(u) for u in extracted_source_urls if u]
+        
+        for fast_p in fast_bing_products:
+            fast_url = self._normalize_url(fast_p.get("source_url"))
+            if fast_url and fast_url not in extracted_source_urls:
+                results.append(fast_p)
+
+        # 2. Heuristic: If we still have too few results with images, pad with general images
+        products_with_images = [p for p in results if p.get("image_url")]
+        # 3. Process Images (S3 Upload & Filtering)
+        from asset_processor import asset_processor
+        if results:
+            print(f"DEBUG: Processing {len(results)} extracted products for S3 upload and filtering...")
+            results = asset_processor.process_product_images(results, category="retail", subcategory="live_search")
+            # process_product_images modifies dictionaries in place and adds s3_image_url
+            for p in results:
+                if p.get("s3_image_url"):
+                    p["image_url"] = p["s3_image_url"] # Ensure the primary image_url is the S3 one
+
+        print(f"DEBUG: Finished get_product_data. Total combined items: {len(results)}")
         return results[:10]
 
-    async def extract_product_data(self, content, target_category="relevant"):
+    async def extract_product_data(self, content, target_category="relevant", base_url=None):
         truncated_content = content[:15000]
         prompt = (
             f"Extract products matching '{target_category}' from the text.\n"
@@ -197,7 +270,19 @@ class KimiService:
             )
             if not response: return []
             data = self._safe_json_parse(response.content[0].text, "products")
-            return data if isinstance(data, list) else data.get("products", [])
+            extracted = data if isinstance(data, list) else data.get("products", [])
+            
+            # NORMALIZE URLs using base_url
+            if base_url:
+                for p in extracted:
+                    if p.get("image_url"):
+                        p["image_url"] = urljoin(base_url, p["image_url"])
+                    if p.get("url"):
+                        p["url"] = urljoin(base_url, p["url"])
+                    elif p.get("source_url"):
+                        p["source_url"] = urljoin(base_url, p["source_url"])
+            
+            return extracted
         except Exception as e:
             print(f"Extraction error: {e}")
             return []
@@ -219,9 +304,9 @@ class KimiService:
             print("Live search error:", e)
             return "Error fetching result."
 
-    async def search_sources(self, query, intent="shopping"):
+    async def search_sources(self, query, intent="shopping", limit=10):
         system_msg = "You are a shopping expert." if intent == "shopping" else "You are a research expert."
-        prompt = f"Find 5 useful DIRECT product listing URLs for: {query}. Return ONLY a JSON list of strings."
+        prompt = f"Find {limit} useful DIRECT product listing URLs for: {query}. Return ONLY a JSON list of strings."
         try:
             print(f"DEBUG: Search sources LLM start for {query}")
             response = await self._call_with_retry(
@@ -294,7 +379,56 @@ class KimiService:
                     await asyncio.sleep(1)
 
     async def cache_and_store_products(self, products, crawler, query):
-        print(f"BACKGROUND: caching products for {query}")
-        pass
+        """
+        Background task to ingest live product data into the local vector store.
+        """
+        if not products:
+            return
+
+        print(f"\n🚀 [BACKGROUND] Starting caching for: {query}")
+        print(f"📦 [BACKGROUND] Processing {len(products)} products...")
+        
+        try:
+            from ingest import add_multiple_contents_to_store
+            
+            ingest_items = []
+            for product in products:
+                # Basic description formatting for RAG
+                # We normalize keys to ensure compatibility with ingest.py
+                source_url = product.get('source_url') or product.get('url') or "unknown"
+                image_url = product.get('image_url')
+                
+                description = (
+                    f"Product: {product.get('name')}\n"
+                    f"Brand: {product.get('brand', 'Product')}\n"
+                    f"Price: {product.get('price', 'Check Site')}\n"
+                    f"Category: {product.get('category', 'retail')} / {product.get('subcategory', 'general')}\n"
+                    f"Details: {product.get('details', 'No details available')}\n"
+                    f"Image URL: {image_url}\n"
+                    f"Source URL: {source_url}"
+                )
+                
+                # Metadata for ChromaDB
+                metadata = {
+                    "source": source_url,
+                    "type": "live_cache",
+                    "image_url": image_url,
+                    "s3_image_url": image_url, # Fallback if already uploaded
+                    "name": product.get("name"),
+                    "price": str(product.get("price") or "Check Site")
+                }
+                
+                ingest_items.append({
+                    "content": description,
+                    "url": source_url,
+                    "metadata": metadata
+                })
+            
+            if ingest_items:
+                await add_multiple_contents_to_store(ingest_items)
+                print(f"✅ [BACKGROUND] Successfully cached {len(ingest_items)} products for '{query}'\n")
+            
+        except Exception as e:
+            print(f"❌ [BACKGROUND] Error during caching: {e}")
 
 kimi_service = KimiService()

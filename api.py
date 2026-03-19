@@ -5,6 +5,7 @@ from typing import List, Optional
 import time
 import re
 import json
+import random
 from crawler import crawl_site, crawl_site_recursive
 from ingest import add_content_to_store, add_multiple_contents_to_store
 from vector_store import clear_vector_store
@@ -239,6 +240,8 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             # ONLY search in 'retail' category to avoid pulling generic docs/tutorials
             local_results = fast_query(query, category="retail", threshold=2.2)
             print(f"🛒 RAG Check: Found {len(local_results)} docs (Took {time.time() - rag_start:.2f}s)")
+            # Shuffle for variety: every search shows a different mix from the full cached pool
+            random.shuffle(local_results)
 
             # Check if we have at least 2 items with images. 
             # If not, we definitely need live data.
@@ -315,8 +318,11 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                         print(f"DEBUG: Carousel has only {len(current_items)} items. Padding from lookup_map...")
                         # Collect current source_urls to de-duplicate
                         existing_sources = {p.get('source_url') for p in current_items}
+                        # Shuffle lookup values so we pick different items each time
+                        all_candidates = list(lookup_map.values())
+                        random.shuffle(all_candidates)
                         # Pick diverse items from the lookup_map, skipping already shown ones
-                        for p in lookup_map.values():
+                        for p in all_candidates:
                             if len(current_items) >= 10:
                                 break
                             if p.get('source_url') not in existing_sources and p.get('image_url'):

@@ -110,6 +110,8 @@ def rebuild_carousel_with_map(content, lookup_map):
                     # If we truly have absolutely no data, remove the tag completely to prevent UI gray box
                     return ""
                 
+            # Sort: products WITH images first, "No Image" cards go to the end
+            rebuilt_data.sort(key=lambda p: 0 if p.get("image_url") else 1)
             compact = json.dumps(rebuilt_data, separators=(',', ':'), ensure_ascii=False)
             return f"\n\n{tags_open}\n{compact}\n{tags_close}\n\n"
             
@@ -238,7 +240,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
         if intent == "shopping":
             rag_start = time.time()
             # ONLY search in 'retail' category to avoid pulling generic docs/tutorials
-            local_results = fast_query(query, category="retail", threshold=2.2)
+            local_results = fast_query(query, category="retail", threshold=1.2)
             print(f"🛒 RAG Check: Found {len(local_results)} docs (Took {time.time() - rag_start:.2f}s)")
             # Shuffle for variety: every search shows a different mix from the full cached pool
             random.shuffle(local_results)
@@ -246,6 +248,42 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
             # Check if we have at least 2 items with images. 
             # If not, we definitely need live data.
             results_with_images = [r for r in local_results if r[0].metadata.get("image_url") or r[0].metadata.get("s3_image_url")]
+            
+            # Hotlink Block Prevention: Identify domains that break in the browser (Nike, Prada, etc)
+            # If they don't have an S3 URL yet, they are "dangerous" to show.
+            blocked_domains = ["nike.com", "prada.com", "ajio.com"]
+            safe_results = []
+            for r in results_with_images:
+                doc = r[0]
+                img = doc.metadata.get("image_url") or ""
+                s3 = doc.metadata.get("s3_image_url") or ""
+                
+                is_blocked = any(d in img.lower() for d in blocked_domains)
+                has_s3 = "amazonaws.com" in s3.lower() or "amazonaws.com" in img.lower()
+                
+                if is_blocked and not has_s3:
+                    print(f"⚠️ RAG Warning: Dropped {img} because it belongs to a blocked-hotlink domain and has no S3 backup.")
+                    continue
+                safe_results.append(r)
+            
+            results_with_images = safe_results
+
+            # Strict Keyword Heuristic: Prevent Semantic Bleed (e.g., matching Prada when asking for Nike)
+            if results_with_images:
+                query_words = [w for w in query.lower().split() if len(w) > 2]
+                for word in query_words:
+                    word_found = False
+                    for r in results_with_images:
+                        doc = r[0]
+                        search_text = (str(doc.page_content) + " " + str(doc.metadata.get("name", "")) + " " + str(doc.metadata.get("brand", ""))).lower()
+                        if word in search_text:
+                            word_found = True
+                            break
+                    if not word_found:
+                        print(f"⚠️ RAG Rejected: Keyword '{word}' missing from all local results. Forcing live search.")
+                        results_with_images = []
+                        local_results = []
+                        break
             
             # PROACTIVE: Even if we have some RAG hits, if it's a "fresh" shopping query (few visual hits)
             # we fetch fast basic data to show instantly, and do the heavy crawl in the background!
@@ -279,14 +317,18 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks)
                     "image_url": p.get("image_url"),
                     "source_url": p.get("url") or p.get("source_url")
                 }
-        # From RAG Results
+        # From RAG Results — prefer s3_image_url, skip products with no image at all
         for doc, score in local_results:
             name = str(doc.metadata.get("name") or doc.metadata.get("Product Name") or f"Option {len(lookup_map)+1}").strip().lower()
+            img = doc.metadata.get("s3_image_url") or doc.metadata.get("image_url")
+            # Skip products with no image — they cause "Sorry, photo not available" in the UI
+            if not img:
+                continue
             if name not in lookup_map:
                 lookup_map[name] = {
                     "name": doc.metadata.get("name") or "Product",
                     "price": doc.metadata.get("price") or "Market Price",
-                    "image_url": doc.metadata.get("image_url") or doc.metadata.get("s3_image_url"),
+                    "image_url": img,
                     "source_url": doc.metadata.get("source") or doc.metadata.get("source_url")
                 }
 

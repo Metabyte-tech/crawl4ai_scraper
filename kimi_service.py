@@ -35,8 +35,20 @@ class KimiService:
 
     def detect_intent(self, query):
         q = query.lower()
-        # 🚗 Vehicle / Mobility
-        if any(x in q for x in ["car", "bike", "vehicle", "mileage", "scooter", "truck"]):
+        # 🚗 Vehicle / Mobility - expanded with popular models and brands
+        vehicle_keywords = [
+            "car", "bike", "vehicle", "mileage", "scooter", "truck",
+            "suv", "sedan", "hatchback", "coupe", "ev", "electric car",
+            # Popular brands
+            "thar", "mahindra", "toyota", "honda", "hyundai", "kia",
+            "maruti", "suzuki", "ford", "chevrolet", "bmw", "mercedes",
+            "audi", "volkswagen", "jeep", "defender", "land rover",
+            "porsche", "ferrari", "lamborghini", "range rover", "tata",
+            "nexon", "creta", "innova", "fortuner", "scorpio", "bolero",
+            "swift", "brezza", "ertiga", "baleno", "i20", "venue",
+            "xuv", "compass", "duster", "kwid", "redi-go", "harrier",
+        ]
+        if any(x in q for x in vehicle_keywords):
             return "vehicle"
         
         # 🛒 Shopping / Products
@@ -56,7 +68,10 @@ class KimiService:
         if "image" in q:
             return await self.search_images(q)
 
-        prompt = f"Give details for: {query}\nReturn JSON: name, price, mileage, fuel"
+        prompt = f"""You are an automotive expert. Give key specs for the vehicle: "{query}"
+Use your best knowledge — even for newer Indian or regional models like Thar Rox, Nexon, Creta etc.
+Return ONLY valid JSON with these fields (never return null — use "N/A" if unknown):
+{{"name": "full model name", "price": "price range e.g. ₹15-18 Lakh", "mileage": "e.g. 18 kmpl", "fuel": "Petrol/Diesel/Electric"}}"""
         try:
             print(f"DEBUG: Vehicle LLM start for {query}")
             response = await self._call_with_retry(
@@ -67,12 +82,20 @@ class KimiService:
                     messages=[{"role": "user", "content": prompt}],
                 )
             )
-            if not response: return f"No data found for {query}"
+            if not response:
+                return await self.search_images(query)
             text = response.content[0].text
-            return self._safe_json_parse(text, "vehicle")
+            result = self._safe_json_parse(text, "vehicle")
+            # If all key fields are None or "N/A", fall back to image search
+            def is_empty(val):
+                return not val or str(val).strip().upper() in ("N/A", "NONE", "NULL", "UNKNOWN", "-")
+            if isinstance(result, dict) and all(is_empty(result.get(f)) for f in ["price", "mileage", "fuel"]):
+                print(f"DEBUG: Vehicle LLM returned all N/A for {query}. Falling back to images.")
+                return await self.search_images(query)
+            return result
         except Exception as e:
             print("Vehicle error:", e)
-            return f"No data available for {query}"
+            return await self.search_images(query)
 
     async def search_images(self, query):
         # 1. Smarter query cleaning: Remove filler words
@@ -96,15 +119,18 @@ class KimiService:
                     import re
                     html_content = result.html
                     
-                    # Extract both image URL (murl) and page URL (purl)
-                    # Bing encodes JSON in data-m attribute
-                    blocks = re.findall(r'murl&quot;:&quot;(https?://[^&]+)&quot;,&quot;turl&quot;:&quot;[^&]+&quot;,&quot;contentUrl&quot;:&quot;[^&]+&quot;,&quot;purl&quot;:&quot;(https?://[^&]+)&quot;', html_content)
+                    # Extract both thumbnail URL (turl) and page URL (purl)
+                    # Bing encodes JSON in data-m attribute - we want TURL (Bing Proxy) not MURL (Source blockable CDN)
+                    # Use flexible independent extraction as order can vary
+                    turls = re.findall(r'turl&quot;:&quot;(https?://.*?)&quot;', html_content)
+                    purls = re.findall(r'purl&quot;:&quot;(https?://.*?)&quot;', html_content)
                     
-                    if not blocks:
-                        # Fallback: try simpler separate extraction if the complex one fails
-                        murls = re.findall(r'murl&quot;:&quot;(https?://[^&]+)&quot;', html_content)
-                        purls = re.findall(r'purl&quot;:&quot;(https?://[^&]+)&quot;', html_content)
-                        blocks = list(zip(murls, purls))
+                    blocks = []
+                    for t, p in zip(turls, purls):
+                        # Decode HTML entities like &amp; in URLs
+                        t = t.replace("&amp;", "&")
+                        p = p.replace("&amp;", "&")
+                        blocks.append((t, p))
 
                     # Deduplicate and filter
                     real_results = []

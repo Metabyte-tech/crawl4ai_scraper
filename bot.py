@@ -67,6 +67,9 @@ async def chat_with_bot(query: str, discovered_stores: list = None, live_context
                 f"LIVE_PRODUCT: {p.get('name')}\n"
                 f"Brand: {p.get('brand')}\n"
                 f"Price: {p.get('price')} {p.get('currency', '')}\n"
+                f"Rating: {p.get('rating', 'N/A')}\n"
+                f"Offers: {p.get('offers', 'None')}\n"
+                f"Source: {p.get('source') or p.get('store_source') or 'Search'}\n"
                 f"IMAGE_URL: {p.get('image_url')}\n"
                 f"SOURCE_URL: {p.get('url') or p.get('source_url')}"
             )

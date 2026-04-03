@@ -1,5 +1,7 @@
 import asyncio
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
+from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
+from crawl4ai.content_filter_strategy import PruningContentFilter
 
 from urllib.parse import urljoin, urlparse
 
@@ -42,13 +44,20 @@ async def crawl_site(url: str, crawler=None):
     })();
     """
 
+    # Use PruningContentFilter to strip headers, footers, and nav
+    # This is much more effective than manual regex
+    md_generator = DefaultMarkdownGenerator(
+        content_filter=PruningContentFilter(threshold=0.4, min_word_threshold=50)
+    )
+
     run_config = CrawlerRunConfig(
         cache_mode=CacheMode.BYPASS,
         word_count_threshold=10,
         wait_for="body",
         page_timeout=90000,  # 90 seconds
         wait_for_timeout=60000, # 60s
-        js_code=js_scroll
+        js_code=js_scroll,
+        markdown_generator=md_generator
     )
 
     if crawler is None:
@@ -67,14 +76,15 @@ async def _do_crawl(crawler, url, run_config):
     try:
         result = await crawler.arun(url=url, config=run_config)
         if result.success:
-            content = result.markdown
-            if len(content.strip()) < 100:
-                print(f"Content short, retrying with explicit wait for {url}")
+            # Return HTML for better structured extraction by LLM
+            content = result.html
+            if not content or len(content.strip()) < 500:
+                print(f"HTML content short, retrying with explicit wait for {url}")
                 run_config.wait_for = "js:() => document.body.innerText.length > 500"
                 result = await crawler.arun(url=url, config=run_config)
-                content = result.markdown
+                content = result.html
             print(f"Successfully crawled: {url}")
-            return content, result.links.get("internal", [])
+            return content, result.links
         else:
             print(f"Failed to crawl: {url}. Error: {result.error_message}")
             return None, []

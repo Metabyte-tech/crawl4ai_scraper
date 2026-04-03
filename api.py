@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -6,16 +8,15 @@ import time
 import re
 import json
 import random
+import os
 from crawler import crawl_site, crawl_site_recursive
 from ingest import add_content_to_store, add_multiple_contents_to_store
 from vector_store import clear_vector_store
 from query import fast_query
 from bot import chat_with_bot
-from retail_crawler import retail_crawler
 from kimi_service import kimi_service
 from urllib.parse import urlparse
 
-# Track last crawled domain
 last_crawled_domain = None
 
 
@@ -25,110 +26,59 @@ def update_last_domain(url):
         domain = urlparse(url).netloc
         if domain:
             last_crawled_domain = domain
-            print(f"DEBUG: Updated last_crawled_domain to: {last_crawled_domain}")
     except Exception:
         pass
 
 
-# ✅ FORMAT RESPONSE FOR FRONTEND (VERY IMPORTANT)
 def format_response(res):
     if isinstance(res, str):
         return res
-
-    # 🚗 Vehicle formatting
-    if isinstance(res, dict) and not res.get("type") and "price" in res:
-        return f"""
-🚗 {res.get('name', 'Vehicle')}
-💰 Price: {res.get('price', 'N/A')}
-⛽ Mileage: {res.get('mileage', 'N/A')}
-🔋 Fuel: {res.get('fuel', 'N/A')}
-"""
-
-    # 🖼️ Images (Horizontal Carousel)
     if isinstance(res, dict) and res.get("type") == "images":
         results = res.get("results", [])
-        carousel_json = json.dumps(results)
-        # Use newlines to ensure markdown renderer treats this as a block
-        return f"\n\n<product_carousel>\n{carousel_json}\n</product_carousel>\n\n"
-
-    # 🛒 Products
+        return f"\n\n<product_carousel>{json.dumps(results)}</product_carousel>\n\n"
     if isinstance(res, list):
-        if not res: return "No products found."
+        if not res:
+            return "No products found."
         return "\n\n".join([
             f"🛍️ {p.get('name', 'Product')} - {p.get('price', '')}\n🔗 {p.get('url', p.get('source_url', ''))}"
             for p in res if isinstance(p, dict)
         ])
-
     return str(res)
 
 
-# ✅ UTILITY: ENSURE CAROUSEL JSON IS ROBUST
-# We now reconstruct the carousel from a lookup map to prevent bot hallucinations.
 def rebuild_carousel_with_map(content, lookup_map):
-    if not isinstance(content, str): return content
-    
-    patterns = [
-        r'(<product_carousel>)(.*?)(</product_carousel>)',
-        r'(<product_carousel>\s*)(.*?)(\s*</product_carousel>)'
-    ]
-    
-    def reconstruct(match):
-        tags_open = match.group(1)
-        names_str = match.group(2).strip()
-        tags_close = match.group(3)
-        
-        try:
-            # The bot now outputs a list of names: ["Nike Air", "Nike Air Max"]
-            names = json.loads(names_str)
-            if not isinstance(names, list): names = [names]
-            
-            rebuilt_data = []
-            for name in names:
-                name_clean = str(name).strip().lower()
-                # Find the best match in our lookup map
-                match_data = None
-                # Exact match first
-                if name_clean in lookup_map:
-                    match_data = lookup_map[name_clean]
-                else:
-                    # Fuzzy match: Is the bot's name contained in any of our real names?
-                    for real_name, data in lookup_map.items():
-                        if name_clean in real_name or real_name in name_clean:
-                            match_data = data
-                            break
-                
-                if match_data:
-                    rebuilt_data.append(match_data)
-                    
-            if not rebuilt_data and names:
-                # If fuzzy matching completely failed (bot hallucinated names from URL slugs),
-                # but we DO have live products available in the lookup map, forcefully inject them!
-                if lookup_map:
-                    print(f"DEBUG: Carousel fuzzy match failed for names: {names}. Forcefully injecting top 5 available products.")
-                    rebuilt_data = list(lookup_map.values())[:5]
-                else:
-                    # If we truly have absolutely no data, remove the tag completely to prevent UI gray box
-                    return ""
-                
-            # Sort: products WITH images first, "No Image" cards go to the end
-            rebuilt_data.sort(key=lambda p: 0 if p.get("image_url") else 1)
-            compact = json.dumps(rebuilt_data, separators=(',', ':'), ensure_ascii=False)
-            return f"\n\n{tags_open}\n{compact}\n{tags_close}\n\n"
-            
-        except Exception as e:
-            print(f"DEBUG Reconstruct fail: {e}")
-            return match.group(0) # Return original if parsing fails
+    if not isinstance(content, str) or not lookup_map:
+        return content
 
-    result = content
-    for p in patterns:
-        result = re.sub(p, reconstruct, result, flags=re.DOTALL)
-    
-    return result
+    def reconstruct(match):
+        tags_open, names_str, tags_close = match.group(1), match.group(2).strip(), match.group(3)
+        try:
+            names = json.loads(names_str)
+            if not isinstance(names, list):
+                names = [names]
+            rebuilt = []
+            for name in names:
+                nc = str(name).strip().lower()
+                data = lookup_map.get(nc) or next(
+                    (v for k, v in lookup_map.items() if nc in k or k in nc), None
+                )
+                if data:
+                    rebuilt.append(data)
+            if not rebuilt and lookup_map:
+                rebuilt = list(lookup_map.values())[:5]
+            if not rebuilt:
+                return ""
+            rebuilt.sort(key=lambda p: 0 if p.get("image_url") else 1)
+            return f"{tags_open}{json.dumps(rebuilt, separators=(',', ':'))}{tags_close}"
+        except Exception as e:
+            print(f"Carousel reconstruct error: {e}")
+            return match.group(0)
+
+    return re.sub(r'(<product_carousel>)(.*?)(</product_carousel>)', reconstruct, content, flags=re.DOTALL)
 
 
 async def background_ingest(url: str, max_pages: int = 1):
     try:
-        print(f"Background ingestion started for: {url} (max_pages={max_pages})")
         if max_pages <= 1:
             content, _ = await crawl_site(url)
             if content and len(content.strip()) > 10:
@@ -138,12 +88,38 @@ async def background_ingest(url: str, max_pages: int = 1):
             results = await crawl_site_recursive(url, max_pages=max_pages)
             if results:
                 await add_multiple_contents_to_store(results)
-                print(f"Background deep ingestion complete for {url}")
     except Exception as e:
-        print(f"Error in background ingestion for {url}: {e}")
+        print(f"Background ingest error for {url}: {e}")
+
+
+async def background_crawl_and_ingest(query: str, fast_products: list):
+    try:
+        print(f"🔄 BACKGROUND: Deep crawl for '{query}'...")
+        deep_results = await kimi_service.run_deep_crawl_process(query, fast_products)
+        if deep_results:
+            await kimi_service.cache_and_store_products(deep_results, query)
+        print(f"✅ BACKGROUND: Done for '{query}'!")
+    except Exception as e:
+        print(f"❌ BACKGROUND: Failed for '{query}': {e}")
+        import traceback
+        traceback.print_exc()
 
 
 app = FastAPI(title="Retail AI RAG API")
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"🔍 {request.method} {request.url.path}")
+    response = await call_next(request)
+    print(f"📉 {request.method} {request.url.path} → {response.status_code}")
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -158,8 +134,21 @@ class CrawlRequest(BaseModel):
     url: str
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: Optional[str] = None
+    parts: Optional[List[dict]] = None
+    id: Optional[str] = None
+    model_config = {"extra": "ignore"}
+
+
 class ChatRequest(BaseModel):
-    message: str
+    id: Optional[str] = None
+    message: Optional[str] = None
+    messages: Optional[List[ChatMessage]] = None
+    selectedChatModel: Optional[str] = None
+    selectedVisibilityType: Optional[str] = None
+    model_config = {"extra": "ignore"}
 
 
 @app.post("/crawl")
@@ -183,204 +172,256 @@ async def clear_endpoint():
     clear_vector_store()
     return {"status": "success", "message": "Memory cleared successfully"}
 
+@app.get("/api/categories")
+async def get_categories():
+    # Use more specific search terms to avoid vector overlap (e.g. 'toys' matching 'kids shoes')
+    category_queries = {
+        "Toys": "children's toys, games, and play sets",
+        "Clothes": "fashion clothing, apparel, shirts, and pants",
+        "Shoes": "footwear, sneakers, boots, and sandals",
+        "Laptops": "laptops, notebooks, and computing hardware",
+        "Mobiles": "smartphones, mobile phones, and cellular devices"
+    }
+    result = []
+    
+    for display_name, query in category_queries.items():
+        docs_scores = fast_query(query, k=50) # Get enough to filter out items without images
+        
+        items = []
+        seen_urls = set()
+        
+        for doc, score in docs_scores:
+            meta = doc.metadata
+            url = meta.get("url") or meta.get("source_url") or meta.get("source") or ""
+            
+            if url in seen_urls:
+                continue
+                
+            img = meta.get("image_url") or meta.get("s3_image_url") or meta.get("Image URL")
+            if not img or not img.startswith("http"):
+                # Use a beautiful placeholder if image is missing so the list isn't empty
+                img = f"https://placehold.co/600x600?text={display_name}+Item"
+            
+            # Aggressive black-list for Toys to avoid shoes/clothes overlap
+            product_name = (meta.get("name") or meta.get("title") or "").lower()
+            product_content = (doc.page_content or "").lower()
+            
+            if display_name == "Toys":
+                # Use a Whitelist for Toys because generic names like "Product Option 1" bypass blacklists
+                toy_white_list = [
+                    "toy", "game", "play", "puzzle", "doll", "lego", "figure", "hobby", "rc ", 
+                    "remote control", "plush", "stuffed", "car", "vehicle", "racing", "track", 
+                    "wheels", "ride-on", "bike", "nerf", "barbie", "hot wheels", "blocks",
+                    "sorting", "stacking", "activity", "center", "learning", "educational",
+                    "preschool", "toddler", "baby", "robot", "kit", "squishy", "slime",
+                    "math", "science", "steam", "stem", "anatomy", "chemistry", "physics", "experiment"
+                ]
+                is_toy = any(word in product_name for word in toy_white_list) or \
+                         any(word in product_content for word in toy_white_list)
+                
+                # Also block obviously wrong things that might have "play" or "game" in content (like shoes/boots)
+                shoe_black_list = ["shoe", "boot", "sneaker", "nike", "adidas", "puma", "footwear", "sandal", "heel"]
+                if not is_toy or any(word in product_name for word in shoe_black_list):
+                    continue
+                
+                # Block generic titles
+                if "product option" in product_name:
+                    continue
+                
+            # Parse reviews if they are stored as JSON string
+            reviews = []
+            if meta.get("reviews"):
+                try:
+                    reviews = json.loads(meta.get("reviews"))
+                except:
+                    pass
 
-# -------------------------------
-# BACKGROUND TASK HELPER
-# -------------------------------
-async def background_crawl_and_ingest(query: str, fast_products: list):
-    try:
-        print(f"🔄 BACKGROUND: Starting deep crawl for '{query}'...")
-        deep_results = await kimi_service.run_deep_crawl_process(query, fast_products)
-        if deep_results:
-            print(f"🔄 BACKGROUND: Deep crawl yielded {len(deep_results)} rich products. Saving to DB...")
-            await kimi_service.cache_and_store_products(deep_results, query)
-        print(f"✅ BACKGROUND: Completely finished processing '{query}'!")
-    except Exception as e:
-        print(f"❌ BACKGROUND: Failed deep crawl for '{query}': {e}")
-        import traceback
-        traceback.print_exc()
+            items.append({
+                "name": meta.get("name") or meta.get("title") or "Unnamed Product",
+                "price": meta.get("price") or meta.get("Price") or "",
+                "url": url,
+                "image_url": img,
+                "score": float(score),
+                "brand": meta.get("brand") or "Product",
+                "rating_avg": meta.get("rating_avg") or meta.get("rating") or "",
+                "rating_count": meta.get("rating_count") or "",
+                "reviews": reviews,
+                "details": meta.get("details") or meta.get("description") or ""
+            })
+            seen_urls.add(url)
+            
+            if len(items) >= 5: # Top 5 distinct products per category
+                break
+                
+        result.append({
+            "name": display_name,
+            "items": items
+        })
+        
+    return JSONResponse(content={"categories": result})
 
-@app.post("/chat")
-async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks):
-    start_time = time.time()
+
+@app.get("/api/templates")
+async def get_templates():
+    """Returns the library of expert templates and categories."""
+    template_path = "templates.json"
+    if os.path.exists(template_path):
+        with open(template_path, "r") as f:
+            return json.load(f)
+    return {"categories": []}
+
+@app.post("/api/plan")
+async def generate_plan(request: Request):
+    """Generates a multi-step execution plan for a business query."""
+    data = await request.json()
+    query = data.get("query")
+    template_id = data.get("template_id")
+    
+    if not query:
+        raise HTTPException(status_code=400, detail="Query is required")
+        
+    plan = await kimi_service.generate_execution_plan(query, template_id)
+    return {"plan": plan}
+
+
+@app.post("/api/chat")
+async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
     try:
-        query = request.message.strip()
+        start_time = time.time()
+        body = await req.json()
+        print(f"📥 Body received")
+
+        query = body.get("message")
+        messages_list = body.get("messages", [])
+        if not query and messages_list:
+            last = messages_list[-1]
+            query = last.get("content") or ""
+            if not query and "parts" in last:
+                query = " ".join([p.get('text', '') for p in last['parts']])
+
+        query = (query or "hi").strip()
         query_lower = query.lower()
-        print(f"\n🔥 Query: {query}")
+        print(f"🔥 Query: {query}")
 
-        # -------------------------------
-        # 🧠 INTENT DETECTION
-        # -------------------------------
-        intent = kimi_service.detect_intent(query_lower)
-        print(f"🧠 Intent: {intent} (Took {time.time() - start_time:.2f}s)")
+        intent = kimi_service.detect_intent(query)
+        if body.get("template_id"):
+            intent = "agent_task"
+            
+        print(f"🧠 Intent: {intent}")
 
-        # -------------------------------
-        # 🖼️ IMAGE SEARCH OVERRIDE (PRIORITY)
-        # -------------------------------
-        # If user explicitly asks for images/photos, use the optimized Bing searcher
-        if any(x in query_lower for x in ["image", "photo", "pic", "picture", "show me", "images"]):
-            print(f"🖼️ Image Search Override for: {query}")
-            img_results = await kimi_service.search_images(query)
-            if img_results and img_results.get("results"):
-                return {"status": "success", "response": format_response(img_results)}
-
-        # -------------------------------
-        # 🚗 VEHICLE FLOW
-        # -------------------------------
-        if intent == "vehicle":
-            print("🚗 Vehicle flow")
-            result = await kimi_service.get_vehicle_data(query)
-            return {"status": "success", "response": format_response(result)}
-
-        # -------------------------------
-        # 🛒 SHOPPING FLOW
-        # -------------------------------
         live_products = []
         local_results = []
-        if intent == "shopping":
+        bot_response = ""
+
+        # Route by intent
+        if any(x in query_lower for x in ["image", "photo", "pic", "picture", "show me", "images"]):
+            img_res = await kimi_service.search_images(query)
+            live_products = img_res.get("results", [])
+            bot_response = f"Here are some images for **{query}**."
+
+        elif intent == "vehicle":
+            v_res = await kimi_service.get_vehicle_data(query)
+            bot_response = format_response(v_res)
+
+        elif intent == "agent_task":
+            bot_response = await kimi_service.generate_agent_report(
+                query=query, 
+                template_id=body.get("template_id"),
+                subject=body.get("subject")
+            )
+            # For Agent tasks, we return the raw text report
+            return JSONResponse({"type": "message", "response": bot_response, "intent": intent})
+
+        elif intent == "shopping":
             rag_start = time.time()
-            # ONLY search in 'retail' category to avoid pulling generic docs/tutorials
-            local_results = fast_query(query, category="retail", threshold=1.2)
-            print(f"🛒 RAG Check: Found {len(local_results)} docs (Took {time.time() - rag_start:.2f}s)")
-            # Shuffle for variety: every search shows a different mix from the full cached pool
-            random.shuffle(local_results)
+            rag_results = fast_query(query, category="retail", threshold=1.2)
+            print(f"🛒 RAG: {len(rag_results)} docs in {time.time()-rag_start:.2f}s")
+            random.shuffle(rag_results)
 
-            # Check if we have at least 2 items with images. 
-            # If not, we definitely need live data.
-            results_with_images = [r for r in local_results if r[0].metadata.get("image_url") or r[0].metadata.get("s3_image_url")]
-            
-            # Hotlink Block Prevention: Identify domains that break in the browser (Nike, Prada, etc)
-            # If they don't have an S3 URL yet, they are "dangerous" to show.
-            blocked_domains = ["nike.com", "prada.com", "ajio.com"]
-            safe_results = []
-            for r in results_with_images:
-                doc = r[0]
-                img = doc.metadata.get("image_url") or ""
-                s3 = doc.metadata.get("s3_image_url") or ""
-                
-                is_blocked = any(d in img.lower() for d in blocked_domains)
-                has_s3 = "amazonaws.com" in s3.lower() or "amazonaws.com" in img.lower()
-                
-                if is_blocked and not has_s3:
-                    print(f"⚠️ RAG Warning: Dropped {img} because it belongs to a blocked-hotlink domain and has no S3 backup.")
-                    continue
-                safe_results.append(r)
-            
-            results_with_images = safe_results
+            results_with_images = [
+                r for r in rag_results
+                if r[0].metadata.get("image_url") or r[0].metadata.get("s3_image_url")
+            ]
 
-            # Strict Keyword Heuristic: Prevent Semantic Bleed (e.g., matching Prada when asking for Nike)
-            if results_with_images:
-                query_words = [w for w in query.lower().split() if len(w) > 2]
-                for word in query_words:
-                    word_found = False
-                    for r in results_with_images:
-                        doc = r[0]
-                        search_text = (str(doc.page_content) + " " + str(doc.metadata.get("name", "")) + " " + str(doc.metadata.get("brand", ""))).lower()
-                        if word in search_text:
-                            word_found = True
-                            break
-                    if not word_found:
-                        print(f"⚠️ RAG Rejected: Keyword '{word}' missing from all local results. Forcing live search.")
-                        results_with_images = []
-                        local_results = []
-                        break
-            
-            # PROACTIVE: Even if we have some RAG hits, if it's a "fresh" shopping query (few visual hits)
-            # we fetch fast basic data to show instantly, and do the heavy crawl in the background!
-            if len(results_with_images) < 4:
-                print(f"🛒 Limited visual local results ({len(results_with_images)}). Fetching fast Bing data...")
-                kimi_start = time.time()
-                live_products = await kimi_service.get_fast_bing_data(query) # INSTANT RESPONSE!
-                print(f"⚡ Fast Search: Found {len(live_products)} basic products (Took {time.time() - kimi_start:.2f}s)")
+            # Keyword check
+            keywords = [w for w in query_lower.split() if len(w) > 2]
+            for word in keywords:
+                hit = any(
+                    word in (str(r[0].page_content) + str(r[0].metadata.get("name", ""))).lower()
+                    for r in results_with_images
+                )
+                if not hit:
+                    print(f"⚠️ RAG rejected: '{word}' not in results")
+                    results_with_images = []
+                    rag_results = []
+                    break
 
+            local_results = rag_results
+
+            if len(results_with_images) < 6:
+                # Fast search takes 1-2s. Deep crawling happens in background
+                print(f"DEBUG: Triggering live search (RAG only found {len(results_with_images)} docs)")
+                live_products = await kimi_service.get_fast_bing_data(query)
+                print(f"⚡ Bing: {len(live_products)} products")
                 if live_products:
-                    # Fire-and-forget the heavy crawling and S3 uploading!
-                    # It will run transparently after we send the fast UI response.
                     background_tasks.add_task(background_crawl_and_ingest, query, live_products)
             else:
-                print(f"🛒 Strong RAG Presence ({len(results_with_images)} visual docs). Using local store.")
+                live_products = [r[0].metadata for r in results_with_images]
 
-        # -------------------------------
-        # 🌐 FALLBACK / BOT RESPONSE
-        # -------------------------------
-        # 🤖 BOT RESPONSE GENERATION
-        # -------------------------------
-        # Build a lookup map for the re-constructor
-        lookup_map = {}
-        # From Live Products
-        for p in live_products:
-            name = str(p.get("name") or "Product").strip().lower()
-            if name not in lookup_map:
-                lookup_map[name] = {
-                    "name": p.get("name"),
+            bot_response = await chat_with_bot(
+                query=query, live_context=live_products,
+                intent_type=intent, local_docs=local_results
+            )
+
+        else:
+            bot_response = await chat_with_bot(
+                query=query, live_context=[], intent_type=intent, local_docs=[]
+            )
+
+        # Build final response
+        if live_products and intent in ("shopping", "images"):
+            ordered = sorted(
+                live_products,
+                key=lambda p: 0 if (p.get("image_url") or p.get("s3_image_url")) else 1
+            )
+            items = []
+            for p in ordered[:10]:
+                # Parse reviews
+                reviews = []
+                if p.get("reviews"):
+                    try:
+                        if isinstance(p.get("reviews"), str):
+                            reviews = json.loads(p.get("reviews"))
+                        else:
+                            reviews = p.get("reviews")
+                    except:
+                        pass
+
+                items.append({
+                    "name": p.get("name") or p.get("title") or "Product",
+                    "brand": p.get("brand") or p.get("source") or "Store",
                     "price": p.get("price") or "Check Site",
-                    "image_url": p.get("image_url"),
-                    "source_url": p.get("url") or p.get("source_url")
-                }
-        # From RAG Results — prefer s3_image_url, skip products with no image at all
-        for doc, score in local_results:
-            name = str(doc.metadata.get("name") or doc.metadata.get("Product Name") or f"Option {len(lookup_map)+1}").strip().lower()
-            img = doc.metadata.get("s3_image_url") or doc.metadata.get("image_url")
-            # Skip products with no image — they cause "Sorry, photo not available" in the UI
-            if not img:
-                continue
-            if name not in lookup_map:
-                lookup_map[name] = {
-                    "name": doc.metadata.get("name") or "Product",
-                    "price": doc.metadata.get("price") or "Market Price",
-                    "image_url": img,
-                    "source_url": doc.metadata.get("source") or doc.metadata.get("source_url")
-                }
+                    "image_url": p.get("s3_image_url") or p.get("image_url"),
+                    "source_url": p.get("source_url") or p.get("url"),
+                    "source": p.get("source") or "Search",
+                    "rating_avg": p.get("rating_avg") or p.get("rating") or "",
+                    "rating_count": p.get("rating_count") or "",
+                    "reviews": reviews,
+                    "details": p.get("details") or p.get("description") or "",
+                    "moq": p.get("moq") or None,
+                    "location": p.get("location") or None,
+                    "supplier_years": p.get("supplier_years") or None,
+                    "is_verified": bool(p.get("is_verified") or False),
+                })
+            carousel = f"<product_carousel>{json.dumps(items)}</product_carousel>"
+            final = f"Here are the best results I found:\n\n{carousel}"
+            print(f"📡 Carousel: {len(items)} products")
+        else:
+            final = format_response(bot_response)
+            print(f"📡 Text response: {len(final)} chars")
 
-        bot_start = time.time()
-        print(f"🤖 Bot is generating response for: {query}")
-        bot_response = await chat_with_bot(
-            query=query, 
-            live_context=live_products,
-            intent_type=intent,
-            local_docs=local_results
-        )
-        
-        # ✅ UTILITY: SHARING LOGS FOR DEBUGGING
-        print(f"✅ Bot Done. Response length: {len(bot_response)}")
-        
-        # 4. Final Formatting & Re-construction
-        final_response = format_response(bot_response)
-        # Rebuild the carousel from our verified map to prevent hallucinations!
-        final_response = rebuild_carousel_with_map(final_response, lookup_map)
-
-        # 5. If the carousel still has < 5 products, forcefully pad from the lookup_map
-        #    This happens when strong RAG data exists but the bot only mentioned 3 names.
-        if intent == "shopping" and lookup_map:
-            carousel_match = re.search(r'<product_carousel>\s*(\[.*?\])\s*</product_carousel>', final_response, re.DOTALL)
-            if carousel_match:
-                try:
-                    current_items = json.loads(carousel_match.group(1))
-                    if len(current_items) < 5:
-                        print(f"DEBUG: Carousel has only {len(current_items)} items. Padding from lookup_map...")
-                        # Collect current source_urls to de-duplicate
-                        existing_sources = {p.get('source_url') for p in current_items}
-                        # Shuffle lookup values so we pick different items each time
-                        all_candidates = list(lookup_map.values())
-                        random.shuffle(all_candidates)
-                        # Pick diverse items from the lookup_map, skipping already shown ones
-                        for p in all_candidates:
-                            if len(current_items) >= 10:
-                                break
-                            if p.get('source_url') not in existing_sources and p.get('image_url'):
-                                current_items.append(p)
-                                existing_sources.add(p.get('source_url'))
-                        # Replace the carousel in the final response
-                        rebuilt = json.dumps(current_items, separators=(',', ':'), ensure_ascii=False)
-                        final_response = final_response[:carousel_match.start(1)] + rebuilt + final_response[carousel_match.end(1):]
-                        print(f"DEBUG: Padded carousel to {len(current_items)} items.")
-                except Exception as pad_err:
-                    print(f"DEBUG: Carousel padding failed: {pad_err}")
-
-        print(f"✅ Bot Done (Took {time.time() - bot_start:.2f}s)")
-        print(f"🚀 Total Response Time: {time.time() - start_time:.2f}s")
-
-        return {"status": "success", "response": final_response}
+        print(f"✅ Done in {time.time()-start_time:.1f}s")
+        return JSONResponse({"type": "message", "response": final, "intent": intent})
 
     except Exception as e:
         import traceback
@@ -395,4 +436,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)

@@ -81,7 +81,7 @@ class AssetProcessor:
                 is_image = any(clean_url.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
                 
                 # Filter out obvious logos/sprites based on URL
-                logolike_keywords = ["logo", "sprite", "icon", "banner", "header", "footer", "favicon", "gift", "giftcard"]
+                logolike_keywords = ["logo", "sprite", "icon", "banner", "header", "footer", "favicon"]
                 is_logolike = any(kw in image_url.lower() for kw in logolike_keywords)
                 
                 from image_cache import image_cache

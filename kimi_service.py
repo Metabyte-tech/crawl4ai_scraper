@@ -513,11 +513,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         elif category_id == "supplier_sourcing":
             return base_prompt + (
                 "REPORT STRUCTURE:\n"
-                "1. Sourcing List (Visual Product Carousel)\n"
+                "1. Sourcing List (Visual Product Grid)\n"
                 "2. Comparison Chart\n"
                 "3. Manufacturer Audit\n\n"
                 "CRITICAL INSTRUCTIONS:\n"
-                "AT THE VERY TOP, you MUST output a `<product_carousel>` tag combining the MARKET CONTEXT into exactly this JSON format: "
+                "AT THE VERY TOP, you MUST output a `<product_grid>` tag combining the MARKET CONTEXT into exactly this JSON format: "
                 "[{\"name\": \"...\", \"price\": \"...\", \"brand\": \"...\", \"image_url\": \"...\", \"source_url\": \"...\", \"details\": \"...\", \"moq\": \"...\", \"supplier_years\": \"...\", \"location\": \"...\", \"is_verified\": true}]. "
                 "For 'is_verified', set to true if the source is a known reliable platform. "
                 "Then below it, write a massive Markdown Spec Comparison Table mapping requirements side-by-side using citations [1][2]."

@@ -14,6 +14,7 @@ class AssetProcessor:
             "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
         ]
         
+        self.default_placeholder = "https://placehold.co/600x600?text=No+Image"
         self.proxy_url = os.getenv("PROXY_URL")
         # Initialize client without specific headers as we'll set them per request
         if self.proxy_url:

@@ -379,7 +379,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
             )
 
         # Build final response
-        if live_products and intent in ("shopping", "images"):
+        if live_products and intent in ("shopping", "images", "global_search", "supplier_sourcing"):
             ordered = sorted(
                 live_products,
                 key=lambda p: 0 if (p.get("image_url") or p.get("s3_image_url")) else 1
@@ -413,9 +413,9 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     "supplier_years": p.get("supplier_years") or None,
                     "is_verified": bool(p.get("is_verified") or False),
                 })
-            carousel = f"<product_carousel>{json.dumps(items)}</product_carousel>"
-            final = f"Here are the best results I found:\n\n{carousel}"
-            print(f"📡 Carousel: {len(items)} products")
+            grid = f"<product_grid>{json.dumps(items)}</product_grid>"
+            final = f"Here are the best results I found:\n\n{grid}"
+            print(f"📡 Grid: {len(items)} products")
         else:
             final = format_response(bot_response)
             print(f"📡 Text response: {len(final)} chars")

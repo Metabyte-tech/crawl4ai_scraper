@@ -334,7 +334,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
 
         elif intent == "shopping":
             rag_start = time.time()
-            rag_results = fast_query(query, category="retail", threshold=1.2)
+            rag_results = fast_query(query, category="retail", threshold=0.95)
             print(f"🛒 RAG: {len(rag_results)} docs in {time.time()-rag_start:.2f}s")
             random.shuffle(rag_results)
 

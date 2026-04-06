@@ -264,10 +264,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         
         # 2. Synchronous "Quick Extraction" for Top 2 Results
         # This provides real data for the first few items without waiting for the full deep crawl.
-        top_urls = urls[:4]
+        top_urls = urls[:2] # Reduced from 4 to 2 for production speed (avoid Amplify 30s timeout)
         synced_products = []
         if top_urls:
-            print(f"DEBUG: Performing sync extraction for top 4 results: {top_urls}")
+            print(f"DEBUG: Performing sync extraction for top 2 results: {top_urls}")
             from crawler import crawl_site
             from crawl4ai import AsyncWebCrawler
             async with AsyncWebCrawler() as crawler:

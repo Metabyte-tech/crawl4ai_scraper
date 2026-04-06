@@ -1,0 +1,286 @@
+{
+    "categories": [
+        {
+            "id": "business_analysis",
+            "name": "Business Analysis",
+            "templates": [
+                {
+                    "id": "feasibility_report",
+                    "title": "Full feasibility analysis: trends, price, supply",
+                    "description": "Comprehensive report on market trends, pricing segments, and supply chain maturity.",
+                    "prompt": "As an Elite Business Architect, please generate a comprehensive COMMERCIAL FEASIBILITY REPORT for the '{query}' category. YOUR RESPONSE MUST BE A STRUCTURED BUSINESS DOCUMENT WITH THE FOLLOWING SECTIONS: 1. EXECUTIVE SUMMARY (High-level verdict), 2. GLOBAL MARKET TRENDS (Sales growth and consumer behavior), 3. PRICE SEGMENTATION TABLE (Budget vs. Premium distribution), 4. KEY USER PAIN POINTS (Derived from top reviews), 5. SUPPLY CHAIN MATURITY (Number of 1688/Alibaba manufacturers), and 6. STRATEGIC RECOMMENDATIONS. Use professional terminology and provide data-driven insights."
+                },
+                {
+                    "id": "quantify_wtp",
+                    "title": "Quantify willingness-to-pay for refillable makeup",
+                    "description": "Analyzes consumer preferences and spending habits.",
+                    "prompt": "Analyze the willingness-to-pay for '{query}' focusing on sustainable/refillable models. Provide a table comparing budget vs premium segments and list key purchase triggers."
+                },
+                {
+                    "id": "diagnose_declining_growth",
+                    "title": "Diagnose declining category growth in mature markets",
+                    "description": "Analyzes sales plateaus and provides strategic recommendations.",
+                    "prompt": "Diagnose the declining category growth for '{query}' in mature markets. Provide a root cause analysis, a table of competitor market shares, and 3 strategic recommendations to pivot."
+                },
+                {
+                    "id": "evaluate_pl_threat",
+                    "title": "Evaluate private label threat in premium yoga mats",
+                    "description": "Provides competitive intelligence against private label competitors.",
+                    "prompt": "Evaluate the threat of private label or generic competitors entering the '{query}' space. Provide a competitive SWOT analysis and a table contrasting brand value vs generic pricing."
+                },
+                {
+                    "id": "model_fx_impact",
+                    "title": "Model FX impact on cost and pricing",
+                    "description": "Navigates currency fluctuations to predict pricing trends.",
+                    "prompt": "Model the potential impact of FX rate fluctuations on the sourcing and retail pricing of '{query}'. Provide a risk mitigation scenario table."
+                },
+                {
+                    "id": "segment_margins",
+                    "title": "Analyze segment size and margins to spot opportunity",
+                    "description": "Deep dive into profit margins and market gaps for a specific category.",
+                    "prompt": "Please conduct a detailed MARKET SEGMENT & MARGIN ANALYSIS for '{query}'. Your report should include: A) Market Size Estimation, B) Competitive Intensity Map, C) Average Profit Margin Calculations (Estimated wholesale vs retail gap), and D) Blue Ocean Opportunity Identification (Specific sub-niches with high demand and low competition). Use a table to compare at least 3 sub-segments."
+                },
+                {
+                    "id": "regulation_impact",
+                    "title": "Analyze potential market impact of regulation",
+                    "description": "Checks policy compliance and its impact on e-commerce operations.",
+                    "prompt": "Analyze the potential market impact of upcoming regulations or compliance standards on the '{query}' category. Outline the cost-of-compliance and potential supply chain bottlenecks in a table."
+                },
+                {
+                    "id": "assess_mfg_relocation",
+                    "title": "Assess manufacturing relocation risks",
+                    "description": "Conducts total landed cost analysis across different countries.",
+                    "prompt": "Assess the risks and cost benefits of relocating manufacturing for '{query}'. Provide a comparative table analyzing at least 3 alternative sourcing hubs (e.g., Vietnam, Mexico, India) on labor cost, shipping speed, and quality control."
+                }
+            ]
+        },
+        {
+            "id": "product_design",
+            "name": "Product Design",
+            "templates": [
+                {
+                    "id": "iconic_buildings_design",
+                    "title": "Turn iconic buildings into event gift design visuals",
+                    "description": "Extracts shapes and proportion elements to create product design visuals.",
+                    "prompt": "Act as an Industrial Designer. Take visual inspiration from iconic architecture and translate it into commercial design concepts for '{query}'. Detail the materials, form factor, and structural integrity."
+                },
+                {
+                    "id": "inclusive_products",
+                    "title": "Design inclusive products for diverse body types",
+                    "description": "Develops product specs focusing on inclusivity and body diversity.",
+                    "prompt": "Design an inclusive, highly accessible version of '{query}' that accommodates diverse body types or physical abilities. Provide specific dimension modifications and a table of ergonomic benefits."
+                },
+                {
+                    "id": "gen_z_appeal",
+                    "title": "Reimagine everyday essentials with Gen Z appeal",
+                    "description": "Design concepts focused on Gen Z aesthetics and values.",
+                    "prompt": "Act as a Lead Product Designer. Take the '{query}' product category and generate 3 INNOVATIVE DESIGN CONCEPTS that appeal specifically to Gen Z (Ages 12-27). Focus on: 1. Aesthetic Direction (Colors, shapes), 2. Sustainable Material Innovations, 3. Social Media 'Hook' Features, and 4. Brand Tone of Voice. Provide a narrative description for each concept that would inspire an R&D team."
+                },
+                {
+                    "id": "inspiration_to_design",
+                    "title": "Turn inspiration into designs and matching suppliers",
+                    "description": "Converts visual inspiration into product concepts and identifies manufacturers.",
+                    "prompt": "Turn creative inspiration for '{query}' into concrete manufacturing specifications. Provide a Bill of Materials (BOM) table and describe the ideal production techniques."
+                },
+                {
+                    "id": "thematic_holiday",
+                    "title": "Design a thematic product for an upcoming holiday",
+                    "description": "Creates comprehensive reports on seasonal product strategies.",
+                    "prompt": "Design a high-margin, thematic version of '{query}' specifically tied to a major upcoming holiday. Outline the seasonal color palette, packaging design, and a limited-edition pricing tier table."
+                },
+                {
+                    "id": "viral_ip_products",
+                    "title": "Turn viral IP into product ideas with visual designs",
+                    "description": "Analyzes iconic visual elements to generate merchandising concepts.",
+                    "prompt": "Analyze elements of viral internet pop culture/IP and propose officially licensed or inspired aesthetic concepts for '{query}'. Focus on colorways and distinctive silhouettes."
+                },
+                {
+                    "id": "validate_innovative_idea",
+                    "title": "Validate and visualize innovative product ideas",
+                    "description": "Uses trend analysis and scene inspiration to validate product concepts.",
+                    "prompt": "Critically evaluate an innovative concept for '{query}'. Provide a Risk/Reward Matrix table and recommend iterative design adjustments to maximize mass-market appeal."
+                },
+                {
+                    "id": "specific_use_case",
+                    "title": "Develop products based on a specific use case",
+                    "description": "Analyzes market size and hot-selling products to develop items for specific scenarios.",
+                    "prompt": "Analyze a highly specific, underserved consumer scenario for '{query}' and develop a hyper-targeted product design. Provide a feature vs. benefit table."
+                },
+                {
+                    "id": "competitive_tweaks",
+                    "title": "Find competitive design tweaks for bestsellers",
+                    "description": "Identifies high-impact design adjustments to improve product performance.",
+                    "prompt": "Act as a Senior Product Strategist. Analyze the best-selling products in the '{query}' category. Identify 3 specific design 'tweaks' or enhancements that would give a new entrant a competitive edge. Provide a 'Competitive Advantage Matrix' comparing these tweaks against current market leaders."
+                }
+            ]
+        },
+        {
+            "id": "supplier_sourcing",
+            "name": "Supplier Sourcing",
+            "templates": [
+                {
+                    "id": "discover_qualified",
+                    "title": "Discover qualified suppliers by uploading product image",
+                    "description": "Finds suppliers matching specific material and design requirements.",
+                    "prompt": "Act as a Global Sourcing Expert. Assume we have a visual reference for '{query}'. Detail the specific manufacturing hubs (cities/provinces in Asia) best suited for this, and list the minimum factory equipment required to produce it."
+                },
+                {
+                    "id": "search_compare_specs",
+                    "title": "Search & compare products across complex specs",
+                    "description": "Compares manufacturers based on advanced specs.",
+                    "prompt": "Create a highly detailed spec comparison table for sourcing '{query}'. Compare 3 hypothetical factory tiers (Low Cost, High Quality, Innovative) across MOQ, lead time, defect rate, and unit cost."
+                },
+                {
+                    "id": "source_certifications",
+                    "title": "Quickly source products that meet all key certifications",
+                    "description": "Locates manufacturers with specific certifications like CE, RoHS.",
+                    "prompt": "Provide a comprehensive sourcing brief for '{query}' prioritizing strict compliance. Output a table mapping required global certifications (e.g., CE, FCC, FDA) to specific product components."
+                },
+                {
+                    "id": "small_custom_runs",
+                    "title": "Find manufacturers for small, custom runs",
+                    "description": "Identifies suppliers willing to produce small batches (e.g., 200 units).",
+                    "prompt": "Identify strategies and factory profiles best suited for low-MOQ, high-customization runs of '{query}'. Provide a table comparing domestic vs overseas micro-manufacturing costs."
+                },
+                {
+                    "id": "investigate_risk",
+                    "title": "Fully investigate suppliers to avoid sourcing risks",
+                    "description": "Provides comprehensive business profiles and verification scores.",
+                    "prompt": "Act as a Supply Chain Auditor. Create a risk-assessment framework for evaluating suppliers for '{query}'. Provide a 10-point audit checklist in a Markdown table."
+                },
+                {
+                    "id": "recommend_audience",
+                    "title": "Recommend products based on audience and scenario",
+                    "description": "Generates tailored product recommendations for specific kits.",
+                    "prompt": "Design a curated multi-item sourcing kit surrounding '{query}' targeted at a high-end corporate or tailored audience. Provide a table detailing each component, its perceived value, and sourcing cost."
+                },
+                {
+                    "id": "draft_inquiry",
+                    "title": "Find style-fit factories and draft inquiry emails",
+                    "description": "Matches factories to aesthetic styles and drafts professional inquiry emails.",
+                    "prompt": "Draft a highly professional, native-fluent factory RFQ (Request for Quote) email template for sourcing '{query}'. Include placeholders for strict material tolerances and QA checkpoints."
+                },
+                {
+                    "id": "find_suppliers",
+                    "title": "Create a sourcing list for an event",
+                    "description": "Find and verify suppliers from 1688, Alibaba, and local sources.",
+                    "prompt": "As a Global Sourcing Expert, please identify and evaluate the TOP 5 QUALIFIED SUPPLIERS for '{query}'. Your report must rank them based on: 1. Reliability Score, 2. Price Competitiveness, 3. Production Capacity, and 4. Verification Status. Include a 'Supplier Comparison Matrix' table detailing these metrics."
+                }
+            ]
+        },
+        {
+            "id": "product_research",
+            "name": "Product Research",
+            "templates": [
+                {
+                    "id": "viral_deconstruction",
+                    "title": "Deconstruct viral hits to inspire new concepts",
+                    "description": "Analyze why products go viral on TikTok/Instagram.",
+                    "prompt": "Analyze the recent viral success of '{query}' products on social media. Identify the 3 'hook' features that made it go viral and suggest how we can incorporate these into a new product line without being a direct copy."
+                },
+                {
+                    "id": "bestseller_analysis",
+                    "title": "Analyze bestsellers in your niche and why they succeed",
+                    "description": "Data-driven breakdown of top-performing products.",
+                    "prompt": "Retrieve the top 10 best-selling products in the '{query}' category from our database. Analyze their common features, price points, and review sentiment to explain exactly why they are beating the competition."
+                },
+                {
+                    "id": "map_leading_indicators",
+                    "title": "Map leading indicators for a product trend",
+                    "description": "Identify early signals and data points that show a trend is accelerating.",
+                    "prompt": "Act as a Market Forecasting Expert. Map the leading indicators for the '{query}' trend. Analyze search volume growth, social media hashtag velocity, and early-adopter sentiment. Provide a timeline of trend evolution and predict when it will hit mainstream adoption. Include a table of key indicators."
+                },
+                {
+                    "id": "spot_rising_trends",
+                    "title": "Spot rising trends early to guide sourcing and design",
+                    "description": "Discover emerging micro-trends before they become mainstream.",
+                    "prompt": "As a Trend Forecaster, analyze the broader market around '{query}' to spot rising micro-trends. Identify 3 specific emerging sub-categories. For each, explain why it is gaining traction and how product teams can adapt their sourcing and design to capitalize on it."
+                },
+                {
+                    "id": "analyze_pain_points",
+                    "title": "Analyze pain points to spot new product directions",
+                    "description": "Extract common customer complaints to find opportunities for innovation.",
+                    "prompt": "Act as a Consumer Insights Researcher. Analyze 1-star and 2-star reviews for top-selling '{query}' products. Identify the top 3 recurring pain points. For each pain point, propose a specific product improvement or new product direction that directly solves the customer's frustration. Present findings in a Markdown table."
+                },
+                {
+                    "id": "uncover_unmet_needs",
+                    "title": "Uncover unmet needs and design product concepts",
+                    "description": "Find gaps in the market and create concepts to fill them.",
+                    "prompt": "As a Product Innovator, analyze the '{query}' category to uncover unmet customer needs\u2014things customers want but current products fail to deliver. Based on these unmet needs, design 2 original product concepts with a clear value proposition."
+                },
+                {
+                    "id": "track_material_innovations",
+                    "title": "Track material innovations for formulation upgrades",
+                    "description": "Explore new materials and manufacturing techniques to upgrade product quality.",
+                    "prompt": "Act as an R&D Specialist. Investigate recent material innovations and formulation upgrades relevant to '{query}'. Identify 2 cutting-edge materials or manufacturing techniques. Explain their benefits (sustainability, durability, cost-effectiveness) and how they can be applied to create a premium version of existing products."
+                },
+                {
+                    "id": "define_target_persona",
+                    "title": "Define target persona and key purchase triggers",
+                    "description": "Create detailed customer profiles and understand what drives them to buy.",
+                    "prompt": "As a Consumer Behavior Analyst, define the primary target persona for '{query}' products. Create a detailed profile including demographics, psychographics, and core values. Then, identify their top 3 'key purchase triggers'\u2014the specific emotional or practical reasons that convert them from browsers to buyers."
+                },
+                {
+                    "id": "develop_refill_pilot",
+                    "title": "Develop a refill pilot program",
+                    "description": "Design a sustainable refill or subscription model for consumable goods.",
+                    "prompt": "Act as a Sustainability and Operations Expert. Design a pilot program for a refillable or subscription-based model for '{query}'. Outline the packaging requirements, logistics for return/refill, cost implications, and a marketing message to encourage customer adoption of this eco-friendly option."
+                }
+            ]
+        },
+        {
+            "id": "go_to_market",
+            "name": "Go-to-market",
+            "templates": [
+                {
+                    "id": "generate_lifestyle",
+                    "title": "Generate lifestyle and detail images for product listings",
+                    "description": "Visualizes key product features in lifestyle settings.",
+                    "prompt": "Act as an E-commerce Visual Director. Plan a high-converting photoshoot shot-list for '{query}'. Detail 5 essential lifestyle contexts and the emotional benefit each image should convey. Output as a Markdown table."
+                },
+                {
+                    "id": "plan_in_store",
+                    "title": "Plan in-store activation with training, displays & metrics",
+                    "description": "Drafts strategic positioning and demo unit setup plans.",
+                    "prompt": "Draft a retail in-store activation strategy for '{query}'. Outline the physical endcap display design, the 30-second sales associate pitch, and KPIs to measure foot-traffic conversion."
+                },
+                {
+                    "id": "craft_amazon",
+                    "title": "Craft high-converting Amazon listing content",
+                    "description": "Optimizes product titles, key bullet points, and descriptions.",
+                    "prompt": "Act as an Amazon SEO Expert. Write the master listing copy for '{query}'. Provide an SEO-optimized title, 5 emotional/benefit-driven bullet points, and A+ content structure. Include a Keyword Density table."
+                },
+                {
+                    "id": "ab_test_copy",
+                    "title": "Create A/B test copy with variations",
+                    "description": "Develops testing plans comparing different value propositions.",
+                    "prompt": "Design a strict A/B testing matrix for Facebook/Instagram ads selling '{query}'. Provide 3 distinct copy angles (e.g., Logic, Emotion, FOMO) and primary visual hooks in a comparison table."
+                },
+                {
+                    "id": "pre_launch_campaign",
+                    "title": "Plan a pre-launch campaign with UGC and influencer",
+                    "description": "Creates event plans including timelines and key metrics.",
+                    "prompt": "Design a 30-day pre-launch hype campaign for '{query}'. Outline the influencer outreach strategy, UGC contest rules, and email capture incentives in a weekly timeline table."
+                },
+                {
+                    "id": "seasonal_bundling",
+                    "title": "Create a strategy for seasonal product bundling",
+                    "description": "Develops bundle concepts and visual identities for holiday sets.",
+                    "prompt": "Create a high-AOV (Average Order Value) seasonal bundling strategy for '{query}'. Suggest 3 complementary cross-sell items to include and price the tiers accordingly in a Pricing Strategy table."
+                },
+                {
+                    "id": "tailor_descriptions",
+                    "title": "Tailor product descriptions for different marketplace",
+                    "description": "Adapts formatting and highlights for platforms like Amazon, Alibaba.",
+                    "prompt": "Write platform-specific product descriptions for '{query}'. Tailor the tone and length individually for 1. Shopify (Brand Story), 2. Amazon (SEO/Benefits), and 3. TikTok Shop (Short/Viral Hook)."
+                },
+                {
+                    "id": "comparison_chart",
+                    "title": "Enhance product listing with comparison chart",
+                    "description": "Creates competitive value positioning plans including Pro vs. Con charts.",
+                    "prompt": "Act as a Category Manager. Create a brutal 'Us vs. Them' comparison chart for '{query}' against the leading market incumbent. Identify 3 areas where our hypothetical product definitively wins."
+                }
+            ]
+        }
+    ]
+}

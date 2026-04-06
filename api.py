@@ -343,11 +343,11 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 if r[0].metadata.get("image_url") or r[0].metadata.get("s3_image_url")
             ]
 
-            # Keyword check
+            import re
             keywords = [w for w in query_lower.split() if len(w) > 2]
             for word in keywords:
                 hit = any(
-                    word in (str(r[0].page_content) + str(r[0].metadata.get("name", ""))).lower()
+                    bool(re.search(rf'\b{re.escape(word)}\b', (str(r[0].page_content) + str(r[0].metadata.get("name", ""))).lower()))
                     for r in results_with_images
                 )
                 if not hit:
@@ -402,7 +402,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     "brand": p.get("brand") or p.get("source") or "Store",
                     "price": p.get("price") or "Check Site",
                     "image_url": p.get("s3_image_url") or p.get("image_url"),
-                    "source_url": p.get("source_url") or p.get("url"),
+                    "source_url": p.get("source_url") or p.get("url") or p.get("source"),
                     "source": p.get("source") or "Search",
                     "rating_avg": p.get("rating_avg") or p.get("rating") or "",
                     "rating_count": p.get("rating_count") or "",

@@ -21,7 +21,7 @@ async def crawl_site(url: str, crawler=None):
         proxy=proxy_url if proxy_url else None
     )
     
-    # Slower, more thorough scroll script with lazy-load attribute swap
+    # Enhanced scroll to ensure lazy-loaded reviews at the very bottom (like Amazon) are triggered
     js_scroll = """
     (async () => {
         const swapImages = () => {
@@ -35,19 +35,29 @@ async def crawl_site(url: str, crawler=None):
             });
         };
         
-        for (let i = 0; i < 5; i++) {
+        // Initial scroll down
+        for (let i = 0; i < 6; i++) {
             window.scrollBy(0, window.innerHeight);
             swapImages();
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
-        swapImages(); // Final pass
+        
+        // CRITICAL: Force jump to very bottom to trigger review lazyloders
+        window.scrollTo(0, document.body.scrollHeight);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Scroll slightly back up to render them if they depend on intersection observer above fold
+        window.scrollBy(0, -1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        swapImages(); 
     })();
     """
 
     # Use PruningContentFilter to strip headers, footers, and nav
-    # This is much more effective than manual regex
+    # Reduced thresholds so short Amazon reviews (under 50 words) are NOT stripped out!
     md_generator = DefaultMarkdownGenerator(
-        content_filter=PruningContentFilter(threshold=0.4, min_word_threshold=50)
+        content_filter=PruningContentFilter(threshold=0.3, min_word_threshold=15)
     )
 
     run_config = CrawlerRunConfig(

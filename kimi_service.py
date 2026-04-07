@@ -55,7 +55,7 @@ class KimiService:
                 return json.loads(match.group(0))
             return ["Analyze request", "Gather data from web", "Generate final report"]
         except Exception as e:
-            print(f"Error generating plan: {e}")
+            print(f"Error generating plan: {e}", flush=True)
             return [f"Plan Error: {str(e)}"]
 
     def __init__(self):
@@ -142,7 +142,7 @@ Use your best knowledge — even for newer Indian or regional models like Thar R
 Return ONLY valid JSON with these fields (never return null — use "N/A" if unknown):
 {{"name": "full model name", "price": "price range e.g. ₹15-18 Lakh", "mileage": "e.g. 18 kmpl", "fuel": "Petrol/Diesel/Electric"}}"""
         try:
-            print(f"DEBUG: Vehicle LLM start for {query}")
+            print(f"DEBUG: Vehicle LLM start for {query}", flush=True)
             response = await self._call_with_retry(
                 lambda: self.client.messages.create(
                     model=self.model,
@@ -159,11 +159,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             def is_empty(val):
                 return not val or str(val).strip().upper() in ("N/A", "NONE", "NULL", "UNKNOWN", "-")
             if isinstance(result, dict) and all(is_empty(result.get(f)) for f in ["price", "mileage", "fuel"]):
-                print(f"DEBUG: Vehicle LLM returned all N/A for {query}. Falling back to images.")
+                print(f"DEBUG: Vehicle LLM returned all N/A for {query}. Falling back to images.", flush=True)
                 return await self.search_images(query)
             return result
         except Exception as e:
-            print("Vehicle error:", e)
+            print("Vehicle error:", e, flush=True)
             return await self.search_images(query)
 
     async def search_images(self, query):
@@ -176,7 +176,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         
         if not clean_query: clean_query = query # Fallback
 
-        print(f"DEBUG: Starting image search for: {clean_query}")
+        print(f"DEBUG: Starting image search for: {clean_query}", flush=True)
         # Try to find real images using the crawler
         try:
             # Bing search often has easier to scrape image URLs
@@ -222,16 +222,16 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         if len(real_results) >= 10: break
                     
                     if real_results:
-                        print(f"DEBUG: Found {len(real_results)} real images with source URLs from Bing.")
+                        print(f"DEBUG: Found {len(real_results)} real images with source URLs from Bing.", flush=True)
                         return {
                             "type": "images",
                             "query": clean_query,
                             "results": real_results
                         }
                     else:
-                        print("DEBUG: No real images found in Bing search result.")
+                        print("DEBUG: No real images found in Bing search result.", flush=True)
         except Exception as e:
-            print(f"Image search error: {e}")
+            print(f"Image search error: {e}", flush=True)
 
         # Final fallback to working placeholder
         return {
@@ -252,7 +252,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         }
 
     async def get_fast_bing_data(self, query, num_results=10):
-        print(f"DEBUG: Starting get_fast_bing_data for {query}")
+        print(f"DEBUG: Starting get_fast_bing_data for {query}", flush=True)
         # 1. Parallel Search and Image Lookup
         urls_task = self.search_sources(query, intent="shopping", limit=num_results)
         images_task = self.search_images(query) # Proactive image lookup as fallback
@@ -267,7 +267,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         top_urls = urls[:2] # Reduced from 4 to 2 for production speed (avoid Amplify 30s timeout)
         synced_products = []
         if top_urls:
-            print(f"DEBUG: Performing sync extraction for top 2 results: {top_urls}")
+            print(f"DEBUG: Performing sync extraction for top 2 results: {top_urls}", flush=True)
             from crawler import crawl_site
             from crawl4ai import AsyncWebCrawler
             async with AsyncWebCrawler() as crawler:
@@ -286,7 +286,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                                     p["image_url"] = bing_images[idx].get("image_url")
                                 synced_products.append(p)
                     except Exception as e:
-                        print(f"DEBUG: Sync extraction failed for {url}: {e}")
+                        print(f"DEBUG: Sync extraction failed for {url}: {e}", flush=True)
 
         synced_urls = [self._normalize_url(p.get("url") or p.get("source_url")) for p in synced_products if p]
         
@@ -308,7 +308,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 "price": "Check Site",
                 "brand": "Verifying...",
                 "source": domain.split('.')[0].capitalize(),
-                "details": f"Finding the best price and details for this {query} from {domain}..."
+                "details": f"Finding the best price and details for this {query} from {domain}...", flush=True)
             })
             
         # Pad with bing images if we need more
@@ -330,24 +330,24 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         return fast_results
 
     async def run_deep_crawl_process(self, query, fast_bing_products):
-        print(f"DEBUG: Starting background run_deep_crawl_process for {query}")
+        print(f"DEBUG: Starting background run_deep_crawl_process for {query}", flush=True)
         urls = [p["source_url"] for p in fast_bing_products if p.get("source_url")]
         
         results = []
         if urls:
-            print(f"DEBUG: Found {len(urls)} URLs. Starting advanced crawl for visibility...")
+            print(f"DEBUG: Found {len(urls)} URLs. Starting advanced crawl for visibility...", flush=True)
             pages = []
             from crawler import crawl_site
             async with AsyncWebCrawler() as crawler:
                 for idx, url in enumerate(urls):
-                    print(f"🚀 [CRAWL] ({idx+1}/{len(urls)}) -> {url}")
+                    print(f"🚀 [CRAWL] ({idx+1}/{len(urls)}) -> {url}", flush=True)
                     content, _ = await crawl_site(url, crawler=crawler)
                     if content:
                         pages.append(content)
             
-            print(f"✅ [COMPLETE] Crawled {len(pages)} product pages successfully.")
+            print(f"✅ [COMPLETE] Crawled {len(pages)} product pages successfully.", flush=True)
 
-            print(f"DEBUG: Fetched {len(pages)} pages. Starting parallel extraction...")
+            print(f"DEBUG: Fetched {len(pages)} pages. Starting parallel extraction...", flush=True)
             extraction_tasks = []
             for idx, content in enumerate(pages):
                 if not content or len(content) < 200: continue
@@ -377,14 +377,14 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         # 3. Process Images (S3 Upload & Filtering)
         from asset_processor import asset_processor
         if results:
-            print(f"DEBUG: Processing {len(results)} extracted products for S3 upload and filtering...")
+            print(f"DEBUG: Processing {len(results)} extracted products for S3 upload and filtering...", flush=True)
             results = asset_processor.process_product_images(results, category="retail", subcategory="live_search")
             # process_product_images modifies dictionaries in place and adds s3_image_url
             for p in results:
                 if p.get("s3_image_url"):
                     p["image_url"] = p["s3_image_url"] # Ensure the primary image_url is the S3 one
 
-        print(f"DEBUG: Finished get_product_data. Total combined items: {len(results)}")
+        print(f"DEBUG: Finished get_product_data. Total combined items: {len(results)}", flush=True)
         return results[:10]
 
     async def extract_product_data(self, content, target_category="relevant", base_url=None):
@@ -412,7 +412,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         if price_match:
             # Start 500 characters before the first price marker
             start_idx = max(0, price_match.start() - 500)
-            print(f"DEBUG: Smart Start triggered at index {start_idx}")
+            print(f"DEBUG: Smart Start triggered at index {start_idx}", flush=True)
         
         truncated_content = content[start_idx : start_idx + 60000] 
         prompt = (
@@ -435,7 +435,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             f"\nText:\n{truncated_content}"
         )
         try:
-            print(f"DEBUG: Extraction LLM call start (content length: {len(truncated_content)})")
+            print(f"DEBUG: Extraction LLM call start (content length: {len(truncated_content)})", flush=True)
             response = await self._call_with_retry(
                 lambda: self.client.messages.create(
                     model=self.model,
@@ -460,7 +460,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
             return extracted
         except Exception as e:
-            print(f"Extraction error: {e}")
+            print(f"Extraction error: {e}", flush=True)
             return []
 
     def _get_category_prompt(self, template_id):
@@ -485,7 +485,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                             category_id = cat.get("id")
                             break
         except Exception as e:
-            print(f"Error loading templates category: {e}")
+            print(f"Error loading templates category: {e}", flush=True)
 
         if category_id == "business_analysis":
             return base_prompt + (
@@ -571,13 +571,13 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 if any(kw in doc_text for kw in subject_keywords):
                     context_docs.append((doc, score))
 
-            print(f"RAG: {len(all_docs)} raw → {len(context_docs)} relevant for '{search_query}'")
+            print(f"RAG: {len(all_docs)} raw → {len(context_docs)} relevant for '{search_query}'", flush=True)
         except Exception as e:
-            print(f"RAG search failed for report: {e}")
+            print(f"RAG search failed for report: {e}", flush=True)
 
         # 2. If local DB has no relevant data, handle gracefully
         if not context_docs:
-            print(f"No relevant local data for '{search_query}'. Using empty context.")
+            print(f"No relevant local data for '{search_query}'. Using empty context.", flush=True)
             context_text = "MARKET CONTEXT FROM LOCAL DATABASE:\n[NO LOCAL DATA WAS FOUND FOR THIS PRODUCT. GENERATE THE REPORT BASED ON YOUR OWN KNOWLEDGE BUT MENTION THAT LOCAL SUPPLIER DATA IS UNAVAILABLE.]\n"
         else:
             # Build context from local DB results
@@ -598,7 +598,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         user_prompt = f"{context_text}\n\nTemplate ID: {template_id or 'General Analysis'}\n\nTask: {query}"
 
         try:
-            print(f"DEBUG: Generating Agent Report for {template_id}")
+            print(f"DEBUG: Generating Agent Report for {template_id}", flush=True)
             response = await self._call_with_retry(
                 lambda: self.client.messages.create(
                     model=self.model,
@@ -609,7 +609,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             )
             return response.content[0].text if response else "Failed to generate report."
         except Exception as e:
-            print(f"Error generating agent report: {e}")
+            print(f"Error generating agent report: {e}", flush=True)
             import traceback
             traceback.print_exc()
             return f"BACKEND_ERROR: {str(e)}"
@@ -617,7 +617,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
     async def live_search(self, query):
         prompt = f"Give a helpful answer for: {query}"
         try:
-            print(f"DEBUG: Live search LLM start for {query}")
+            print(f"DEBUG: Live search LLM start for {query}", flush=True)
             response = await self._call_with_retry(
                 lambda: self.client.messages.create(
                     model=self.model,
@@ -628,7 +628,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             )
             return response.content[0].text if response else "No result found."
         except Exception as e:
-            print("Live search error:", e)
+            print("Live search error:", e, flush=True)
             
     async def search_sources(self, query, intent="shopping", limit=10):
         # 1. Proactive Image Search to get HIGH QUALITY direct product URLs
@@ -645,7 +645,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         )
         
         try:
-            print(f"DEBUG: Search sources LLM start for {query}")
+            print(f"DEBUG: Search sources LLM start for {query}", flush=True)
             response = await self._call_with_retry(
                 lambda: self.client.messages.create(
                     model=self.model,
@@ -670,24 +670,24 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     all_urls.append(norm)
                     seen.add(norm)
             
-            print(f"DEBUG: Found {len(all_urls)} combined product URLs.")
+            print(f"DEBUG: Found {len(all_urls)} combined product URLs.", flush=True)
             return all_urls[:limit]
             
         except Exception as e:
-            print("Search error:", e)
+            print("Search error:", e, flush=True)
             return [self._normalize_url(u) for u in image_urls[:limit]]
 
     async def _fetch_page(self, session, url):
         try:
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
-            print(f"DEBUG: Fetching URL: {url}")
+            print(f"DEBUG: Fetching URL: {url}", flush=True)
             async with session.get(url, timeout=8, headers=headers) as res:
                 if res.status == 200:
                     return await res.text()
-                print(f"DEBUG: Fetch failed with status {res.status} for {url}")
+                print(f"DEBUG: Fetch failed with status {res.status} for {url}", flush=True)
                 return ""
         except Exception as e:
-            print(f"DEBUG: Fetch error for {url}: {e}")
+            print(f"DEBUG: Fetch error for {url}: {e}", flush=True)
             return ""
 
     def _normalize_url(self, url):
@@ -720,13 +720,13 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 is_rate_limit = "429" in str(e) or "rate_limit" in str(e).lower()
                 if is_rate_limit and i < retries - 1:
                     wait_time = (5 ** i) + 2
-                    print(f"Rate limited. Waiting {wait_time}s...")
+                    print(f"Rate limited. Waiting {wait_time}s...", flush=True)
                     await asyncio.sleep(wait_time)
                 elif i == retries - 1:
-                    print(f"LLM call failed after {retries} retries: {e}")
+                    print(f"LLM call failed after {retries} retries: {e}", flush=True)
                     return None
                 else:
-                    print(f"LLM error: {e}. Retrying...")
+                    print(f"LLM error: {e}. Retrying...", flush=True)
                     await asyncio.sleep(1)
 
     async def cache_and_store_products(self, products, query):
@@ -736,8 +736,8 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         if not products:
             return
 
-        print(f"\n🚀 [BACKGROUND] Starting caching for: {query}")
-        print(f"📦 [BACKGROUND] Processing {len(products)} products...")
+        print(f"\n🚀 [BACKGROUND] Starting caching for: {query}", flush=True)
+        print(f"📦 [BACKGROUND] Processing {len(products)} products...", flush=True)
         
         try:
             from ingest import add_multiple_contents_to_store
@@ -788,9 +788,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
             if ingest_items:
                 await add_multiple_contents_to_store(ingest_items)
-                print(f"✅ [BACKGROUND] Successfully cached {len(ingest_items)} products for '{query}'\n")
+                print(f"✅ [BACKGROUND] Successfully cached {len(ingest_items)} products for '{query}'\n", flush=True)
             
         except Exception as e:
-            print(f"❌ [BACKGROUND] Error during caching: {e}")
+            print(f"❌ [BACKGROUND] Error during caching: {e}", flush=True)
 
 kimi_service = KimiService()

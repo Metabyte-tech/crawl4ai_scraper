@@ -71,7 +71,7 @@ def rebuild_carousel_with_map(content, lookup_map):
             rebuilt.sort(key=lambda p: 0 if p.get("image_url") else 1)
             return f"{tags_open}{json.dumps(rebuilt, separators=(',', ':'))}{tags_close}"
         except Exception as e:
-            print(f"Carousel reconstruct error: {e}")
+            print(f"Carousel reconstruct error: {e}", flush=True)
             return match.group(0)
 
     return re.sub(r'(<product_carousel>)(.*?)(</product_carousel>)', reconstruct, content, flags=re.DOTALL)
@@ -89,18 +89,18 @@ async def background_ingest(url: str, max_pages: int = 1):
             if results:
                 await add_multiple_contents_to_store(results)
     except Exception as e:
-        print(f"Background ingest error for {url}: {e}")
+        print(f"Background ingest error for {url}: {e}", flush=True)
 
 
 async def background_crawl_and_ingest(query: str, fast_products: list):
     try:
-        print(f"🔄 BACKGROUND: Deep crawl for '{query}'...")
+        print(f"🔄 BACKGROUND: Deep crawl for '{query}'...", flush=True)
         deep_results = await kimi_service.run_deep_crawl_process(query, fast_products)
         if deep_results:
             await kimi_service.cache_and_store_products(deep_results, query)
-        print(f"✅ BACKGROUND: Done for '{query}'!")
+        print(f"✅ BACKGROUND: Done for '{query}'!", flush=True)
     except Exception as e:
-        print(f"❌ BACKGROUND: Failed for '{query}': {e}")
+        print(f"❌ BACKGROUND: Failed for '{query}': {e}", flush=True)
         import traceback
         traceback.print_exc()
 
@@ -110,9 +110,9 @@ app = FastAPI(title="Retail AI RAG API")
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    print(f"🔍 {request.method} {request.url.path}")
+    print(f"🔍 {request.method} {request.url.path}", flush=True)
     response = await call_next(request)
-    print(f"📉 {request.method} {request.url.path} → {response.status_code}")
+    print(f"📉 {request.method} {request.url.path} → {response.status_code}", flush=True)
     return response
 
 
@@ -289,7 +289,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
     try:
         start_time = time.time()
         body = await req.json()
-        print(f"📥 Body received")
+        print(f"📥 Body received", flush=True)
 
         query = body.get("message")
         messages_list = body.get("messages", [])
@@ -301,13 +301,13 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
 
         query = (query or "hi").strip()
         query_lower = query.lower()
-        print(f"🔥 Query: {query}")
+        print(f"🔥 Query: {query}", flush=True)
 
         intent = kimi_service.detect_intent(query)
         if body.get("template_id"):
             intent = "agent_task"
             
-        print(f"🧠 Intent: {intent}")
+        print(f"🧠 Intent: {intent}", flush=True)
 
         live_products = []
         local_results = []
@@ -335,7 +335,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
         elif intent == "shopping":
             rag_start = time.time()
             rag_results = fast_query(query, category="retail", threshold=0.95)
-            print(f"🛒 RAG: {len(rag_results)} docs in {time.time()-rag_start:.2f}s")
+            print(f"🛒 RAG: {len(rag_results)} docs in {time.time()-rag_start:.2f}s", flush=True)
             random.shuffle(rag_results)
 
             results_with_images = [
@@ -351,7 +351,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     for r in results_with_images
                 )
                 if not hit:
-                    print(f"⚠️ RAG rejected: '{word}' not in results")
+                    print(f"⚠️ RAG rejected: '{word}' not in results", flush=True)
                     results_with_images = []
                     rag_results = []
                     break
@@ -360,9 +360,9 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
 
             if len(results_with_images) < 6:
                 # Fast search takes 1-2s. Deep crawling happens in background
-                print(f"DEBUG: Triggering live search (RAG only found {len(results_with_images)} docs)")
+                print(f"DEBUG: Triggering live search (RAG only found {len(results_with_images)} docs)", flush=True)
                 live_products = await kimi_service.get_fast_bing_data(query)
-                print(f"⚡ Bing: {len(live_products)} products")
+                print(f"⚡ Bing: {len(live_products)} products", flush=True)
                 if live_products:
                     background_tasks.add_task(background_crawl_and_ingest, query, live_products)
             else:
@@ -415,12 +415,12 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 })
             grid = f"<product_grid>{json.dumps(items)}</product_grid>"
             final = f"Here are the best results I found:\n\n{grid}"
-            print(f"📡 Grid: {len(items)} products")
+            print(f"📡 Grid: {len(items)} products", flush=True)
         else:
             final = format_response(bot_response)
-            print(f"📡 Text response: {len(final)} chars")
+            print(f"📡 Text response: {len(final)} chars", flush=True)
 
-        print(f"✅ Done in {time.time()-start_time:.1f}s")
+        print(f"✅ Done in {time.time()-start_time:.1f}s", flush=True)
         return JSONResponse({"type": "message", "response": final, "intent": intent})
 
     except Exception as e:

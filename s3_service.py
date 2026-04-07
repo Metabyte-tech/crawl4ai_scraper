@@ -35,13 +35,13 @@ class S3Service:
             else:
                 url = f"https://{self.bucket_name}.s3.{region}.amazonaws.com/{file_name}"
                 
-            print(f"Successfully uploaded to S3: {url}")
+            print(f"Successfully uploaded to S3: {url}", flush=True)
             return url
         except NoCredentialsError:
-            print("S3 Error: Credentials not available")
+            print("S3 Error: Credentials not available", flush=True)
             return None
         except Exception as e:
-            print(f"Error uploading to S3 ({file_name}): {e}")
+            print(f"Error uploading to S3 ({file_name}): {e}", flush=True)
             return None
 
 s3_service = S3Service()

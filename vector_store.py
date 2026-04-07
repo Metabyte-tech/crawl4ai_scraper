@@ -32,7 +32,7 @@ def clear_vector_store():
             chunk_size = 500
             for i in range(0, len(ids), chunk_size):
                 vector_store.delete(ids[i:i + chunk_size])
-            print(f"Vector store cleared. Deleted {len(ids, flush=True)} documents in chunks.")
+            print(f"Vector store cleared. Deleted {len(ids)} documents in chunks.", flush=True)
         else:
             print("Vector store is already empty.", flush=True)
     except Exception as e:

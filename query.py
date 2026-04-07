@@ -55,7 +55,7 @@ def cached_query(query: str):
     Fresh version of fast_query for dynamic retrieval.
     """
     results = fast_query(query)
-    print(f"DEBUG Retrieval for '{query}': Found {len(results, flush=True)} docs")
+    print(f"DEBUG Retrieval for '{query}': Found {len(results)} docs", flush=True)
     for i, res in enumerate(results):
         doc = res[0] if isinstance(res, tuple) else res
         print(f"  Doc {i} Snippet: {doc.page_content[:150]}...", flush=True)

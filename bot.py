@@ -1,6 +1,6 @@
 from langchain_anthropic import ChatAnthropic
 from query import get_cached_retriever
-from langchain.prompts import PromptTemplate
+
 import os
 import asyncio
 from dotenv import load_dotenv

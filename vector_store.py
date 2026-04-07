@@ -4,7 +4,7 @@ import os
 
 DB_DIR = "./chroma_db"
 
-print("Initializing Embeddings and Vector Store...")
+print("Initializing Embeddings and Vector Store...", flush=True)
 # ✅ Load once at startup
 embeddings = HuggingFaceEmbeddings(
     model_name="all-MiniLM-L6-v2"
@@ -17,7 +17,7 @@ vector_store = Chroma(
 
     collection_name="crawl4ai_collection"
 )
-print("Vector Store Initialized.")
+print("Vector Store Initialized.", flush=True)
 
 def clear_vector_store():
     """
@@ -32,8 +32,8 @@ def clear_vector_store():
             chunk_size = 500
             for i in range(0, len(ids), chunk_size):
                 vector_store.delete(ids[i:i + chunk_size])
-            print(f"Vector store cleared. Deleted {len(ids)} documents in chunks.")
+            print(f"Vector store cleared. Deleted {len(ids, flush=True)} documents in chunks.")
         else:
-            print("Vector store is already empty.")
+            print("Vector store is already empty.", flush=True)
     except Exception as e:
-        print(f"Error clearing vector store: {e}")
+        print(f"Error clearing vector store: {e}", flush=True)

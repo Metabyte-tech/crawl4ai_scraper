@@ -18,7 +18,7 @@ class AssetProcessor:
         self.proxy_url = os.getenv("PROXY_URL")
         # Initialize client without specific headers as we'll set them per request
         if self.proxy_url:
-            print(f"DEBUG: AssetProcessor using proxy: {self.proxy_url}")
+            print(f"DEBUG: AssetProcessor using proxy: {self.proxy_url}", flush=True)
             self.client = httpx.Client(timeout=30.0, verify=False, proxy=self.proxy_url)
         else:
             self.client = httpx.Client(timeout=30.0, verify=False)
@@ -66,14 +66,25 @@ class AssetProcessor:
                     # Pattern matches everything between ._ and the file extension dot
                     recovered_url = re.sub(r'\._[^/]*\.', '.', image_url)
                     if recovered_url != image_url:
-                        print(f"DEBUG: Recovered high-res Amazon image: {recovered_url}")
-                        image_url = recovered_url
+                        # Test if the recovered URL is actually an image before committing
+                        # This avoids the "Not found" 404s seen on production
+                        try:
+                            # Use a quick HEAD request to verify existence
+                            test_res = self.client.head(recovered_url, timeout=5.0)
+                            if test_res.status_code == 200:
+                                print(f"DEBUG: Successfully recovered high-res Amazon image: {recovered_url}", flush=True)
+                                image_url = recovered_url
+                            else:
+                                print(f"DEBUG: High-res recovery failed ({test_res.status_code}) for {recovered_url}. Staying with original.", flush=True)
+                        except Exception:
+                            # If HEAD fails or errors, stay with original thumbnail
+                            pass
                 
                 # 2. Ajio Domain Repair - assets.ajio.com is often blocked/404
                 # assets-jiocdn.ajio.com is the persistent production CDN
                 if "assets.ajio.com" in image_url:
                     image_url = image_url.replace("assets.ajio.com", "assets-jiocdn.ajio.com")
-                    print(f"DEBUG: Repaired Ajio URL: {image_url}")
+                    print(f"DEBUG: Repaired Ajio URL: {image_url}", flush=True)
                 
                 product["image_url"] = image_url
                 
@@ -90,7 +101,7 @@ class AssetProcessor:
                 # Check cache before doing any network requests
                 cached_s3 = image_cache.get_s3_url(image_url)
                 if cached_s3:
-                    print(f"INFO: IMAGE CACHE HIT. Skipping download for {image_url}")
+                    print(f"INFO: IMAGE CACHE HIT. Skipping download for {image_url}", flush=True)
                     product["s3_image_url"] = cached_s3
                     product["original_image_url"] = image_url
                     processed_products.append(product)
@@ -98,7 +109,7 @@ class AssetProcessor:
 
                 if image_url.startswith("http") and is_image and not is_logolike:
                     try:
-                        print(f"INFO: Attempting to download image: {image_url}")
+                        print(f"INFO: Attempting to download image: {image_url}", flush=True)
                         # Use rotating stealth headers for each request
                         headers = self._get_headers(image_url)
                         response = self.client.get(image_url, timeout=10.0, headers=headers)
@@ -106,17 +117,17 @@ class AssetProcessor:
                         # SIZE FILTER: Skip images under 1KB (likely tiny invisible pixels)
                         content_len = len(response.content)
                         if response.status_code == 200 and content_len < 1000:
-                            print(f"SKIP: Image too small ({content_len} bytes), likely a logo or icon: {image_url}")
+                            print(f"SKIP: Image too small ({content_len} bytes, flush=True), likely a logo or icon: {image_url}")
                             continue
-                        print(f"INFO: Image download status: {response.status_code} ({content_len} bytes)")
+                        print(f"INFO: Image download status: {response.status_code} ({content_len} bytes, flush=True)")
                         
                         if response.status_code != 200 and "original_image_url" in product:
                              # Don't split on '?' for Shopify URLs as they might need v=...
                              image_url = product["original_image_url"]
-                             print(f"WARNING: Initial URL failed ({response.status_code}). Retrying with original: {image_url}")
+                             print(f"WARNING: Initial URL failed ({response.status_code}, flush=True). Retrying with original: {image_url}")
                              headers = self._get_headers(image_url)
                              response = self.client.get(image_url, timeout=10.0, headers=headers)
-                             print(f"INFO: Original image download status: {response.status_code}")
+                             print(f"INFO: Original image download status: {response.status_code}", flush=True)
                         if response.status_code == 200:
                             # Generate a unique file name with category structure
                             ext = image_url.split(".")[-1].split("?")[0]
@@ -139,13 +150,13 @@ class AssetProcessor:
                                 # Save to DB Cache
                                 image_cache.save_s3_url(image_url, s3_url)
                             else:
-                                print(f"WARNING: S3 upload failed for {image_url}")
+                                print(f"WARNING: S3 upload failed for {image_url}", flush=True)
                         else:
-                            print(f"WARNING: All download attempts failed for {image_url}")
+                            print(f"WARNING: All download attempts failed for {image_url}", flush=True)
                     except httpx.ConnectError as e:
-                        print(f"ERROR: DNS/Connection failure for {image_url}: {e}")
+                        print(f"ERROR: DNS/Connection failure for {image_url}: {e}", flush=True)
                     except Exception as e:
-                        print(f"ERROR: Failed to process image {image_url}: {e}")
+                        print(f"ERROR: Failed to process image {image_url}: {e}", flush=True)
                         import traceback
                         traceback.print_exc()
             

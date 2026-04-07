@@ -49,7 +49,7 @@ async def add_content_to_store(content, metadata):
     if all_chunks:
         async with write_lock:
             vector_store.add_documents(all_chunks, batch_size=64)
-            print(f"Added {len(all_chunks)} chunks for {metadata.get('source')} with image: {page_image}")
+            print(f"Added {len(all_chunks, flush=True)} chunks for {metadata.get('source')} with image: {page_image}")
 async def add_multiple_contents_to_store(items: list):
     """
     Items: list of {"content": str, "url": str, "metadata": dict}
@@ -98,7 +98,7 @@ async def add_multiple_contents_to_store(items: list):
                 all_chunks.append(Document(page_content=clean_chunk, metadata=chunk_metadata))
     
     if all_chunks:
-        print(f"Batch adding {len(all_chunks)} chunks to the vector store...")
+        print(f"Batch adding {len(all_chunks, flush=True)} chunks to the vector store...")
         async with write_lock:
             # ChromaDB has a max batch size of 5461. 
             # Using manual loop of 500 to guarantee stability across all library versions.
@@ -106,4 +106,4 @@ async def add_multiple_contents_to_store(items: list):
             for i in range(0, len(all_chunks), batch_size):
                 batch = all_chunks[i : i + batch_size]
                 vector_store.add_documents(batch)
-                print(f"Added batch of {len(batch)} chunks. Total: {min(i + batch_size, len(all_chunks))}/{len(all_chunks)}")
+                print(f"Added batch of {len(batch, flush=True)} chunks. Total: {min(i + batch_size, len(all_chunks))}/{len(all_chunks)}")

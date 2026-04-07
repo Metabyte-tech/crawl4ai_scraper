@@ -308,7 +308,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 "price": "Check Site",
                 "brand": "Verifying...",
                 "source": domain.split('.')[0].capitalize(),
-                "details": f"Finding the best price and details for this {query} from {domain}...", flush=True)
+                "details": f"Finding the best price and details for this {query} from {domain}..."
             })
             
         # Pad with bing images if we need more
@@ -451,11 +451,19 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             # NORMALIZE URLs using base_url
             if base_url:
                 for p in extracted:
-                    if p.get("image_url"):
+                    # Handle LLM hallucinations like "Not found" or null
+                    p_url = p.get("url") or p.get("source_url")
+                    if not p_url or str(p_url).lower() in ("not found", "null", "none", "n/a"):
+                        p["url"] = base_url
+                        if "source_url" in p: p["source_url"] = base_url
+                    
+                    if p.get("image_url") and str(p.get("image_url")).lower() not in ("not found", "null", "none", "n/a"):
                         p["image_url"] = urljoin(base_url, p["image_url"])
+                    
+                    # Ensure final URLs are normalized
                     if p.get("url"):
                         p["url"] = urljoin(base_url, p["url"])
-                    elif p.get("source_url"):
+                    if p.get("source_url"):
                         p["source_url"] = urljoin(base_url, p["source_url"])
             
             return extracted

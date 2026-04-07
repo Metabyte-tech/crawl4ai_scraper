@@ -1,6 +1,6 @@
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 from vector_store import vector_store
 import os
@@ -49,7 +49,8 @@ async def add_content_to_store(content, metadata):
     if all_chunks:
         async with write_lock:
             vector_store.add_documents(all_chunks, batch_size=64)
-            print(f"Added {len(all_chunks, flush=True)} chunks for {metadata.get('source')} with image: {page_image}")
+            print(f"Added {len(all_chunks)} chunks for {metadata.get('source')} with image: {page_image}", flush=True)
+
 async def add_multiple_contents_to_store(items: list):
     """
     Items: list of {"content": str, "url": str, "metadata": dict}
@@ -90,7 +91,7 @@ async def add_multiple_contents_to_store(items: list):
                 chunk_metadata["s3_image_url"] = page_image
                 
             # 4. Strip remaining Markdown/HTML image tags
-            clean_chunk = re.sub(r'!\[.*?\]\)|\)', '', chunk) # Clean messed up MD
+            clean_chunk = re.sub(r'!\[.*?\]\)|\\)', '', chunk) # Clean messed up MD
             clean_chunk = re.sub(r'!\[.*?\]\(.*?\)', '', clean_chunk)
             clean_chunk = re.sub(r'<img.*?>', '', clean_chunk, flags=re.IGNORECASE)
             
@@ -98,7 +99,7 @@ async def add_multiple_contents_to_store(items: list):
                 all_chunks.append(Document(page_content=clean_chunk, metadata=chunk_metadata))
     
     if all_chunks:
-        print(f"Batch adding {len(all_chunks, flush=True)} chunks to the vector store...")
+        print(f"Batch adding {len(all_chunks)} chunks to the vector store...", flush=True)
         async with write_lock:
             # ChromaDB has a max batch size of 5461. 
             # Using manual loop of 500 to guarantee stability across all library versions.
@@ -106,4 +107,4 @@ async def add_multiple_contents_to_store(items: list):
             for i in range(0, len(all_chunks), batch_size):
                 batch = all_chunks[i : i + batch_size]
                 vector_store.add_documents(batch)
-                print(f"Added batch of {len(batch, flush=True)} chunks. Total: {min(i + batch_size, len(all_chunks))}/{len(all_chunks)}")
+                print(f"Added batch of {len(batch)} chunks. Total: {min(i + batch_size, len(all_chunks))}/{len(all_chunks)}", flush=True)

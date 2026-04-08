@@ -68,7 +68,7 @@ class RetailCrawler:
             # Process images for structured products if any were found
             processed_products = []
             if products:
-                processed_products = asset_processor.process_product_images(
+                processed_products = await asset_processor.process_product_images(
                     products, 
                     category=page_cat, 
                     subcategory=page_sub

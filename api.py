@@ -324,49 +324,50 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
             bot_response = format_response(v_res)
 
         elif intent == "agent_task":
-            bot_response = await kimi_service.generate_agent_report(
+            template_id = body.get("template_id", "")
+            subject = body.get("subject") or query
+            
+            # Start report generation
+            report_task = kimi_service.generate_agent_report(
                 query=query, 
-                template_id=body.get("template_id"),
-                subject=body.get("subject")
+                template_id=template_id,
+                subject=subject
             )
-            # For Agent tasks, we return the raw text report
-            return JSONResponse({"type": "message", "response": bot_response, "intent": intent})
+            
+            products_task = None
+            # If template implies tangible physical products, design, or sourcing, fetch images/products concurrently
+            if any(x in template_id for x in ["design", "source", "product", "inclusive", "appeal", "trend", "validate", "search", "find", "bestseller", "investigate"]):
+                if "supplier" in template_id or "source" in template_id or "search" in template_id or "bestseller" in template_id:
+                    products_task = kimi_service.get_fast_bing_data(subject)
+                else:
+                    products_task = kimi_service.search_images(subject)
+            
+            if products_task:
+                bot_response, prod_res = await asyncio.gather(report_task, products_task)
+                if isinstance(prod_res, dict) and "results" in prod_res:
+                    live_products = prod_res["results"]
+                elif isinstance(prod_res, list):
+                    live_products = prod_res
+            else:
+                bot_response = await report_task
+                
+            # Allow to fall through so if live_products exists, they are appended as a carousel!
 
         elif intent == "shopping":
+            # ALWAYS use live Amazon search for fresh prices/ratings first
+            live_products = await kimi_service.get_fast_bing_data(query)
+            print(f"⚡ Live Amazon: {len(live_products)} products", flush=True)
+
+            # Also query RAG for any supplemental context (for AI response quality)
             rag_start = time.time()
-            rag_results = fast_query(query, category="retail", threshold=0.95)
-            print(f"🛒 RAG: {len(rag_results)} docs in {time.time()-rag_start:.2f}s", flush=True)
-            random.shuffle(rag_results)
-
-            results_with_images = [
-                r for r in rag_results
-                if r[0].metadata.get("image_url") or r[0].metadata.get("s3_image_url")
-            ]
-
-            import re
-            keywords = [w for w in query_lower.split() if len(w) > 2]
-            for word in keywords:
-                hit = any(
-                    bool(re.search(rf'\b{re.escape(word)}\b', (str(r[0].page_content) + str(r[0].metadata.get("name", ""))).lower()))
-                    for r in results_with_images
-                )
-                if not hit:
-                    print(f"⚠️ RAG rejected: '{word}' not in results", flush=True)
-                    results_with_images = []
-                    rag_results = []
-                    break
-
+            rag_results = fast_query(query, category="retail", threshold=1.5)
+            print(f"🛒 RAG context: {len(rag_results)} docs in {time.time()-rag_start:.2f}s", flush=True)
             local_results = rag_results
 
-            if len(results_with_images) < 6:
-                # Fast search takes 1-2s. Deep crawling happens in background
-                print(f"DEBUG: Triggering live search (RAG only found {len(results_with_images)} docs)", flush=True)
-                live_products = await kimi_service.get_fast_bing_data(query)
-                print(f"⚡ Bing: {len(live_products)} products", flush=True)
-                if live_products:
-                    background_tasks.add_task(background_crawl_and_ingest, query, live_products)
-            else:
-                live_products = [r[0].metadata for r in results_with_images]
+            if live_products:
+                # Cache results in background so next query is faster if needed
+                background_tasks.add_task(kimi_service.cache_and_store_products, live_products, query)
+                background_tasks.add_task(background_crawl_and_ingest, query, live_products)
 
             bot_response = await chat_with_bot(
                 query=query, live_context=live_products,
@@ -379,13 +380,26 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
             )
 
         # Build final response
-        if live_products and intent in ("shopping", "images", "global_search", "supplier_sourcing"):
+        if live_products and intent in ("shopping", "images", "global_search", "supplier_sourcing", "agent_task"):
             ordered = sorted(
                 live_products,
                 key=lambda p: 0 if (p.get("image_url") or p.get("s3_image_url")) else 1
             )
+            # Build product grid - ONLY include products with valid images
+            INVALID_IMG = {None, "", "not found", "null", "none", "n/a", "undefined"}
             items = []
-            for p in ordered[:10]:
+            for p in ordered:
+                img = p.get("s3_image_url") or p.get("image_url") or p.get("Image URL")
+                img_str = str(img).lower()
+                
+                # STRICT BLOCK: Skip any product that has no image, a broken image, or a placeholder
+                if not img or img_str in INVALID_IMG or "placehold.co" in img_str or "no image" in img_str:
+                    continue
+                
+                # We have a valid image, proceed
+                if len(items) >= 10:
+                    break
+
                 # Parse reviews
                 reviews = []
                 if p.get("reviews"):
@@ -401,7 +415,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     "name": p.get("name") or p.get("title") or "Product",
                     "brand": p.get("brand") or p.get("source") or "Store",
                     "price": p.get("price") or "Check Site",
-                    "image_url": p.get("s3_image_url") or p.get("image_url"),
+                    "image_url": img,
                     "source_url": p.get("source_url") or p.get("url") or p.get("source"),
                     "source": p.get("source") or "Search",
                     "rating_avg": p.get("rating_avg") or p.get("rating") or "",

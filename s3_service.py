@@ -24,8 +24,7 @@ class S3Service:
                 Bucket=self.bucket_name,
                 Key=file_name,
                 Body=file_content,
-                ContentType=content_type,
-                ACL='public-read'
+                ContentType=content_type
             )
             
             # Construct URL using the specified region (recommended for Mumbai and others)

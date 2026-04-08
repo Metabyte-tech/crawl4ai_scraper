@@ -91,7 +91,7 @@ async def add_multiple_contents_to_store(items: list):
                 chunk_metadata["s3_image_url"] = page_image
                 
             # 4. Strip remaining Markdown/HTML image tags
-            clean_chunk = re.sub(r'!\[.*?\]\)|\\)', '', chunk) # Clean messed up MD
+            clean_chunk = re.sub(r'!\[.*?\]\)', '', chunk) # Clean messed up MD
             clean_chunk = re.sub(r'!\[.*?\]\(.*?\)', '', clean_chunk)
             clean_chunk = re.sub(r'<img.*?>', '', clean_chunk, flags=re.IGNORECASE)
             

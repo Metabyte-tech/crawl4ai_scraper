@@ -21,7 +21,7 @@ async def crawl_site(url: str, crawler=None):
         proxy=proxy_url if proxy_url else None
     )
     
-    # Enhanced scroll to ensure lazy-loaded reviews at the very bottom (like Amazon) are triggered
+    # Optimized scroll to avoid blocking execution for ~10s while still triggering some lazy loaders.
     js_scroll = """
     (async () => {
         const swapImages = () => {
@@ -35,21 +35,13 @@ async def crawl_site(url: str, crawler=None):
             });
         };
         
-        // Initial scroll down
-        for (let i = 0; i < 6; i++) {
-            window.scrollBy(0, window.innerHeight);
-            swapImages();
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        // Fast scroll down
+        window.scrollTo(0, document.body.scrollHeight / 2);
+        swapImages();
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        // CRITICAL: Force jump to very bottom to trigger review lazyloders
         window.scrollTo(0, document.body.scrollHeight);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Scroll slightly back up to render them if they depend on intersection observer above fold
-        window.scrollBy(0, -1000);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+        await new Promise(resolve => setTimeout(resolve, 800));
         swapImages(); 
     })();
     """
@@ -64,8 +56,9 @@ async def crawl_site(url: str, crawler=None):
         cache_mode=CacheMode.BYPASS,
         word_count_threshold=10,
         wait_for="body",
-        page_timeout=90000,  # 90 seconds
-        wait_for_timeout=60000, # 60s
+        simulate_user=True,
+        page_timeout=90000,
+        wait_for_timeout=60000,
         js_code=js_scroll,
         markdown_generator=md_generator
     )
@@ -101,6 +94,41 @@ async def _do_crawl(crawler, url, run_config):
     except Exception as e:
         print(f"Unexpected error crawling {url}: {e}")
         return None, []
+
+async def crawl_site_fast(url: str, crawler=None):
+    """
+    Extremely fast crawl for the initial synchronous UI phase.
+    Bypasses JS scrolling and wait-for delays to return DOM instantly.
+    """
+    import os
+    proxy_url = os.getenv("PROXY_URL")
+    
+    browser_config = BrowserConfig(
+        headless=True,
+        extra_args=["--disable-gpu", "--disable-dev-shm-usage", "--blink-settings=imagesEnabled=false"],
+        proxy=proxy_url if proxy_url else None
+    )
+    
+    # Strip headers/footers for faster LLM parsing, but skip complex scrolling
+    md_generator = DefaultMarkdownGenerator(
+        content_filter=PruningContentFilter(threshold=0.3, min_word_threshold=15)
+    )
+
+    run_config = CrawlerRunConfig(
+        cache_mode=CacheMode.BYPASS,
+        page_timeout=30000,  # 30 seconds max
+        wait_for_timeout=5000, # 5s max wait
+        markdown_generator=md_generator
+    )
+
+    if crawler is None:
+        try:
+            async with AsyncWebCrawler(config=browser_config) as crawler:
+                return await _do_crawl(crawler, url, run_config)
+        except Exception as e:
+            return None, []
+    else:
+        return await _do_crawl(crawler, url, run_config)
 
 async def crawl_site_recursive(base_url: str, max_pages: int = 20):
     """

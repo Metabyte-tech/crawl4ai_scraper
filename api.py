@@ -292,14 +292,20 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
         print(f"📥 Body received", flush=True)
 
         query = body.get("message")
+        
+        # If message is a dict (AI SDK format), extract the text content safely
+        if isinstance(query, dict):
+            parts = query.get("parts", [])
+            query = " ".join([p.get("text", "") for p in parts if isinstance(p, dict) and p.get("type") == "text"])
+        
         messages_list = body.get("messages", [])
         if not query and messages_list:
             last = messages_list[-1]
             query = last.get("content") or ""
             if not query and "parts" in last:
-                query = " ".join([p.get('text', '') for p in last['parts']])
+                query = " ".join([p.get("text", '') for p in last['parts']])
 
-        query = (query or "hi").strip()
+        query = (str(query or "hi")).strip()
         query_lower = query.lower()
         print(f"🔥 Query: {query}", flush=True)
 

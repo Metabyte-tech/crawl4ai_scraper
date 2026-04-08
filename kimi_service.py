@@ -472,18 +472,26 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 
                 # 2. Store-Specific Heuristics (if regex fails)
                 if price == "Check Site":
-                    if "best buy" in store_name.lower() or "bestbuy" in domain:
-                        # Best Buy snippets often have "Price: $..."
+                    normalized_store = store_name.lower().replace(" ", "")
+                    if "bestbuy" in normalized_store or "bestbuy" in domain:
                         m = re.search(r'price[:\s]+([\$\d\.]+)', snippet, re.I)
                         if m: price = m.group(1)
-                    elif "wayfair" in store_name.lower():
-                        # Wayfair often says "at Wayfair for $..."
+                    elif "wayfair" in normalized_store:
                         m = re.search(r'for\s+([\$\d\.]+)', snippet, re.I)
                         if m: price = m.group(1)
-                    elif "staples" in store_name.lower():
+                    elif "staples" in normalized_store:
                         m = re.search(r'only\s+([\$\d\.]+)', snippet, re.I)
                         if m: price = m.group(1)
+                    elif "homedepot" in normalized_store:
+                        m = re.search(r'at\s+\$?([\d\.]+)', snippet, re.I)
+                        if m: price = f"${m.group(1)}"
                 
+                # 3. Aggressive Contextual Fallback
+                if price == "Check Site":
+                    # Look for keywords followed by prices (e.g. "Only $45", "Price: ₹999")
+                    m = re.search(r'(?:price|only|at|from|now|was|is)\s?[:\-]?\s?([$₹£€]\s?\d{1,7}(?:[.,]\d{2})?)', snippet, re.I)
+                    if m: price = m.group(1)
+
                 fast_results.append({
                     "name": res.get("title", f"{query.title()} from {store_name}"),
                     "url": url,
@@ -496,12 +504,15 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     "details": snippet
                 })
             
+        # Interleave prioritized results
         # Pad with bing images if we need more
         if len(fast_results) < num_results:
             for img in bing_images:
                 if len(fast_results) >= num_results: break
                 img_src = img.get("source_url")
-                if not any(self._normalize_url(r.get("source_url") or r.get("url")) == self._normalize_url(img_src) for r in fast_results):
+                # Normalize img_src for existing check
+                norm_img_src = self._normalize_url(img_src)
+                if not any(self._normalize_url(r.get("source_url") or r.get("url")) == norm_img_src for r in fast_results):
                     fast_results.append({
                         "name": img.get("name"),
                         "url": img_src,

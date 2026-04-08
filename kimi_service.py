@@ -452,9 +452,37 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 if self._normalize_url(url) in existing_urls: continue
                 
                 snippet = res.get("snippet", "")
+                
+                # --- ROBUST PRICE EXTRACTION ---
                 price = "Check Site"
-                m = re.search(r'([$₹£]\s?\d{1,7}(?:[.,]\d{2})?)', snippet, re.I)
-                if m: price = m.group(0)
+                
+                # 1. Multi-currency and Alphanumeric patterns (e.g. $49, USD 50, 49.99 CAD, from ₹100)
+                price_patterns = [
+                    r'([$₹£€]\s?\d{1,7}(?:[.,]\d{2})?)',           # Standard: $19.99
+                    r'(\d{1,7}(?:[.,]\d{2})?\s?[$₹£€])',           # Reverse: 19.99$
+                    r'(?:USD|INR|GBP|EUR)\s?(\d{1,7}(?:[.,]\d{2})?)', # ISO: USD 19.99
+                    r'from\s?([$₹£€]\s?\d{1,7})',                  # Range: from $10
+                ]
+                
+                for pattern in price_patterns:
+                    m = re.search(pattern, snippet, re.I)
+                    if m:
+                        price = m.group(0)
+                        break
+                
+                # 2. Store-Specific Heuristics (if regex fails)
+                if price == "Check Site":
+                    if "best buy" in store_name.lower() or "bestbuy" in domain:
+                        # Best Buy snippets often have "Price: $..."
+                        m = re.search(r'price[:\s]+([\$\d\.]+)', snippet, re.I)
+                        if m: price = m.group(1)
+                    elif "wayfair" in store_name.lower():
+                        # Wayfair often says "at Wayfair for $..."
+                        m = re.search(r'for\s+([\$\d\.]+)', snippet, re.I)
+                        if m: price = m.group(1)
+                    elif "staples" in store_name.lower():
+                        m = re.search(r'only\s+([\$\d\.]+)', snippet, re.I)
+                        if m: price = m.group(1)
                 
                 fast_results.append({
                     "name": res.get("title", f"{query.title()} from {store_name}"),

@@ -1,4 +1,3 @@
-import asyncio
 import httpx
 import uuid
 from s3_service import s3_service
@@ -15,14 +14,13 @@ class AssetProcessor:
             "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
         ]
         
-        self.default_placeholder = "https://placehold.co/600x600?text=No+Image"
         self.proxy_url = os.getenv("PROXY_URL")
-        # Initialize async client
+        # Initialize client without specific headers as we'll set them per request
         if self.proxy_url:
-            print(f"DEBUG: AssetProcessor using proxy: {self.proxy_url}", flush=True)
-            self.client = httpx.AsyncClient(timeout=30.0, verify=False, proxy=self.proxy_url)
+            print(f"DEBUG: AssetProcessor using proxy: {self.proxy_url}")
+            self.client = httpx.Client(timeout=30.0, verify=False, proxy=self.proxy_url)
         else:
-            self.client = httpx.AsyncClient(timeout=30.0, verify=False)
+            self.client = httpx.Client(timeout=30.0, verify=False)
     def _get_headers(self, url=None):
         import random
         ua = random.choice(self.user_agents)
@@ -44,119 +42,115 @@ class AssetProcessor:
             "Sec-Fetch-Site": "same-site",
             "Upgrade-Insecure-Requests": "1"
         }
-    async def process_product_images(self, products, category="products", subcategory="general"):
+    def process_product_images(self, products, category="products", subcategory="general"):
         """
         Iterates through products, downloads images from external URLs,
         uploads them to S3, and updates the product metadata with S3 URLs.
         """
-        async def process_single_product(product):
+        processed_products = []
+        for product in products:
             image_url = product.get("image_url")
-            if not image_url:
-                return product
+            if image_url:
+                # Save as fallback before any modifications
+                if "original_image_url" not in product:
+                    product["original_image_url"] = image_url
+                
+                # Normalize the URL before processing
+                image_url = kimi_service._normalize_url(image_url)
+                
+                # 1. AWS/Amazon Thumbnail Cleaning - Aggressive Recovery
+                if "m.media-amazon.com" in image_url and "._" in image_url:
+                    import re
+                    # Remove all thumbnail tags like ._AC_SY200_., ._SX450_., etc.
+                    # Pattern matches everything between ._ and the file extension dot
+                    recovered_url = re.sub(r'\._[^/]*\.', '.', image_url)
+                    if recovered_url != image_url:
+                        print(f"DEBUG: Recovered high-res Amazon image: {recovered_url}")
+                        image_url = recovered_url
+                
+                # 2. Ajio Domain Repair - assets.ajio.com is often blocked/404
+                # assets-jiocdn.ajio.com is the persistent production CDN
+                if "assets.ajio.com" in image_url:
+                    image_url = image_url.replace("assets.ajio.com", "assets-jiocdn.ajio.com")
+                    print(f"DEBUG: Repaired Ajio URL: {image_url}")
+                
+                product["image_url"] = image_url
+                
+                # Strict Filtering: Only process actual image files
+                clean_url = image_url.split('?')[0].lower()
+                is_image = any(clean_url.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
+                
+                # Filter out obvious logos/sprites based on URL
+                logolike_keywords = ["logo", "sprite", "icon", "banner", "header", "footer", "favicon"]
+                is_logolike = any(kw in image_url.lower() for kw in logolike_keywords)
+                
+                from image_cache import image_cache
+                
+                # Check cache before doing any network requests
+                cached_s3 = image_cache.get_s3_url(image_url)
+                if cached_s3:
+                    print(f"INFO: IMAGE CACHE HIT. Skipping download for {image_url}")
+                    product["s3_image_url"] = cached_s3
+                    product["original_image_url"] = image_url
+                    processed_products.append(product)
+                    continue
 
-            # Save as fallback before any modifications
-            if "original_image_url" not in product:
-                product["original_image_url"] = image_url
-            
-            # Normalize the URL before processing
-            image_url = kimi_service._normalize_url(image_url)
-            
-            # 1. AWS/Amazon Thumbnail Cleaning - Aggressive Recovery
-            if "m.media-amazon.com" in image_url and "._" in image_url:
-                import re
-                recovered_url = re.sub(r'\._[^/]*\.', '.', image_url)
-                if recovered_url != image_url:
+                if image_url.startswith("http") and is_image and not is_logolike:
                     try:
-                        # Use a quick HEAD request to verify existence
-                        test_res = await self.client.head(recovered_url, timeout=5.0)
-                        if test_res.status_code == 200:
-                            image_url = recovered_url
-                    except Exception:
-                        pass
-            
-            # 2. Ajio Domain Repair
-            if "assets.ajio.com" in image_url:
-                image_url = image_url.replace("assets.ajio.com", "assets-jiocdn.ajio.com")
-            
-            product["image_url"] = image_url
-            
-            IMAGE_CDN_DOMAINS = [
-                "th.bing.com", "tse1.mm.bing.net", "tse2.mm.bing.net",
-                "tse3.mm.bing.net", "tse4.mm.bing.net",
-                "m.media-amazon.com", "images-amazon.com",
-                "cdn.shopify.com", "i.imgur.com",
-                "images.unsplash.com", "lh3.googleusercontent.com",
-            ]
-            
-            clean_url = image_url.split('?')[0].lower()
-            has_image_ext = any(clean_url.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
-            is_cdn_image = any(cdn in image_url.lower() for cdn in IMAGE_CDN_DOMAINS)
-            
-            # RELAXED FILTER: If it looks like an image URL, or is from a CDN, or even if it lacks extension
-            # we will verify with a HEAD request if no extension is present.
-            is_image = has_image_ext or is_cdn_image
-            
-            # Filter out obvious logos/sprites based on URL
-            logolike_keywords = ["logo", "sprite", "icon", "banner", "header", "footer", "favicon"]
-            is_logolike = any(kw in image_url.lower() for kw in logolike_keywords)
-            
-            from image_cache import image_cache
-            cached_s3 = image_cache.get_s3_url(image_url)
-            if cached_s3:
-                product["s3_image_url"] = cached_s3
-                return product
-
-            # If it lacks extension but is from a shopping site, let's try a HEAD request to be sure
-            if not is_image and not is_logolike and image_url.startswith("http"):
-                try:
-                    head_res = await self.client.head(image_url, timeout=5.0)
-                    content_type = head_res.headers.get("Content-Type", "").lower()
-                    if "image" in content_type:
-                        is_image = True
-                except:
-                    pass
-
-            if image_url.startswith("http") and is_image and not is_logolike:
-                try:
-                    headers = self._get_headers(image_url)
-                    response = await self.client.get(image_url, timeout=15.0, headers=headers)
-                    
-                    content_len = len(response.content)
-                    if response.status_code == 200 and content_len < 1000:
-                        return product # Skip small
-                    
-                    if response.status_code != 200 and "original_image_url" in product:
-                         image_url = product["original_image_url"]
-                         headers = self._get_headers(image_url)
-                         response = await self.client.get(image_url, timeout=15.0, headers=headers)
-
-                    if response.status_code == 200:
-                        ext = image_url.split(".")[-1].split("?")[0]
-                        if len(ext) > 4 or "/" in ext: ext = "jpg"
+                        print(f"INFO: Attempting to download image: {image_url}")
+                        # Use rotating stealth headers for each request
+                        headers = self._get_headers(image_url)
+                        response = self.client.get(image_url, timeout=10.0, headers=headers)
                         
-                        filename = f"products/{category}/{subcategory}/{uuid.uuid4()}.{ext}"
-                        s3_url = s3_service.upload_image(
-                            response.content, 
-                            filename,
-                            content_type=response.headers.get("Content-Type", "image/jpeg")
-                        )
+                        # SIZE FILTER: Skip images under 1KB (likely tiny invisible pixels)
+                        content_len = len(response.content)
+                        if response.status_code == 200 and content_len < 1000:
+                            print(f"SKIP: Image too small ({content_len} bytes), likely a logo or icon: {image_url}")
+                            continue
+                        print(f"INFO: Image download status: {response.status_code} ({content_len} bytes)")
                         
-                        if s3_url:
-                            product["s3_image_url"] = s3_url
-                            image_cache.save_s3_url(image_url, s3_url)
-                except Exception as e:
-                    print(f"ERROR: Failed to process image {image_url}: {e}", flush=True)
-
-            return product
-
-        # Use Semaphore to limit parallel downloads to avoid IP blocks or memory spikes
-        semaphore = asyncio.Semaphore(5)
-        async def sem_process(p):
-            async with semaphore:
-                return await process_single_product(p)
-
-        tasks = [sem_process(p) for p in products]
-        return await asyncio.gather(*tasks)
+                        if response.status_code != 200 and "original_image_url" in product:
+                             # Don't split on '?' for Shopify URLs as they might need v=...
+                             image_url = product["original_image_url"]
+                             print(f"WARNING: Initial URL failed ({response.status_code}). Retrying with original: {image_url}")
+                             headers = self._get_headers(image_url)
+                             response = self.client.get(image_url, timeout=10.0, headers=headers)
+                             print(f"INFO: Original image download status: {response.status_code}")
+                        if response.status_code == 200:
+                            # Generate a unique file name with category structure
+                            ext = image_url.split(".")[-1].split("?")[0]
+                            if len(ext) > 4: ext = "jpg" # Fallback
+                            
+                            # Use categorized structure for S3
+                            filename = f"products/{category}/{subcategory}/{uuid.uuid4()}.{ext}"
+                            
+                            # Upload to S3
+                            s3_url = s3_service.upload_image(
+                                response.content, 
+                                filename,
+                                content_type=response.headers.get("Content-Type", "image/jpeg")
+                            )
+                            
+                            if s3_url:
+                                product["s3_image_url"] = s3_url
+                                # Keep original as backup or reference
+                                product["original_image_url"] = image_url
+                                # Save to DB Cache
+                                image_cache.save_s3_url(image_url, s3_url)
+                            else:
+                                print(f"WARNING: S3 upload failed for {image_url}")
+                        else:
+                            print(f"WARNING: All download attempts failed for {image_url}")
+                    except httpx.ConnectError as e:
+                        print(f"ERROR: DNS/Connection failure for {image_url}: {e}")
+                    except Exception as e:
+                        print(f"ERROR: Failed to process image {image_url}: {e}")
+                        import traceback
+                        traceback.print_exc()
+            
+            processed_products.append(product)
+        
+        return processed_products
         
     async def process_raw_content(self, content, category="uncategorized", subcategory="general"):
         """
@@ -182,7 +176,7 @@ class AssetProcessor:
             try:
                 # Prepare a mini-product for existing logic
                 mini_products = [{"image_url": url}]
-                processed = await self.process_product_images(mini_products, category, subcategory)
+                processed = self.process_product_images(mini_products, category, subcategory)
                 if processed and processed[0].get("s3_image_url"):
                     s3_url = processed[0]["s3_image_url"]
                     content = content.replace(url, s3_url)

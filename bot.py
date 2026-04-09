@@ -78,20 +78,11 @@ async def chat_with_bot(query: str, discovered_stores: list = None, live_context
     context = f"{live_context_str}\n\n{rag_context}".strip()
     
     if intent_type == "shopping":
-        has_images = "IMAGE_URL" in context
-        carousel_instruction = ""
-        if has_images:
-            carousel_instruction = """
-        2. Provide a product carousel.
-        3. Format: <product_carousel> ["Product Name 1", "Product Name 2"] </product_carousel>
-        CRITICAL: ONLY use REAL names from CONTEXT. No hallucination.
-        CRITICAL: The list MUST be a compact, SINGLE-LINE string."""
-        
         template = f"""You are a Hybrid AI Shopping Assistant.
         CONTEXT: {{context}}
         INSTRUCTIONS:
-        1. Summarize the best options.{carousel_instruction}
-        CRITICAL: ONLY use REAL URLs from CONTEXT. No hallucination.
+        1. Summarize the best options.
+        CRITICAL: ONLY use REAL names and URLs from CONTEXT. No hallucination.
         Question: {{question}}
         Answer:"""
     else:

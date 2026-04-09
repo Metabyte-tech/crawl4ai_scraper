@@ -35,7 +35,7 @@ def format_response(res):
         return res
     if isinstance(res, dict) and res.get("type") == "images":
         results = res.get("results", [])
-        return f"\n\n<product_carousel>{json.dumps(results)}</product_carousel>\n\n"
+        return f"\n\n<product_grid>{json.dumps(results)}</product_grid>\n\n"
     if isinstance(res, list):
         if not res:
             return "No products found."
@@ -428,7 +428,13 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     "is_verified": bool(p.get("is_verified") or False),
                 })
             grid = f"<product_grid>{json.dumps(items)}</product_grid>"
-            final = f"Here are the best results I found:\n\n{grid}"
+            
+            # Format text response and append the product grid
+            if bot_response:
+                final = f"{bot_response}\n\n{grid}"
+            else:
+                final = f"Here are the best results I found:\n\n{grid}"
+                
             print(f"📡 Grid: {len(items)} products", flush=True)
         else:
             final = format_response(bot_response)

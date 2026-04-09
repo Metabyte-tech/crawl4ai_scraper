@@ -1,0 +1,928 @@
+Initializing Embeddings and Vector Store...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights:  68%|██████▊   | 70/103 [00:00<00:00, 676.24it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 678.31it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+Vector Store Initialized.
+INFO:     Will watch for changes in these directories: ['/home/himanshu/workspace/ai-agent/crawl4AI']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [27699] using WatchFiles
+Initializing Embeddings and Vector Store...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights:  23%|██▎       | 24/103 [00:00<00:00, 227.79it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 533.37it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+Vector Store Initialized.
+INFO:     Started server process [27951]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:46042 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:46042 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:44992 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:44992 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:38702 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:38702 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:36290 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:36290 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 POST /api/chat
+📥 Body received
+🔥 Query: kids shoes
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for kids shoes
+DEBUG: Searching Amazon for: kids shoes
+DEBUG: Searching eBay for: kids shoes
+DEBUG: Starting lightweight image search for: kids shoes
+DEBUG: Starting real-time DDG search_sources for: kids shoes
+DEBUG: Amazon returned status 503
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: eBay returned 5 products with prices.
+DEBUG: Found 5 real search results from DDG.
+DEBUG: Combined sources — Amazon: 0, eBay: 5
+⚡ Live Amazon: 10 products
+🛒 RAG context: 25 docs in 4.37s
+📡 Grid: 10 products
+✅ Done in 13.6s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:46708 - "POST /api/chat HTTP/1.1" 200 OK
+
+🚀 [BACKGROUND] Starting caching for: kids shoes
+📦 [BACKGROUND] Processing 10 products...
+Batch adding 16 chunks to the vector store...
+Added batch of 16 chunks. Total: 16/16
+✅ [BACKGROUND] Successfully cached 10 products for 'kids shoes'
+
+🔄 BACKGROUND: Deep crawl for 'kids shoes'...
+DEBUG: Starting background run_deep_crawl_process for kids shoes
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:55398 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:55398 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:55398 - "GET /api/templates HTTP/1.1" 200 OK
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/205461066773?_skw=kids+shoes&itmmeta=01KNRFS5DJBD7Y8TJCX4DJ2VSB&hash=item2fd66f1415:g:UXkAAeSwqTxou1Ec&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xBHA0kRvuRKJTlvuwYVtKKnSkDAg5pxKSPj0GwQL58vQWccN89InTHwgAWVaAAeXYDqCgU6U%2BNrQynu71sIQwHxugnHHbnwu%2F5InUXQf1QFNNhQKcE6xgHTsqCqvDDJHQ9gncGDh04gDVIjIjolXc%2FgCrvf2LGVRw95sYgaKOLvw8%2FUE20MrpzxACl14ahYJSCiUS2APLIEl5V7oNt%2B%2FWwaEWrqmv4T3iIO7jfrzyN7Sg%3D%3D%7Ctkp%3ABlBMUJDX5I-uZw
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/127425699766?_skw=kids+shoes&itmmeta=01KNRFS5DJDJ9TZMM78TJPQXVB&hash=item1dab29dfb6:g:PjgAAeSwnnJo6l5h&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xCBhR4mg1zZDS2zXUwdM%2BqrVui8wmrc4jldEG4QU%2B9lxvkxIlsNwAq1DK7lqS5t20G1Wnv39T%2BPnBwERVtEKGzt8ktDYvVSW6BWb4UATtjfSOfhmp7NGhKPyQi%2BlETyCB7jmAVyO1Sha6KBZsylRWFWd0%2B7GkdktLTMXrF%2BhxmO2be9KdMKv3jwsgQYrGhOo2iJTS5wqdweLayOBx7kQZwCo%2BjZX%2FVyGN2mx2Yc%2FQ0xvyhoot3xWf9SzxpVhfEEgk9b%2FZffqTYgVcp5JD5WCMqnuPMCC5pgOnZvmMVJOmdagQ%3D%3D%7Ctkp%3ABFBMkNfkj65n
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/356706973514?_skw=kids+shoes&itmmeta=01KNRFS5DJF6M9KFBS4AMV0WF7&hash=item530d64774a:g:pkEAAeSwktJn0sEK&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xAgw3DVf0bt5PLv7Qg5fXOdKZgscimPU1LZXBwYlcf1wASF5B7V6TzlUTPYkN2uefhsK6BRk2cyEFhlRmbJZJBT0JqzRyKGgPadiNwJn07nYAwJlEl2vuGmVf0N2cQNiB93Y1SDgZ5yHyu2LMYZk09LiyFC6l5j%2FXRfgPxKsl%2FdjQMZNeEfoxu9XtXC%2FVPw1JZYkne7gQ0CB0MfATaosHieGI5g1hMIvQHSzuar59BG8YqNbjvuFNBsgY99%2B9EE9s6KKlBGaJjW5AgzTaR3dBpaNywchsZpveZUkjQPLdzz9A%3D%3D%7Ctkp%3ABFBMkNfkj65n
+🔍 POST /api/chat
+📥 Body received
+🔥 Query: Find foldable camping chairs under $15.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Find foldable camping chairs under $15.
+DEBUG: Searching Amazon for: Find foldable camping chairs under $15.
+DEBUG: Searching eBay for: Find foldable camping chairs under $15.
+DEBUG: Starting lightweight image search for: foldable camping chairs under $15.
+DEBUG: Starting real-time DDG search_sources for: Find foldable camping chairs under $15.
+DEBUG: Amazon returned status 503
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Found 5 real search results from DDG.
+DEBUG: eBay returned 5 products with prices.
+DEBUG: Combined sources — Amazon: 0, eBay: 5
+⚡ Live Amazon: 10 products
+🛒 RAG context: 25 docs in 0.99s
+📡 Grid: 10 products
+✅ Done in 8.7s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:55398 - "POST /api/chat HTTP/1.1" 200 OK
+
+🚀 [BACKGROUND] Starting caching for: Find foldable camping chairs under $15.
+📦 [BACKGROUND] Processing 10 products...
+Batch adding 16 chunks to the vector store...
+Added batch of 16 chunks. Total: 16/16
+✅ [BACKGROUND] Successfully cached 10 products for 'Find foldable camping chairs under $15.'
+
+🔄 BACKGROUND: Deep crawl for 'Find foldable camping chairs under $15.'...
+DEBUG: Starting background run_deep_crawl_process for Find foldable camping chairs under $15.
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:55398 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:55398 - "GET /api/templates HTTP/1.1" 200 OK
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/397326254625?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3ERYNJ3J3HS5J7H4QPB&hash=item5c827d8221:g:5EEAAeSwBUJpJ-zw&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xCoA9pOU2VQ4xE%2BKMrBl5nyTBX%2Fvfyyvt1NU4TPYvAnnYNwJs5vE5rpWhXRKquFQAZBVhWGpjln4pBpetEB8AGqhSgkb%2BF0OvlhVs42kDN%2FIgbpWL2ePigmuE3eb4uZR9JBrKAk6oksQipQM1Dh9bZZE82dek2o%2FuL4r06qaC0FurgpsM81D%2BbMtT65w6c9CAtp%2Fn9bOh1gy9i7XWF9%2FNnXC%2F6jzz4Y1ej3t2Ppo6I%2BL4NWymZJV8tkiTG%2FlesqUFA3orY%2B7j3VRQf5pgAjOXqGD2zdtr6sNnx3jUZu0pr8DWW%2BBI6meX5R5df9avTyAXg%3D%7Ctkp%3ABk9SR8y36I-uZw
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/318124654587?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3EREWZ0VWC9BZ6M5N6J&hash=item4a11b4fffb:g:n6IAAeSw3Wlp1yAC&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xDycNd%2FjhG9kb4T%2BkZ1xxTf%2BoJcZILsByG0CjEze7Ruu0dieeNqnUoUVmhJ7E1OL0vO%2BxR1j%2FSB5%2FQoJ3UrU8o6WnCoiO7wFcTJoCI0EZapYl7tLIK1IB5yWEjBtEGrZbYAk33d6uOWzOX9d7PBfgMdu22FI5%2FlhXYp3NYvnCOH6xtrgXCbHbFXb48MAhrzkJNAHtuXHpKZIp9JeDrjYF1VYHWmMt8VHnnd%2Bmhl60MWHmw5lSxTtuaahCZyEmchBWjWvrIS8F%2B0rXiF8mJaBQiOFwBO7cm2Dt6Ex0UG0h0jDIrO%2BbOFXzJllUZAH0WB6i4%3D%7Ctkp%3ABFBMzrfoj65n
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/157687165674?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3ESN1RF28Z90KMAZQ7Z&hash=item24b6e332ea:g:UUsAAeSwi5dpk6IL&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xAHckYORz%2FR4%2FUD0dAD1lk34E9S2s1RlxaAfBWDMFcBtPjxlfRc6oiyC6qs%2Bkn6rsjdnyIFDVfIfITudzXWdmE2fh7tOQ59TED9mHMngJnEfpMq%2FdmQAx1h%2B9X9Sc0dLtNPUbguZl%2BXOk1%2FTTtZtvQYhL3FmMteI2sX55nUCaX470J1gthCEwwYkV8wdm3yLaal2FLyei5Ucs%2FiXqeZVMlJwq69aNt7TLMKbbR1gmlbMOayA3YnTAVsWTrDPJGMr095WGAsCUAotk42GnwY7R4%2Fo%2B7R%2BZ8UbRnJ9jX5y%2FyMieGAQ8cxFpLFSes80xIPWy4%3D%7Ctkp%3ABFBMzrfoj65n
+[FETCH]... ↓ 
+https://www.ebay.com/itm/356706973514?_skw=kids+...aR3dBpaNywchsZpveZUkjQPLd
+zz9A==|tkp:BFBMkNfkj65n  | ✓ | ⏱: 26.97s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/356706973514?_skw=kids+...aR3dBpaNywchsZpveZUkjQPLd
+zz9A==|tkp:BFBMkNfkj65n  | ✓ | ⏱: 2.96s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/356706973514?_skw=kids+...aR3dBpaNywchsZpveZUkjQPLd
+zz9A==|tkp:BFBMkNfkj65n  | ✓ | ⏱: 30.48s 
+Successfully crawled: https://www.ebay.com/itm/356706973514?_skw=kids+shoes&itmmeta=01KNRFS5DJF6M9KFBS4AMV0WF7&hash=item530d64774a:g:pkEAAeSwktJn0sEK&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xAgw3DVf0bt5PLv7Qg5fXOdKZgscimPU1LZXBwYlcf1wASF5B7V6TzlUTPYkN2uefhsK6BRk2cyEFhlRmbJZJBT0JqzRyKGgPadiNwJn07nYAwJlEl2vuGmVf0N2cQNiB93Y1SDgZ5yHyu2LMYZk09LiyFC6l5j%2FXRfgPxKsl%2FdjQMZNeEfoxu9XtXC%2FVPw1JZYkne7gQ0CB0MfATaosHieGI5g1hMIvQHSzuar59BG8YqNbjvuFNBsgY99%2B9EE9s6KKlBGaJjW5AgzTaR3dBpaNywchsZpveZUkjQPLdzz9A%3D%3D%7Ctkp%3ABFBMkNfkj65n
+DEBUG: Smart Start triggered at index 2240
+DEBUG: Extraction LLM call start (content length: 5475)
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/277716946488?_skw=kids+shoes&itmmeta=01KNRFS5DJ1NX44GB12DQH07YZ&hash=item40a9384e38:g:Hw0AAeSweR9pilqr&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xBdEn1GEIyhMOKya9IHnszvVsCKX8kGyDQbx3FlxN3OSUGpH7ZA4rx599pwyUOE5K2TZ2RCC0QKTd7cPA1wX%2Fr425x9AGQXkYX7jKMQ9lUmQR2iONdDwXS%2Fwzys6SGrqBBBrtrZcRZugbSTIgAI4BLcGLxCiq9tLn1DzzBKwT8VBT5ApjCTPMON7CPCV71ghXJ1XK0Oc06hnTtjIGx10jV11ivU%2Bnm53YdMObNEnxjhmLOQQ%2B6fTCbWvyjB51E47kSi5Yn%2BdCZsQqZaxyRn%2FQJCO4d595KSgE56qyxq6TqTaA%3D%3D%7Ctkp%3ABFBMkNfkj65n
+[FETCH]... ↓ 
+https://www.ebay.com/itm/127425699766?_skw=kids+...D5WCMqnuPMCC5pgOnZvmMVJOm
+dagQ==|tkp:BFBMkNfkj65n  | ✓ | ⏱: 36.11s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/127425699766?_skw=kids+...D5WCMqnuPMCC5pgOnZvmMVJOm
+dagQ==|tkp:BFBMkNfkj65n  | ✓ | ⏱: 4.26s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/127425699766?_skw=kids+...D5WCMqnuPMCC5pgOnZvmMVJOm
+dagQ==|tkp:BFBMkNfkj65n  | ✓ | ⏱: 40.72s 
+Successfully crawled: https://www.ebay.com/itm/127425699766?_skw=kids+shoes&itmmeta=01KNRFS5DJDJ9TZMM78TJPQXVB&hash=item1dab29dfb6:g:PjgAAeSwnnJo6l5h&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xCBhR4mg1zZDS2zXUwdM%2BqrVui8wmrc4jldEG4QU%2B9lxvkxIlsNwAq1DK7lqS5t20G1Wnv39T%2BPnBwERVtEKGzt8ktDYvVSW6BWb4UATtjfSOfhmp7NGhKPyQi%2BlETyCB7jmAVyO1Sha6KBZsylRWFWd0%2B7GkdktLTMXrF%2BhxmO2be9KdMKv3jwsgQYrGhOo2iJTS5wqdweLayOBx7kQZwCo%2BjZX%2FVyGN2mx2Yc%2FQ0xvyhoot3xWf9SzxpVhfEEgk9b%2FZffqTYgVcp5JD5WCMqnuPMCC5pgOnZvmMVJOmdagQ%3D%3D%7Ctkp%3ABFBMkNfkj65n
+DEBUG: Smart Start triggered at index 2282
+DEBUG: Extraction LLM call start (content length: 13912)
+[FETCH]... ↓ 
+https://www.ebay.com/itm/205461066773?_skw=kids+...+/WwaEWrqmv4T3iIO7jfrzyN7
+Sg==|tkp:BlBMUJDX5I-uZw  | ✓ | ⏱: 41.25s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/205461066773?_skw=kids+...+/WwaEWrqmv4T3iIO7jfrzyN7
+Sg==|tkp:BlBMUJDX5I-uZw  | ✓ | ⏱: 3.72s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/205461066773?_skw=kids+...+/WwaEWrqmv4T3iIO7jfrzyN7
+Sg==|tkp:BlBMUJDX5I-uZw  | ✓ | ⏱: 45.42s 
+Successfully crawled: https://www.ebay.com/itm/205461066773?_skw=kids+shoes&itmmeta=01KNRFS5DJBD7Y8TJCX4DJ2VSB&hash=item2fd66f1415:g:UXkAAeSwqTxou1Ec&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xBHA0kRvuRKJTlvuwYVtKKnSkDAg5pxKSPj0GwQL58vQWccN89InTHwgAWVaAAeXYDqCgU6U%2BNrQynu71sIQwHxugnHHbnwu%2F5InUXQf1QFNNhQKcE6xgHTsqCqvDDJHQ9gncGDh04gDVIjIjolXc%2FgCrvf2LGVRw95sYgaKOLvw8%2FUE20MrpzxACl14ahYJSCiUS2APLIEl5V7oNt%2B%2FWwaEWrqmv4T3iIO7jfrzyN7Sg%3D%3D%7Ctkp%3ABlBMUJDX5I-uZw
+DEBUG: Smart Start triggered at index 2265
+DEBUG: Extraction LLM call start (content length: 17793)
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:49194 - "GET /api/templates HTTP/1.1" 200 OK
+[FETCH]... ↓ 
+https://www.ebay.com/itm/157687165674?_skw=Find+...jX5y/yMieGAQ8cxFpLFSes80x
+IPWy4=|tkp:BFBMzrfoj65n  | ✓ | ⏱: 30.10s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/157687165674?_skw=Find+...jX5y/yMieGAQ8cxFpLFSes80x
+IPWy4=|tkp:BFBMzrfoj65n  | ✓ | ⏱: 3.00s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/157687165674?_skw=Find+...jX5y/yMieGAQ8cxFpLFSes80x
+IPWy4=|tkp:BFBMzrfoj65n  | ✓ | ⏱: 33.49s 
+Successfully crawled: https://www.ebay.com/itm/157687165674?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3ESN1RF28Z90KMAZQ7Z&hash=item24b6e332ea:g:UUsAAeSwi5dpk6IL&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xAHckYORz%2FR4%2FUD0dAD1lk34E9S2s1RlxaAfBWDMFcBtPjxlfRc6oiyC6qs%2Bkn6rsjdnyIFDVfIfITudzXWdmE2fh7tOQ59TED9mHMngJnEfpMq%2FdmQAx1h%2B9X9Sc0dLtNPUbguZl%2BXOk1%2FTTtZtvQYhL3FmMteI2sX55nUCaX470J1gthCEwwYkV8wdm3yLaal2FLyei5Ucs%2FiXqeZVMlJwq69aNt7TLMKbbR1gmlbMOayA3YnTAVsWTrDPJGMr095WGAsCUAotk42GnwY7R4%2Fo%2B7R%2BZ8UbRnJ9jX5y%2FyMieGAQ8cxFpLFSes80xIPWy4%3D%7Ctkp%3ABFBMzrfoj65n
+DEBUG: Smart Start triggered at index 2392
+DEBUG: Extraction LLM call start (content length: 12665)
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/227292200974?_skw=kids+shoes&itmmeta=01KNRFS5DJAFGHVATMRJAPN3X9&hash=item34ebabc00e:g:gMYAAeSwx-Bp1nG5&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xBxkT7yMkmA37rOHuvM8Mz5%2FM2IewkCSaDrTIn%2Bl5ckkCBuOwEEhX77AbBIHv--XfZeku6Pu6d%2B8xeGlw2cki3fzZJG60ZGWV6zmhjf3G08LNdQzgB37Eo%2FEcDX059Dy14kCLZEvEauEGlNxlYVC2Pznwuos8FONrSAwjvokNAB%2B%2Fl2pedZmHG7jGewqxGLiyIlqZnP4hWFWxfT7mV3eULQvmVDK%2FBhPb6oF7Qn6PqtiFNWjjdfBAkpDigT7FwAAELrB2G6GBxt61RFEtfoe1egUJtKra5xrpHryMeHz%2BCejw%3D%3D%7Ctkp%3ABk9SR5DX5I-uZw
+🚀 [CRAWL] Start -> https://duckduckgo.com/y.js?ad_domain=firstcry.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=iry_hymt3ib4E8iXyTGV0BTOLBwxkTlX0iJQ8nf25fKS7CHfPh2mkeyJS_xQw95PrxYrQBLFgBXaJPIMQN_COcYQhluz3zAqFHG98tIoXhzKQYlzUq5tq_zzvaaP8LS3MBTx4VxdXySXHEXcnExf1H2Jj5Yv59%2DqTzJJsQHcEXE.e6AAsWNXszD498KEuO3TAA&rut=e37275e8813466299195d0e4ec88547815f00746b8f6e7590e8ef9a0b0693efa&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De84ryVEnHOVC9N3YVRQdyRejVUCUwrCHpEKnKq9lvFwKSMj08z5JRRugal7wAKkQCkWVX7j5TlpZYbo9_ESvWfLA9grizAYUw8xXvv_xYOU_vqMOD7AqRR27E6wsp5ecS4JD1IqM8k3VHm0LO3AyzxNFLOUW%2DqMUkHdnujXDmOdfB96231u0qdWcFQr7a9x4c9WbAmOL9NTuZlr37E7RYzNZr6fwU%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuZmlyc3RjcnkuY29tJTJmZm9vdHdlYXIlMmY2JTJmMTcwJTNmc29ydCUzZGJlc3RzZWxsZXIlMjZyZWYlM2RCU04hQlNOX0NBVF9GVy1BbGwhJTI2bXNjbGtpZCUzZDNiNzdjYTY1NGY1NjE1Y2Y4NjlhYTNiMjA1YjBlYTRjJTI2dXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkQlNOX0NBVF9GVy1BbGwlMjZ1dG1fdGVybSUzZGNoaWxkcmVucyUyNTIwc2hvZSUyNTIwb25saW5lJTI1MjBwdXJjaGFzZSUyNnV0bV9jb250ZW50JTNkQ2hpbGRyZW4lMjUyMFNob2VzJTI1MjBCdXklMjUyME9ubGluZQ%26rlid%3D3b77ca654f5615cf869aa3b205b0ea4c&vqd=4-40306359572885986531973009447014362115&iurl=%7B1%7DIG%3D4AA43738E38C4963A3F1819FF9725A9C%26CID%3D2F1054908672652B3D6C43A6871064C1%26ID%3DDevEx%2C5046.1
+[JS_EXEC]. ℹ Navigation triggered by script, waiting for load state 
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/267437565010?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3ES69FZFMA4KQBH4D78&hash=item3e44856452:g:4jYAAOSwvdZkq95M&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xAtDPDGMkGY8eWjpaq22b3DDsE7DBK3rMSus01UfSCyRxPULn7%2FtESkv2iCJ8dtKgozh2XKbAywbub2WyDvbgR3sv2PG9MrB1%2B%2B6BDVvE%2B5GiLNuFgZwn1ohBxWmCMMAyq%2FkaNtTJtXmN6utZm1gcpt157hxxffwT6239eEBxKe4Kt5gFoytedx9Blgs39is9qHsGvVOJ8d9CjH0TyGO8O72REHyIR1OIopObHzwkUOx4YUpqw%2B9IWWtX9mdZqBCB8blhrSnGJ3LD46uvTf1N621CNA3oL3n9QNdTp967p9HIkTp9TORRN5%2Fgdi07LpGzQ%3D%7Ctkp%3ABFBMzrfoj65n
+[FETCH]... ↓ 
+https://www.ebay.com/itm/318124654587?_skw=Find+...0UG0h0jDIrO+bOFXzJllUZAH0
+WB6i4=|tkp:BFBMzrfoj65n  | ✓ | ⏱: 38.76s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/318124654587?_skw=Find+...0UG0h0jDIrO+bOFXzJllUZAH0
+WB6i4=|tkp:BFBMzrfoj65n  | ✓ | ⏱: 2.62s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/318124654587?_skw=Find+...0UG0h0jDIrO+bOFXzJllUZAH0
+WB6i4=|tkp:BFBMzrfoj65n  | ✓ | ⏱: 41.78s 
+Successfully crawled: https://www.ebay.com/itm/318124654587?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3EREWZ0VWC9BZ6M5N6J&hash=item4a11b4fffb:g:n6IAAeSw3Wlp1yAC&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xDycNd%2FjhG9kb4T%2BkZ1xxTf%2BoJcZILsByG0CjEze7Ruu0dieeNqnUoUVmhJ7E1OL0vO%2BxR1j%2FSB5%2FQoJ3UrU8o6WnCoiO7wFcTJoCI0EZapYl7tLIK1IB5yWEjBtEGrZbYAk33d6uOWzOX9d7PBfgMdu22FI5%2FlhXYp3NYvnCOH6xtrgXCbHbFXb48MAhrzkJNAHtuXHpKZIp9JeDrjYF1VYHWmMt8VHnnd%2Bmhl60MWHmw5lSxTtuaahCZyEmchBWjWvrIS8F%2B0rXiF8mJaBQiOFwBO7cm2Dt6Ex0UG0h0jDIrO%2BbOFXzJllUZAH0WB6i4%3D%7Ctkp%3ABFBMzrfoj65n
+DEBUG: Smart Start triggered at index 2389
+DEBUG: Extraction LLM call start (content length: 14871)
+[FETCH]... ↓ 
+https://www.ebay.com/itm/397326254625?_skw=Find+...u0pr8DWW+BI6meX5R5df9avTy
+AXg=|tkp:Bk9SR8y36I-uZw  | ✓ | ⏱: 42.33s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/397326254625?_skw=Find+...u0pr8DWW+BI6meX5R5df9avTy
+AXg=|tkp:Bk9SR8y36I-uZw  | ✓ | ⏱: 3.85s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/397326254625?_skw=Find+...u0pr8DWW+BI6meX5R5df9avTy
+AXg=|tkp:Bk9SR8y36I-uZw  | ✓ | ⏱: 46.56s 
+Successfully crawled: https://www.ebay.com/itm/397326254625?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3ERYNJ3J3HS5J7H4QPB&hash=item5c827d8221:g:5EEAAeSwBUJpJ-zw&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xCoA9pOU2VQ4xE%2BKMrBl5nyTBX%2Fvfyyvt1NU4TPYvAnnYNwJs5vE5rpWhXRKquFQAZBVhWGpjln4pBpetEB8AGqhSgkb%2BF0OvlhVs42kDN%2FIgbpWL2ePigmuE3eb4uZR9JBrKAk6oksQipQM1Dh9bZZE82dek2o%2FuL4r06qaC0FurgpsM81D%2BbMtT65w6c9CAtp%2Fn9bOh1gy9i7XWF9%2FNnXC%2F6jzz4Y1ej3t2Ppo6I%2BL4NWymZJV8tkiTG%2FlesqUFA3orY%2B7j3VRQf5pgAjOXqGD2zdtr6sNnx3jUZu0pr8DWW%2BBI6meX5R5df9avTyAXg%3D%7Ctkp%3ABk9SR8y36I-uZw
+DEBUG: Smart Start triggered at index 2392
+DEBUG: Extraction LLM call start (content length: 12829)
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/318121399276?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3ESF2AW143XQ101NCC3&hash=item4a118353ec:g:5~wAAeSwhHJp1i-C&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xCr6rKlYDOzzzPjpsR%2FFKo38Mgv1deB6jTW%2BJjsZv21NKNedaFRTFBtTxJsML%2FSqF2zVLkuQ4H9nMGmt6l2zhoLdoQFEaLVBAB77DmIz%2FeW17eD4WTSeAnvPyA0YjNIWGmjQr5ohwU8u22meE2iKEJDjnyIb9GyoXDBpvOWhlbQ8y5UX94COT5kp8Ryg4%2BxbYBUowZuy%2FJlzn4PoItOE9hTN6Ir4vQ%2BVM5kdK%2BiRoCg6m3prm6EXo4wDgS4UdbhmgxIgCPtrYQpLGWzpiJYxvYKFMTMdXYADhoEsoxo8NXhqIEsTelS%2FBIVm%2BRf577gT%2Bk%3D%7Ctkp%3ABk9SR8636I-uZw
+[FETCH]... ↓ 
+https://www.ebay.com/itm/277716946488?_skw=kids+...yRn/QJCO4d595KSgE56qyxq6T
+qTaA==|tkp:BFBMkNfkj65n  | ✓ | ⏱: 29.85s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/277716946488?_skw=kids+...yRn/QJCO4d595KSgE56qyxq6T
+qTaA==|tkp:BFBMkNfkj65n  | ✓ | ⏱: 3.85s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/277716946488?_skw=kids+...yRn/QJCO4d595KSgE56qyxq6T
+qTaA==|tkp:BFBMkNfkj65n  | ✓ | ⏱: 34.01s 
+Successfully crawled: https://www.ebay.com/itm/277716946488?_skw=kids+shoes&itmmeta=01KNRFS5DJ1NX44GB12DQH07YZ&hash=item40a9384e38:g:Hw0AAeSweR9pilqr&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xBdEn1GEIyhMOKya9IHnszvVsCKX8kGyDQbx3FlxN3OSUGpH7ZA4rx599pwyUOE5K2TZ2RCC0QKTd7cPA1wX%2Fr425x9AGQXkYX7jKMQ9lUmQR2iONdDwXS%2Fwzys6SGrqBBBrtrZcRZugbSTIgAI4BLcGLxCiq9tLn1DzzBKwT8VBT5ApjCTPMON7CPCV71ghXJ1XK0Oc06hnTtjIGx10jV11ivU%2Bnm53YdMObNEnxjhmLOQQ%2B6fTCbWvyjB51E47kSi5Yn%2BdCZsQqZaxyRn%2FQJCO4d595KSgE56qyxq6TqTaA%3D%3D%7Ctkp%3ABFBMkNfkj65n
+DEBUG: Smart Start triggered at index 2503
+DEBUG: Extraction LLM call start (content length: 13634)
+🚀 [CRAWL] Start -> https://duckduckgo.com/y.js?ad_domain=amazon.in&ad_provider=bingv7aa&ad_type=txad&click_metadata=Ty3XgiyaNBf2wnN%2DD25ZhmeSnnQimewE33lP2GSn5W%2DDlLEVEypzSxH%2DM_Hp3j2iSznH6t6IR%2DvibKHt8hFgLnxJ7O1_gF6Niraq6zln4GSL3A5zx1WSvn9ISxRqnNIe6gROt9eYYQMScLEeRpohxb5I0HQNeoBc9Q1BnxpDDHg.STbV2xpRN9K09ZgD9YAyCA&rut=112903bc2436a3a2a8b6811aa7892cd76fd2095a5844705e57da5b9e78eb540e&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De802SPI%2Dmi0XA2Gk0aGiMfqTVUCUwswYndx%2DnbS0z8nIBgjguGceLcaRDuraA5x8rFeLqLvhKw1NT8V3bzJAvhkSRwQsZZ4HtXMqmfHuud_nV2qWB6Oy9jLVm4mFzlqaSMs9Vx5NFhVcWdviFiwK0L1F7QZ%2DYYGwiw0wr8fkyYEwJ__J5dnkGRrW9w3ZI8qpx5Onahudqb1Zs51KjfJvKXLJDGeSQ%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuYW1hem9uLmluJTJmcyUyZiUzZmllJTNkVVRGOCUyNmtleXdvcmRzJTNkY2hhaXIlMjZpbmRleCUzZGFwcyUyNnRhZyUzZG1zbmRlc2tzdGRpbi0yMSUyNnJlZiUzZHBkX3NsXzhiNGJ0MXIzdmFfcCUyNmFkZ3JwaWQlM2QxMzI2MDEyNjMyOTg0MDkyJTI2aHZhZGlkJTNkODI4NzYwNTUyMjkyMjIlMjZodm5ldHclM2RzJTI2aHZxbXQlM2RwJTI2aHZibXQlM2RicCUyNmh2ZGV2JTNkYyUyNmh2bG9jaW50JTNkJTI2aHZsb2NwaHklM2QxNTc5ODUlMjZodnRhcmdpZCUzZGt3ZC04Mjg3NjY4MDg3ODIxNSUzYWxvYy05MCUyNmh5ZGFkY3IlM2QxNTQxNV8yMzM4Nzc5JTI2bWNpZCUzZDQ4ZDVlMjFhMjJjYzMyZGZiNTRhOGE4MzUwNTM5ZDI4%26rlid%3Dbe9e8c3f927c136c314ae5e8d9796175&vqd=4-9701297045592612199599578549891644520&iurl=%7B1%7DIG%3D9E9DA98CE6054B36809389A1D0F8CBD3%26CID%3D306E0193B3D1669925B516A5B2B367CF%26ID%3DDevEx%2C5038.1
+🚀 [CRAWL] Start -> https://duckduckgo.com/y.js?ad_domain=amazon.in&ad_provider=bingv7aa&ad_type=txad&click_metadata=txXLyOe15swGuzhZLKVPWgxbl2KcXA5pBlTzkUo2XFJxKTouRvuPuTBLPdnDE7ilD_SPjrTPVbtJqHK1jlR3fufQSrv5ZnxU3YGEA5Xyg5ow8gnF_7kUusGICMD7Nwvq5qnxknb_5WeX6UaMv_2oF3KVn4uHVgDqK3zSQ_y91Ps.TNibG5kC6L5xNE1Y5Ikt_g&rut=e5a947e0237bb8bc4fde9d7a6d098b03719d15711a1c533713e20ecb3acdd270&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8281FjG5mYVaYjzaPkajBAzVUCUzOrkleKaEboT28X9i7V4_UWUy5ww2amIzfSItx9cR0MNu8WxvMd_vPG0s8UFn4V9%2DgcwYYcS0oUM78R8V1PhpFmE7r8sBtXITDt0ObT2h6plv1dMUoJK37Jplyk2VoMJ_scy8Kxt%2DD0edC1k4ss9RWFe2rzFZMYat19wXFVj7k%2Dcf7cjWb1J6crY2otonkKvw%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuYW1hem9uLmluJTJmcyUyZiUzZmllJTNkVVRGOCUyNmtleXdvcmRzJTNkc2hvZXMlMjUyNyUyNmluZGV4JTNkc2hvZXMlMjZ0YWclM2Rtc25kZXNrc3RkaW4tMjElMjZyZWYlM2RwZF9zbF83eTJxbWN1bmhlX3AlMjZhZGdycGlkJTNkMTMxOTQxNTU1ODU0NzgzMCUyNmh2YWRpZCUzZDgyNDYzNzQzMDY0ODQ3JTI2aHZuZXR3JTNkcyUyNmh2cW10JTNkcCUyNmh2Ym10JTNkYnAlMjZodmRldiUzZGMlMjZodmxvY2ludCUzZCUyNmh2bG9jcGh5JTNkMjU3MjkyJTI2aHZ0YXJnaWQlM2Rrd2QtODI0NjQzNDg1NzUzOTUlM2Fsb2MtOTAlMjZoeWRhZGNyJTNkMjIxMzZfMjM0MzAwOCUyNm1jaWQlM2RlY2UzMDM0MzA1NDQzY2NmYTFmYmM3Zjg4MjljNTI0NSUyNm1zY2xraWQlM2Q1NDYyYzQ3YWM2ZGUxMGNmZjUzZGFkYWQ4YzM4ODViMw%26rlid%3D5462c47ac6de10cff53dadad8c3885b3&vqd=4-83870999208164515129764539069434940245&iurl=%7B1%7DIG%3D4AA43738E38C4963A3F1819FF9725A9C%26CID%3D2F1054908672652B3D6C43A6871064C1%26ID%3DDevEx%2C5051.1
+[FETCH]... ↓ 
+https://duckduckgo.com/y.js?ad_domain=firstcry.c...2F1054908672652B3D6C43A68
+71064C1&ID=DevEx,5046.1  | ✓ | ⏱: 26.10s 
+[SCRAPE].. ◆ 
+https://duckduckgo.com/y.js?ad_domain=firstcry.c...2F1054908672652B3D6C43A68
+71064C1&ID=DevEx,5046.1  | ✓ | ⏱: 32.34s 
+[COMPLETE] ● 
+https://duckduckgo.com/y.js?ad_domain=firstcry.c...2F1054908672652B3D6C43A68
+71064C1&ID=DevEx,5046.1  | ✓ | ⏱: 58.75s 
+Successfully crawled: https://duckduckgo.com/y.js?ad_domain=firstcry.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=iry_hymt3ib4E8iXyTGV0BTOLBwxkTlX0iJQ8nf25fKS7CHfPh2mkeyJS_xQw95PrxYrQBLFgBXaJPIMQN_COcYQhluz3zAqFHG98tIoXhzKQYlzUq5tq_zzvaaP8LS3MBTx4VxdXySXHEXcnExf1H2Jj5Yv59%2DqTzJJsQHcEXE.e6AAsWNXszD498KEuO3TAA&rut=e37275e8813466299195d0e4ec88547815f00746b8f6e7590e8ef9a0b0693efa&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De84ryVEnHOVC9N3YVRQdyRejVUCUwrCHpEKnKq9lvFwKSMj08z5JRRugal7wAKkQCkWVX7j5TlpZYbo9_ESvWfLA9grizAYUw8xXvv_xYOU_vqMOD7AqRR27E6wsp5ecS4JD1IqM8k3VHm0LO3AyzxNFLOUW%2DqMUkHdnujXDmOdfB96231u0qdWcFQr7a9x4c9WbAmOL9NTuZlr37E7RYzNZr6fwU%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuZmlyc3RjcnkuY29tJTJmZm9vdHdlYXIlMmY2JTJmMTcwJTNmc29ydCUzZGJlc3RzZWxsZXIlMjZyZWYlM2RCU04hQlNOX0NBVF9GVy1BbGwhJTI2bXNjbGtpZCUzZDNiNzdjYTY1NGY1NjE1Y2Y4NjlhYTNiMjA1YjBlYTRjJTI2dXRtX3NvdXJjZSUzZGJpbmclMjZ1dG1fbWVkaXVtJTNkY3BjJTI2dXRtX2NhbXBhaWduJTNkQlNOX0NBVF9GVy1BbGwlMjZ1dG1fdGVybSUzZGNoaWxkcmVucyUyNTIwc2hvZSUyNTIwb25saW5lJTI1MjBwdXJjaGFzZSUyNnV0bV9jb250ZW50JTNkQ2hpbGRyZW4lMjUyMFNob2VzJTI1MjBCdXklMjUyME9ubGluZQ%26rlid%3D3b77ca654f5615cf869aa3b205b0ea4c&vqd=4-40306359572885986531973009447014362115&iurl=%7B1%7DIG%3D4AA43738E38C4963A3F1819FF9725A9C%26CID%3D2F1054908672652B3D6C43A6871064C1%26ID%3DDevEx%2C5046.1
+DEBUG: Extraction LLM call start (content length: 51352)
+[FETCH]... ↓ 
+https://www.ebay.com/itm/227292200974?_skw=kids+...oe1egUJtKra5xrpHryMeHz+Ce
+jw==|tkp:Bk9SR5DX5I-uZw  | ✓ | ⏱: 60.07s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/227292200974?_skw=kids+...oe1egUJtKra5xrpHryMeHz+Ce
+jw==|tkp:Bk9SR5DX5I-uZw  | ✓ | ⏱: 1.83s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/227292200974?_skw=kids+...oe1egUJtKra5xrpHryMeHz+Ce
+jw==|tkp:Bk9SR5DX5I-uZw  | ✓ | ⏱: 62.38s 
+Successfully crawled: https://www.ebay.com/itm/227292200974?_skw=kids+shoes&itmmeta=01KNRFS5DJAFGHVATMRJAPN3X9&hash=item34ebabc00e:g:gMYAAeSwx-Bp1nG5&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xBxkT7yMkmA37rOHuvM8Mz5%2FM2IewkCSaDrTIn%2Bl5ckkCBuOwEEhX77AbBIHv--XfZeku6Pu6d%2B8xeGlw2cki3fzZJG60ZGWV6zmhjf3G08LNdQzgB37Eo%2FEcDX059Dy14kCLZEvEauEGlNxlYVC2Pznwuos8FONrSAwjvokNAB%2B%2Fl2pedZmHG7jGewqxGLiyIlqZnP4hWFWxfT7mV3eULQvmVDK%2FBhPb6oF7Qn6PqtiFNWjjdfBAkpDigT7FwAAELrB2G6GBxt61RFEtfoe1egUJtKra5xrpHryMeHz%2BCejw%3D%3D%7Ctkp%3ABk9SR5DX5I-uZw
+DEBUG: Smart Start triggered at index 2244
+DEBUG: Extraction LLM call start (content length: 7026)
+🚀 [CRAWL] Start -> https://www.target.com/c/kids-shoes/-/N-2wi2k
+🚀 [CRAWL] Start -> https://www.kidsfootlocker.com/
+[FETCH]... ↓ 
+https://www.ebay.com/itm/267437565010?_skw=Find+...Tp967p9HIkTp9TORRN5/gdi07
+LpGzQ=|tkp:BFBMzrfoj65n  | ✓ | ⏱: 62.34s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/267437565010?_skw=Find+...Tp967p9HIkTp9TORRN5/gdi07
+LpGzQ=|tkp:BFBMzrfoj65n  | ✓ | ⏱: 3.45s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/267437565010?_skw=Find+...Tp967p9HIkTp9TORRN5/gdi07
+LpGzQ=|tkp:BFBMzrfoj65n  | ✓ | ⏱: 66.08s 
+Successfully crawled: https://www.ebay.com/itm/267437565010?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3ES69FZFMA4KQBH4D78&hash=item3e44856452:g:4jYAAOSwvdZkq95M&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xAtDPDGMkGY8eWjpaq22b3DDsE7DBK3rMSus01UfSCyRxPULn7%2FtESkv2iCJ8dtKgozh2XKbAywbub2WyDvbgR3sv2PG9MrB1%2B%2B6BDVvE%2B5GiLNuFgZwn1ohBxWmCMMAyq%2FkaNtTJtXmN6utZm1gcpt157hxxffwT6239eEBxKe4Kt5gFoytedx9Blgs39is9qHsGvVOJ8d9CjH0TyGO8O72REHyIR1OIopObHzwkUOx4YUpqw%2B9IWWtX9mdZqBCB8blhrSnGJ3LD46uvTf1N621CNA3oL3n9QNdTp967p9HIkTp9TORRN5%2Fgdi07LpGzQ%3D%7Ctkp%3ABFBMzrfoj65n
+DEBUG: Smart Start triggered at index 3499
+DEBUG: Extraction LLM call start (content length: 18758)
+[FETCH]... ↓ 
+https://www.ebay.com/itm/318121399276?_skw=Find+...o8NXhqIEsTelS/BIVm+Rf577g
+T+k=|tkp:Bk9SR8636I-uZw  | ✓ | ⏱: 58.30s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/318121399276?_skw=Find+...o8NXhqIEsTelS/BIVm+Rf577g
+T+k=|tkp:Bk9SR8636I-uZw  | ✓ | ⏱: 2.77s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/318121399276?_skw=Find+...o8NXhqIEsTelS/BIVm+Rf577g
+T+k=|tkp:Bk9SR8636I-uZw  | ✓ | ⏱: 61.36s 
+Successfully crawled: https://www.ebay.com/itm/318121399276?_skw=Find+foldable+camping+chairs+under+%2415.&itmmeta=01KNRFT3ESF2AW143XQ101NCC3&hash=item4a118353ec:g:5~wAAeSwhHJp1i-C&itmprp=enc%3AAQALAAABAGfYFPkwiKCW4ZNSs2u11xCr6rKlYDOzzzPjpsR%2FFKo38Mgv1deB6jTW%2BJjsZv21NKNedaFRTFBtTxJsML%2FSqF2zVLkuQ4H9nMGmt6l2zhoLdoQFEaLVBAB77DmIz%2FeW17eD4WTSeAnvPyA0YjNIWGmjQr5ohwU8u22meE2iKEJDjnyIb9GyoXDBpvOWhlbQ8y5UX94COT5kp8Ryg4%2BxbYBUowZuy%2FJlzn4PoItOE9hTN6Ir4vQ%2BVM5kdK%2BiRoCg6m3prm6EXo4wDgS4UdbhmgxIgCPtrYQpLGWzpiJYxvYKFMTMdXYADhoEsoxo8NXhqIEsTelS%2FBIVm%2BRf577gT%2Bk%3D%7Ctkp%3ABk9SR8636I-uZw
+DEBUG: Smart Start triggered at index 3511
+DEBUG: Extraction LLM call start (content length: 13692)
+[FETCH]... ↓ 
+https://duckduckgo.com/y.js?ad_domain=amazon.in&...2F1054908672652B3D6C43A68
+71064C1&ID=DevEx,5051.1  | ✓ | ⏱: 54.47s 
+[SCRAPE].. ◆ 
+https://duckduckgo.com/y.js?ad_domain=amazon.in&...2F1054908672652B3D6C43A68
+71064C1&ID=DevEx,5051.1  | ✓ | ⏱: 21.87s 
+[COMPLETE] ● 
+https://duckduckgo.com/y.js?ad_domain=amazon.in&...2F1054908672652B3D6C43A68
+71064C1&ID=DevEx,5051.1  | ✓ | ⏱: 76.53s 
+Successfully crawled: https://duckduckgo.com/y.js?ad_domain=amazon.in&ad_provider=bingv7aa&ad_type=txad&click_metadata=txXLyOe15swGuzhZLKVPWgxbl2KcXA5pBlTzkUo2XFJxKTouRvuPuTBLPdnDE7ilD_SPjrTPVbtJqHK1jlR3fufQSrv5ZnxU3YGEA5Xyg5ow8gnF_7kUusGICMD7Nwvq5qnxknb_5WeX6UaMv_2oF3KVn4uHVgDqK3zSQ_y91Ps.TNibG5kC6L5xNE1Y5Ikt_g&rut=e5a947e0237bb8bc4fde9d7a6d098b03719d15711a1c533713e20ecb3acdd270&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8281FjG5mYVaYjzaPkajBAzVUCUzOrkleKaEboT28X9i7V4_UWUy5ww2amIzfSItx9cR0MNu8WxvMd_vPG0s8UFn4V9%2DgcwYYcS0oUM78R8V1PhpFmE7r8sBtXITDt0ObT2h6plv1dMUoJK37Jplyk2VoMJ_scy8Kxt%2DD0edC1k4ss9RWFe2rzFZMYat19wXFVj7k%2Dcf7cjWb1J6crY2otonkKvw%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuYW1hem9uLmluJTJmcyUyZiUzZmllJTNkVVRGOCUyNmtleXdvcmRzJTNkc2hvZXMlMjUyNyUyNmluZGV4JTNkc2hvZXMlMjZ0YWclM2Rtc25kZXNrc3RkaW4tMjElMjZyZWYlM2RwZF9zbF83eTJxbWN1bmhlX3AlMjZhZGdycGlkJTNkMTMxOTQxNTU1ODU0NzgzMCUyNmh2YWRpZCUzZDgyNDYzNzQzMDY0ODQ3JTI2aHZuZXR3JTNkcyUyNmh2cW10JTNkcCUyNmh2Ym10JTNkYnAlMjZodmRldiUzZGMlMjZodmxvY2ludCUzZCUyNmh2bG9jcGh5JTNkMjU3MjkyJTI2aHZ0YXJnaWQlM2Rrd2QtODI0NjQzNDg1NzUzOTUlM2Fsb2MtOTAlMjZoeWRhZGNyJTNkMjIxMzZfMjM0MzAwOCUyNm1jaWQlM2RlY2UzMDM0MzA1NDQzY2NmYTFmYmM3Zjg4MjljNTI0NSUyNm1zY2xraWQlM2Q1NDYyYzQ3YWM2ZGUxMGNmZjUzZGFkYWQ4YzM4ODViMw%26rlid%3D5462c47ac6de10cff53dadad8c3885b3&vqd=4-83870999208164515129764539069434940245&iurl=%7B1%7DIG%3D4AA43738E38C4963A3F1819FF9725A9C%26CID%3D2F1054908672652B3D6C43A6871064C1%26ID%3DDevEx%2C5051.1
+DEBUG: Smart Start triggered at index 1993
+DEBUG: Extraction LLM call start (content length: 34953)
+🚀 [CRAWL] Start -> https://duckduckgo.com/y.js?ad_domain=oneclearwinner.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=3YfdlitHF1qJYwqfqDLn%2Dq8zI4%2D98W40CNMN0oFvryWIWuidXiJx1Sk9LXBwpBM_YYSuLsUIkVrGWz4AD6t0bDQaGPp7H1k98AEMUvKLyELh95Pus4rITaOM2v5gauMUrZqpTbdiqUj5wooywoP0CJm8sCEhm%2De%2DAh2%2DcbjFrA4.OAbkFHfSHW0YLT6J3u_65A&rut=d9941875b7b97da57032d2f27012c1b697c5e9ebbef5e0fbf5cc7047467b77c1&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8ylgcrndYHnFZnwWppCG95TVUCUzekYfMvRcQQKeTUKZ1m0M%2DBY8D41qDJQTyPQjTD9YA7GS6_HJsu0yrfZZlTkIiLznn8p3SfpXxduLN33jOX_4MAjpGR9V5RZcsXCaSBkZfqy%2DkS2oTyBpGg9_UcLlKR3CxwYIvD9RODoiqwmehuD5bbjiP4U9hJDmTyTJnd8TZcMe8Ft77rIr%2DbBKQBXs3MYw%26u%3DaHR0cHMlM2ElMmYlMmZyZXZpZXdzLm9uZWNsZWFyd2lubmVyLmNvbSUyZnByb2R1Y3QlMmZzbWFsbC1wb3J0YWJsZS1jaGFpciUyZiUzZm1zY2xraWQlM2Q4MTViNzRkOGI1MjYxMGU4MmFmMzFkMGZmZTIzY2E1MCUyNnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZGdlbyUyNTNBV1clMjUyMCUyNTdDJTI1MjBzaXRlJTI1M0FPQ1dfc3NyX3QzJTI1MjAlMjU3QyUyNTIwdHlwZSUyNTNBS1dzJTI1MjAlMjU3QyUyNTIwY2F0ZWdvcnklMjUzQVBvc2l0aXZlUk9JJTI2dXRtX3Rlcm0lM2RzbWFsbCUyNTIwcG9ydGFibGUlMjUyMGNoYWlyJTI2dXRtX2NvbnRlbnQlM2RBZCUyNTIwZ3JvdXA2%26rlid%3D815b74d8b52610e82af31d0ffe23ca50&vqd=4-24361807876619160377130150499999823272&iurl=%7B1%7DIG%3D9E9DA98CE6054B36809389A1D0F8CBD3%26CID%3D306E0193B3D1669925B516A5B2B367CF%26ID%3DDevEx%2C5041.1
+🚀 [CRAWL] Start -> https://www.target.com/s/camping+folding+chair
+🚀 [CRAWL] Start -> https://www.footlocker.com/category/kids/shoes.html
+[FETCH]... ↓ https://www.kidsfootlocker.com/                                
+| ✓ | ⏱: 34.03s 
+[SCRAPE].. ◆ https://www.kidsfootlocker.com/                                
+| ✓ | ⏱: 2.04s 
+[COMPLETE] ● https://www.kidsfootlocker.com/                                
+| ✓ | ⏱: 36.18s 
+Successfully crawled: https://www.kidsfootlocker.com/
+DEBUG: Smart Start triggered at index 659
+DEBUG: Extraction LLM call start (content length: 5509)
+[FETCH]... ↓ 
+https://duckduckgo.com/y.js?ad_domain=amazon.in&...306E0193B3D1669925B516A5B
+2B367CF&ID=DevEx,5038.1  | ✓ | ⏱: 84.15s 
+[SCRAPE].. ◆ 
+https://duckduckgo.com/y.js?ad_domain=amazon.in&...306E0193B3D1669925B516A5B
+2B367CF&ID=DevEx,5038.1  | ✓ | ⏱: 8.51s 
+[COMPLETE] ● 
+https://duckduckgo.com/y.js?ad_domain=amazon.in&...306E0193B3D1669925B516A5B
+2B367CF&ID=DevEx,5038.1  | ✓ | ⏱: 92.78s 
+Successfully crawled: https://duckduckgo.com/y.js?ad_domain=amazon.in&ad_provider=bingv7aa&ad_type=txad&click_metadata=Ty3XgiyaNBf2wnN%2DD25ZhmeSnnQimewE33lP2GSn5W%2DDlLEVEypzSxH%2DM_Hp3j2iSznH6t6IR%2DvibKHt8hFgLnxJ7O1_gF6Niraq6zln4GSL3A5zx1WSvn9ISxRqnNIe6gROt9eYYQMScLEeRpohxb5I0HQNeoBc9Q1BnxpDDHg.STbV2xpRN9K09ZgD9YAyCA&rut=112903bc2436a3a2a8b6811aa7892cd76fd2095a5844705e57da5b9e78eb540e&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De802SPI%2Dmi0XA2Gk0aGiMfqTVUCUwswYndx%2DnbS0z8nIBgjguGceLcaRDuraA5x8rFeLqLvhKw1NT8V3bzJAvhkSRwQsZZ4HtXMqmfHuud_nV2qWB6Oy9jLVm4mFzlqaSMs9Vx5NFhVcWdviFiwK0L1F7QZ%2DYYGwiw0wr8fkyYEwJ__J5dnkGRrW9w3ZI8qpx5Onahudqb1Zs51KjfJvKXLJDGeSQ%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cuYW1hem9uLmluJTJmcyUyZiUzZmllJTNkVVRGOCUyNmtleXdvcmRzJTNkY2hhaXIlMjZpbmRleCUzZGFwcyUyNnRhZyUzZG1zbmRlc2tzdGRpbi0yMSUyNnJlZiUzZHBkX3NsXzhiNGJ0MXIzdmFfcCUyNmFkZ3JwaWQlM2QxMzI2MDEyNjMyOTg0MDkyJTI2aHZhZGlkJTNkODI4NzYwNTUyMjkyMjIlMjZodm5ldHclM2RzJTI2aHZxbXQlM2RwJTI2aHZibXQlM2RicCUyNmh2ZGV2JTNkYyUyNmh2bG9jaW50JTNkJTI2aHZsb2NwaHklM2QxNTc5ODUlMjZodnRhcmdpZCUzZGt3ZC04Mjg3NjY4MDg3ODIxNSUzYWxvYy05MCUyNmh5ZGFkY3IlM2QxNTQxNV8yMzM4Nzc5JTI2bWNpZCUzZDQ4ZDVlMjFhMjJjYzMyZGZiNTRhOGE4MzUwNTM5ZDI4%26rlid%3Dbe9e8c3f927c136c314ae5e8d9796175&vqd=4-9701297045592612199599578549891644520&iurl=%7B1%7DIG%3D9E9DA98CE6054B36809389A1D0F8CBD3%26CID%3D306E0193B3D1669925B516A5B2B367CF%26ID%3DDevEx%2C5038.1
+DEBUG: Smart Start triggered at index 1916
+DEBUG: Extraction LLM call start (content length: 36439)
+[FETCH]... ↓ https://www.target.com/c/kids-shoes/-/N-2wi2k                  
+| ✓ | ⏱: 47.73s 
+[SCRAPE].. ◆ https://www.target.com/c/kids-shoes/-/N-2wi2k                  
+| ✓ | ⏱: 1.88s 
+[COMPLETE] ● https://www.target.com/c/kids-shoes/-/N-2wi2k                  
+| ✓ | ⏱: 49.73s 
+Successfully crawled: https://www.target.com/c/kids-shoes/-/N-2wi2k
+DEBUG: Smart Start triggered at index 144
+DEBUG: Extraction LLM call start (content length: 14991)
+🚀 [CRAWL] Start -> https://www.walmart.com/browse/sports-outdoors/all-camping-chairs/4125_5151478_6170779_2377398
+[FETCH]... ↓ 
+https://duckduckgo.com/y.js?ad_domain=oneclearwi...306E0193B3D1669925B516A5B
+2B367CF&ID=DevEx,5041.1  | ✓ | ⏱: 19.91s 
+[SCRAPE].. ◆ 
+https://duckduckgo.com/y.js?ad_domain=oneclearwi...306E0193B3D1669925B516A5B
+2B367CF&ID=DevEx,5041.1  | ✓ | ⏱: 0.94s 
+[COMPLETE] ● 
+https://duckduckgo.com/y.js?ad_domain=oneclearwi...306E0193B3D1669925B516A5B
+2B367CF&ID=DevEx,5041.1  | ✓ | ⏱: 20.93s 
+Successfully crawled: https://duckduckgo.com/y.js?ad_domain=oneclearwinner.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=3YfdlitHF1qJYwqfqDLn%2Dq8zI4%2D98W40CNMN0oFvryWIWuidXiJx1Sk9LXBwpBM_YYSuLsUIkVrGWz4AD6t0bDQaGPp7H1k98AEMUvKLyELh95Pus4rITaOM2v5gauMUrZqpTbdiqUj5wooywoP0CJm8sCEhm%2De%2DAh2%2DcbjFrA4.OAbkFHfSHW0YLT6J3u_65A&rut=d9941875b7b97da57032d2f27012c1b697c5e9ebbef5e0fbf5cc7047467b77c1&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8ylgcrndYHnFZnwWppCG95TVUCUzekYfMvRcQQKeTUKZ1m0M%2DBY8D41qDJQTyPQjTD9YA7GS6_HJsu0yrfZZlTkIiLznn8p3SfpXxduLN33jOX_4MAjpGR9V5RZcsXCaSBkZfqy%2DkS2oTyBpGg9_UcLlKR3CxwYIvD9RODoiqwmehuD5bbjiP4U9hJDmTyTJnd8TZcMe8Ft77rIr%2DbBKQBXs3MYw%26u%3DaHR0cHMlM2ElMmYlMmZyZXZpZXdzLm9uZWNsZWFyd2lubmVyLmNvbSUyZnByb2R1Y3QlMmZzbWFsbC1wb3J0YWJsZS1jaGFpciUyZiUzZm1zY2xraWQlM2Q4MTViNzRkOGI1MjYxMGU4MmFmMzFkMGZmZTIzY2E1MCUyNnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZGdlbyUyNTNBV1clMjUyMCUyNTdDJTI1MjBzaXRlJTI1M0FPQ1dfc3NyX3QzJTI1MjAlMjU3QyUyNTIwdHlwZSUyNTNBS1dzJTI1MjAlMjU3QyUyNTIwY2F0ZWdvcnklMjUzQVBvc2l0aXZlUk9JJTI2dXRtX3Rlcm0lM2RzbWFsbCUyNTIwcG9ydGFibGUlMjUyMGNoYWlyJTI2dXRtX2NvbnRlbnQlM2RBZCUyNTIwZ3JvdXA2%26rlid%3D815b74d8b52610e82af31d0ffe23ca50&vqd=4-24361807876619160377130150499999823272&iurl=%7B1%7DIG%3D9E9DA98CE6054B36809389A1D0F8CBD3%26CID%3D306E0193B3D1669925B516A5B2B367CF%26ID%3DDevEx%2C5041.1
+DEBUG: Extraction LLM call start (content length: 15891)
+[FETCH]... ↓ https://www.target.com/s/camping+folding+chair                 
+| ✓ | ⏱: 22.41s 
+[SCRAPE].. ◆ https://www.target.com/s/camping+folding+chair                 
+| ✓ | ⏱: 2.84s 
+[COMPLETE] ● https://www.target.com/s/camping+folding+chair                 
+| ✓ | ⏱: 25.33s 
+Successfully crawled: https://www.target.com/s/camping+folding+chair
+DEBUG: Smart Start triggered at index 155
+DEBUG: Extraction LLM call start (content length: 13506)
+[FETCH]... ↓ https://www.footlocker.com/category/kids/shoes.html            
+| ✓ | ⏱: 23.63s 
+[SCRAPE].. ◆ https://www.footlocker.com/category/kids/shoes.html            
+| ✓ | ⏱: 2.20s 
+[COMPLETE] ● https://www.footlocker.com/category/kids/shoes.html            
+| ✓ | ⏱: 25.92s 
+Successfully crawled: https://www.footlocker.com/category/kids/shoes.html
+DEBUG: Smart Start triggered at index 1615
+DEBUG: Extraction LLM call start (content length: 14258)
+[FETCH]... ↓ 
+https://www.walmart.com/browse/sports-outdoors/all-camping-chairs/4125_51514
+78_6170779_2377398       | ✓ | ⏱: 11.54s 
+[SCRAPE].. ◆ 
+https://www.walmart.com/browse/sports-outdoors/all-camping-chairs/4125_51514
+78_6170779_2377398       | ✓ | ⏱: 3.27s 
+[COMPLETE] ● 
+https://www.walmart.com/browse/sports-outdoors/all-camping-chairs/4125_51514
+78_6170779_2377398       | ✓ | ⏱: 14.94s 
+Successfully crawled: https://www.walmart.com/browse/sports-outdoors/all-camping-chairs/4125_5151478_6170779_2377398
+DEBUG: Smart Start triggered at index 0
+DEBUG: Extraction LLM call start (content length: 24030)
+🚀 [CRAWL] Start -> https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort
+DEBUG: Processing 23 extracted products for S3 upload...
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/e9f12f14-882d-4fd7-ab99-5b835d6583a1.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/68d7b4d9-7fa2-43fd-8d7d-5522ff095f2d.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/51ada570-aedc-49f9-8097-424c4a874251.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/beb522b0-92f7-4ef5-8ebd-9ee47d6917ef.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/81363576-767a-4859-b6c2-0cf0f2c87984.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/8dd991bc-5663-4f11-8415-4e5988c7e685.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/7ea3518d-d8cc-40d4-9fce-5c6fc6158a56.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/c37cedb8-3b7d-4b8a-845d-bb1424fa0316.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/6aa3a5eb-f319-4e02-af89-1a1b97f76fe4.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/c2acbfee-e61e-48ed-9e5d-f4efeed03e13.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/da6a2475-c00e-4aa0-b4ab-7d2ab09e8abf.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/products/retail/live_search/3af8e1ee-5f95-4ecb-9ed9-553540eb816d.1
+
+🚀 [BACKGROUND] Starting caching for: kids shoes
+📦 [BACKGROUND] Processing 10 products...
+Batch adding 10 chunks to the vector store...
+Added batch of 10 chunks. Total: 10/10
+✅ [BACKGROUND] Successfully cached 10 products for 'kids shoes'
+
+✅ BACKGROUND: Done for 'kids shoes'!
+[FETCH]... ↓ 
+https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort  
+| ✓ | ⏱: 6.58s 
+[SCRAPE].. ◆ 
+https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort  
+| ✓ | ⏱: 1.64s 
+[COMPLETE] ● 
+https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort  
+| ✓ | ⏱: 8.27s 
+Successfully crawled: https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort
+DEBUG: Smart Start triggered at index 0
+DEBUG: Extraction LLM call start (content length: 25174)
+DEBUG: Processing 22 extracted products for S3 upload...
+
+🚀 [BACKGROUND] Starting caching for: Find foldable camping chairs under $15.
+📦 [BACKGROUND] Processing 10 products...
+Batch adding 10 chunks to the vector store...
+Added batch of 10 chunks. Total: 10/10
+✅ [BACKGROUND] Successfully cached 10 products for 'Find foldable camping chairs under $15.'
+
+✅ BACKGROUND: Done for 'Find foldable camping chairs under $15.'!
+🔍 GET /api/templates
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:58656 - "GET /api/templates HTTP/1.1" 200 OK
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:58666 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:58656 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:58656 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:33144 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:33144 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 POST /api/chat
+📥 Body received
+🔥 Query: Find foldable camping chairs under $15.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Find foldable camping chairs under $15.
+DEBUG: Searching Amazon for: Find foldable camping chairs under $15.
+DEBUG: Searching eBay for: Find foldable camping chairs under $15.
+DEBUG: Starting lightweight image search for: foldable camping chairs under $15.
+DEBUG: Starting real-time DDG search_sources for: Find foldable camping chairs under $15.
+DEBUG: Amazon returned status 503
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: eBay returned 0 products with prices.
+DEBUG: Found 5 real search results from DDG.
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 10 products
+🛒 RAG context: 25 docs in 0.80s
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:51102 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:51102 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 POST /api/chat
+📥 Body received
+🔥 Query: Find foldable camping chairs under $15.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Find foldable camping chairs under $15.
+DEBUG: Searching Amazon for: Find foldable camping chairs under $15.
+DEBUG: Searching eBay for: Find foldable camping chairs under $15.
+DEBUG: Starting lightweight image search for: foldable camping chairs under $15.
+DEBUG: Starting real-time DDG search_sources for: Find foldable camping chairs under $15.
+DEBUG: Amazon returned status 503
+DEBUG: Found 10 real images with source URLs from Bing.
+📡 Grid: 10 products
+✅ Done in 7.3s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:33144 - "POST /api/chat HTTP/1.1" 200 OK
+
+🚀 [BACKGROUND] Starting caching for: Find foldable camping chairs under $15.
+📦 [BACKGROUND] Processing 10 products...
+Batch adding 13 chunks to the vector store...
+Added batch of 13 chunks. Total: 13/13
+✅ [BACKGROUND] Successfully cached 10 products for 'Find foldable camping chairs under $15.'
+
+🔄 BACKGROUND: Deep crawl for 'Find foldable camping chairs under $15.'...
+DEBUG: Starting background run_deep_crawl_process for Find foldable camping chairs under $15.
+🔍 GET /api/templates
+DEBUG: eBay returned 0 products with prices.
+🔍 POST /api/chat
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:33144 - "GET /api/templates HTTP/1.1" 200 OK
+📥 Body received
+🔥 Query: Find foldable camping chairs under $15.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Find foldable camping chairs under $15.
+DEBUG: Searching Amazon for: Find foldable camping chairs under $15.
+DEBUG: Searching eBay for: Find foldable camping chairs under $15.
+DEBUG: Starting lightweight image search for: foldable camping chairs under $15.
+DEBUG: Starting real-time DDG search_sources for: Find foldable camping chairs under $15.
+🔍 GET /api/templates
+🔍 POST /api/chat
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:33144 - "GET /api/templates HTTP/1.1" 200 OK
+DEBUG: Found 5 real search results from DDG.
+📥 Body received
+🔥 Query: Find foldable camping chairs under $15.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Find foldable camping chairs under $15.
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 10 products
+🛒 RAG context: 25 docs in 0.16s
+DEBUG: Searching Amazon for: Find foldable camping chairs under $15.
+DEBUG: Searching eBay for: Find foldable camping chairs under $15.
+DEBUG: Starting lightweight image search for: foldable camping chairs under $15.
+DEBUG: Starting real-time DDG search_sources for: Find foldable camping chairs under $15.
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:33144 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:33144 - "GET /api/templates HTTP/1.1" 200 OK
+DEBUG: Amazon returned status 503
+DEBUG: Starting lightweight image search for: foldable camping chairs under $15.
+DEBUG: Amazon returned status 503
+DEBUG: Starting lightweight image search for: foldable camping chairs under $15.
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: eBay returned 0 products with prices.
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://duckduckgo.com/y.js?ad_domain=nilkamalfurniture.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=mgl%2DwemGeXo7BE4Wp0sDQ7414sLDgBXkw37GnexN8ynO6J1guYsnvelD48TGhvD7NN_OoS1Pl5mkEjh8mc7H2pj9u67VcYmYJwfZ0Td%2Dhj8NZaZ2lYWvAdaNlC7O0XGv%2D__ym_1TQvx4g5HRwK_wGRpTTc2Ad%2DiumW8wVR8kEhY.Jfl4nZvVjADuW7bXf4fMdg&rut=4b6d1ec17f85df5539984c77da5e838b3dc7b4d6f5f3e910c7fc0c30cddd7c75&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De83Q3OkGGEQT_6t6tdUev3rjVUCUw51oAxSToIFZUm1jQVk5Jm7IZv9BBxu1RJLk3ks9iNObWDHetk2jDXaVhsPxLX2Nr1XxFr8zT1Y3qIlhoBLGQW0zpm9%2DsoyeZe5Ps5n7JcvKnuD8ivW2EjkE7uJMI9XMdEEae9BmJZUFMLunGGP14kX3r5hmL3mFepo0WNYe4mWuLVn1FTiRzqsJmexa4KMPs%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cubmlsa2FtYWxmdXJuaXR1cmUuY29tJTJmJTNmdXRtX2FkZ3JvdXAlM2RCaWdfU3VtbWVyX1NhdmluZ3NfU2FsZV9QbHVzX0hpZ2hfU2VsbGluZ19Qcm9kdWN0c19TaG9waWZ5X0RhdGFfQXByMjYlMjZ1dG1fYWRpZCUzZCUyNm1zY2xraWQlM2QxMTZkYTJlZTFmNjUxODdmYjMwZmNiMzk0ZWJmMThlNyUyNnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZE5pbGthbWFsX1BlcmZvcm1hbmNlX01heF9KdWx5MjUlMjZ1dG1fdGVybSUzZHd3dy5uaWxrYW1hbGZ1cm5pdHVyZS5jb20lMjZ1dG1fY29udGVudCUzZEJpZ19TdW1tZXJfU2F2aW5nc19TYWxlX1BsdXNfSGlnaF9TZWxsaW5nX1Byb2R1Y3RzX1Nob3BpZnlfRGF0YV9BcHIyNg%26rlid%3D116da2ee1f65187fb30fcb394ebf18e7&vqd=4-221239632101631637725508500723348375959&iurl=%7B1%7DIG%3DAE5A965E066E4E6A8FBF6D64093B8CAD%26CID%3D251B6AC6D1446A7831367DF0D0266B21%26ID%3DDevEx%2C5039.1
+🚀 [CRAWL] Start -> https://www.walmart.com/browse/sports-outdoors/camping-chairs/clearance/4125_546956_4128_1080625_6170779/c3BlY2lhbF9vZmZlcnM6Q2xlYXJhbmNlfHxzcGVjaWFsX29mZmVyczpSZWR1Y2VkIFByaWNlfHxzcGVjaWFsX29mZmVyczpSb2xsYmFjawieie
+🚀 [CRAWL] Start -> https://www.target.com/s/camping+folding+chair
+DEBUG: eBay returned 0 products with prices.
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 9 products
+🛒 RAG context: 25 docs in 0.04s
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 9 products
+🛒 RAG context: 25 docs in 0.03s
+📡 Grid: 10 products
+✅ Done in 6.2s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:51102 - "POST /api/chat HTTP/1.1" 200 OK
+
+🚀 [BACKGROUND] Starting caching for: Find foldable camping chairs under $15.
+📦 [BACKGROUND] Processing 10 products...
+Batch adding 16 chunks to the vector store...
+Added batch of 16 chunks. Total: 16/16
+✅ [BACKGROUND] Successfully cached 10 products for 'Find foldable camping chairs under $15.'
+
+🔄 BACKGROUND: Deep crawl for 'Find foldable camping chairs under $15.'...
+DEBUG: Starting background run_deep_crawl_process for Find foldable camping chairs under $15.
+📡 Grid: 9 products
+✅ Done in 5.2s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:51106 - "POST /api/chat HTTP/1.1" 200 OK
+
+🚀 [BACKGROUND] Starting caching for: Find foldable camping chairs under $15.
+📦 [BACKGROUND] Processing 9 products...
+Batch adding 9 chunks to the vector store...
+Added batch of 9 chunks. Total: 9/9
+✅ [BACKGROUND] Successfully cached 9 products for 'Find foldable camping chairs under $15.'
+
+🔄 BACKGROUND: Deep crawl for 'Find foldable camping chairs under $15.'...
+DEBUG: Starting background run_deep_crawl_process for Find foldable camping chairs under $15.
+📡 Grid: 9 products
+✅ Done in 4.8s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:51116 - "POST /api/chat HTTP/1.1" 200 OK
+
+🚀 [BACKGROUND] Starting caching for: Find foldable camping chairs under $15.
+📦 [BACKGROUND] Processing 9 products...
+Batch adding 9 chunks to the vector store...
+Added batch of 9 chunks. Total: 9/9
+✅ [BACKGROUND] Successfully cached 9 products for 'Find foldable camping chairs under $15.'
+
+🔄 BACKGROUND: Deep crawl for 'Find foldable camping chairs under $15.'...
+DEBUG: Starting background run_deep_crawl_process for Find foldable camping chairs under $15.
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:44068 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:44068 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 POST /api/chat
+📥 Body received
+🔥 Query: Find foldable camping chairs under $15.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Find foldable camping chairs under $15.
+DEBUG: Searching Amazon for: Find foldable camping chairs under $15.
+DEBUG: Searching eBay for: Find foldable camping chairs under $15.
+DEBUG: Starting lightweight image search for: foldable camping chairs under $15.
+DEBUG: Starting real-time DDG search_sources for: Find foldable camping chairs under $15.
+DEBUG: Found 10 real images with source URLs from Bing.
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://duckduckgo.com/y.js?ad_domain=oneclearwinner.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=_E78ol1gQ9VQ9%2DqU5VuneSz0g_YZ6WHBBwnIGh_dFeF8KrljZkCsEbiTjOYpzaSciyrbDCfP5YI0UJQeeuDkgQklyV6KcDi6EgY9SG8qa_Hj2JBlPGqlPF5MOxcQDwyixiAUIds_F8_eNbRTKkBZvjk0IwtKaEs5YULKnm2t1rQ.l25W5NjorHWGqk6DlB4WHA&rut=98b3e767a071ff1e3e6f4213b8cad13e7fec46bdec629ffb4e60f5ef2676095c&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8LH_YSrxjUN_tfhXPxMyR4jVUCUw%2DvcQMMLtUgvODmLZLVeo6_foiVAcRTizoDrc8%2DeqgYl6hvZZnKEEVGbahT3f%2DeSOjn058ppzPntFhUaHgtB7SjHy9SOue%2DfgqsMXsZuwjdC0_%2Dv2OJHeJOZzUvgZOzidov7a6GcxH7xJE8RMX%2DJI79GRghjhLQ3xLQYYmXIhTz8aF4AJGWmzUBewavm8HzNA%26u%3DaHR0cHMlM2ElMmYlMmZyZXZpZXdzLm9uZWNsZWFyd2lubmVyLmNvbSUyZnByb2R1Y3QlMmZ1bHRyYWxpZ2h0LWNhbXAtY2hhaXIlMmYlM2Ztc2Nsa2lkJTNkOWVjNGY4M2UxYWQzMTM4ZjM0YWI5MWU5NGIzMzY1YTglMjZ1dG1fc291cmNlJTNkYmluZyUyNnV0bV9tZWRpdW0lM2RjcGMlMjZ1dG1fY2FtcGFpZ24lM2RnZW8lMjUzQVdXJTI1MjAlMjU3QyUyNTIwc2l0ZSUyNTNBT0NXX3Nzcl90MyUyNTIwJTI1N0MlMjUyMHR5cGUlMjUzQUtXcyUyNTIwJTI1N0MlMjUyMGNhdGVnb3J5JTI1M0FQb3NpdGl2ZVJPSTIlMjZ1dG1fdGVybSUzZHVsdHJhbGlnaHQlMjUyMGNhbXAlMjUyMGNoYWlyJTI2dXRtX2NvbnRlbnQlM2RBZCUyNTIwZ3JvdXAlMjUyMDY%26rlid%3D9ec4f83e1ad3138f34ab91e94b3365a8&vqd=4-148920953304697463282870831358132449336&iurl=%7B1%7DIG%3D90D19846B09C45C488076A665A2E978C%26CID%3D07D1A3369F75694F2E08B4009E17687F%26ID%3DDevEx%2C5038.1
+🚀 [CRAWL] Start -> https://duckduckgo.com/y.js?ad_domain=nilkamalfurniture.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=kyHUcsmqQR6uczdjul13GVkzrF0EWeS3y5hdlVoYJnaO2srIJci3klLbYG2fFsKHkzoyu%2DXdQGWKJDgMcRRajuz97rXqD7HJJO7KgtTdMF3c4q%2DgqZzGdWTLgzXouG6BueqR0AdYorwPPypJRFz2ClVT3decyFGAapEctHP0u2I.PcJwjAK4gpKQmxQJbtTWjA&rut=1850c670cf6d11f1c139be43df30e681fc0db8d6d496e0c61218ef653f8ff8f1&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8VXHBfFIoVy2tNhzJsft_dTVUCUytZE1kt1HXwgeahhfWn3VXai8ngRl%2DuA5HVXh6H75tfu8df%2DK2eQslX1C_Zwr9hkNKRWfvjUbBsb8BRtejRdmdDgRQDnWBruD4bkuctf5wmNXobyZAQ5QjdNFmfCxSFJBLc4EZH3SOqoPrziLjlLnHyK0i2Ni3SGNTus%2DHoqx%2DmS8bXkLjHXyTL_Lv6CCv4M8%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cubmlsa2FtYWxmdXJuaXR1cmUuY29tJTJmJTNmdXRtX2FkZ3JvdXAlM2RCaWdfU3VtbWVyX1NhdmluZ3NfU2FsZV9QbHVzX0hpZ2hfU2VsbGluZ19Qcm9kdWN0c19TaG9waWZ5X0RhdGFfQXByMjYlMjZ1dG1fYWRpZCUzZCUyNm1zY2xraWQlM2RkZGViNmNhNWMyYmQxNmEzNGIxNjA1NzI5MzVkNjQyNCUyNnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZE5pbGthbWFsX1BlcmZvcm1hbmNlX01heF9KdWx5MjUlMjZ1dG1fdGVybSUzZHd3dy5uaWxrYW1hbGZ1cm5pdHVyZS5jb20lMjZ1dG1fY29udGVudCUzZEJpZ19TdW1tZXJfU2F2aW5nc19TYWxlX1BsdXNfSGlnaF9TZWxsaW5nX1Byb2R1Y3RzX1Nob3BpZnlfRGF0YV9BcHIyNg%26rlid%3Dddeb6ca5c2bd16a34b160572935d6424&vqd=4-257201530903154880768863020695239553435&iurl=%7B1%7DIG%3D90D19846B09C45C488076A665A2E978C%26CID%3D07D1A3369F75694F2E08B4009E17687F%26ID%3DDevEx%2C5042.1
+🚀 [CRAWL] Start -> https://www.walmart.com/browse/sports-outdoors/camping-chairs/clearance/4125_546956_4128_1080625_6170779/c3BlY2lhbF9vZmZlcnM6Q2xlYXJhbmNlfHxzcGVjaWFsX29mZmVyczpSZWR1Y2VkIFByaWNlfHxzcGVjaWFsX29mZmVyczpSb2xsYmFjawieie
+DEBUG: eBay returned 0 products with prices.
+DEBUG: Starting lightweight image search for: foldable camping chairs under $15.
+DEBUG: Found 10 real images with source URLs from Bing.
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort
+🚀 [CRAWL] Start -> https://www.campcherokeeadk.com/product/foldable-camping-chair/
+🚀 [CRAWL] Start -> https://www.takealot.com/lightweight-folding-camping-chair/PLID95682560
+DEBUG: Amazon returned 10 products with prices.
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort
+🚀 [CRAWL] Start -> https://www.campcherokeeadk.com/product/foldable-camping-chair/
+🚀 [CRAWL] Start -> https://www.takealot.com/lightweight-folding-camping-chair/PLID95682560
+DEBUG: Combined sources — Amazon: 10, eBay: 0
+⚡ Live Amazon: 10 products
+🛒 RAG context: 25 docs in 0.69s
+[FETCH]... ↓ 
+https://duckduckgo.com/y.js?ad_domain=nilkamalfu...251B6AC6D1446A7831367DF0D
+0266B21&ID=DevEx,5039.1  | ✓ | ⏱: 13.03s 
+[SCRAPE].. ◆ 
+https://duckduckgo.com/y.js?ad_domain=nilkamalfu...251B6AC6D1446A7831367DF0D
+0266B21&ID=DevEx,5039.1  | ✓ | ⏱: 3.45s 
+[COMPLETE] ● 
+https://duckduckgo.com/y.js?ad_domain=nilkamalfu...251B6AC6D1446A7831367DF0D
+0266B21&ID=DevEx,5039.1  | ✓ | ⏱: 16.91s 
+Successfully crawled: https://duckduckgo.com/y.js?ad_domain=nilkamalfurniture.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=mgl%2DwemGeXo7BE4Wp0sDQ7414sLDgBXkw37GnexN8ynO6J1guYsnvelD48TGhvD7NN_OoS1Pl5mkEjh8mc7H2pj9u67VcYmYJwfZ0Td%2Dhj8NZaZ2lYWvAdaNlC7O0XGv%2D__ym_1TQvx4g5HRwK_wGRpTTc2Ad%2DiumW8wVR8kEhY.Jfl4nZvVjADuW7bXf4fMdg&rut=4b6d1ec17f85df5539984c77da5e838b3dc7b4d6f5f3e910c7fc0c30cddd7c75&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De83Q3OkGGEQT_6t6tdUev3rjVUCUw51oAxSToIFZUm1jQVk5Jm7IZv9BBxu1RJLk3ks9iNObWDHetk2jDXaVhsPxLX2Nr1XxFr8zT1Y3qIlhoBLGQW0zpm9%2DsoyeZe5Ps5n7JcvKnuD8ivW2EjkE7uJMI9XMdEEae9BmJZUFMLunGGP14kX3r5hmL3mFepo0WNYe4mWuLVn1FTiRzqsJmexa4KMPs%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cubmlsa2FtYWxmdXJuaXR1cmUuY29tJTJmJTNmdXRtX2FkZ3JvdXAlM2RCaWdfU3VtbWVyX1NhdmluZ3NfU2FsZV9QbHVzX0hpZ2hfU2VsbGluZ19Qcm9kdWN0c19TaG9waWZ5X0RhdGFfQXByMjYlMjZ1dG1fYWRpZCUzZCUyNm1zY2xraWQlM2QxMTZkYTJlZTFmNjUxODdmYjMwZmNiMzk0ZWJmMThlNyUyNnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZE5pbGthbWFsX1BlcmZvcm1hbmNlX01heF9KdWx5MjUlMjZ1dG1fdGVybSUzZHd3dy5uaWxrYW1hbGZ1cm5pdHVyZS5jb20lMjZ1dG1fY29udGVudCUzZEJpZ19TdW1tZXJfU2F2aW5nc19TYWxlX1BsdXNfSGlnaF9TZWxsaW5nX1Byb2R1Y3RzX1Nob3BpZnlfRGF0YV9BcHIyNg%26rlid%3D116da2ee1f65187fb30fcb394ebf18e7&vqd=4-221239632101631637725508500723348375959&iurl=%7B1%7DIG%3DAE5A965E066E4E6A8FBF6D64093B8CAD%26CID%3D251B6AC6D1446A7831367DF0D0266B21%26ID%3DDevEx%2C5039.1
+DEBUG: Extraction LLM call start (content length: 14186)
+🔍 GET /api/templates
+🔍 POST /api/chat
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:46526 - "GET /api/templates HTTP/1.1" 200 OK
+📥 Body received
+🔥 Query: Minimalist desk lamp with CE certification.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Minimalist desk lamp with CE certification.
+DEBUG: Searching Amazon for: Minimalist desk lamp with CE certification.
+DEBUG: Searching eBay for: Minimalist desk lamp with CE certification.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Starting real-time DDG search_sources for: Minimalist desk lamp with CE certification.
+📡 Grid: 10 products
+✅ Done in 13.2s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:44068 - "POST /api/chat HTTP/1.1" 200 OK
+
+🚀 [BACKGROUND] Starting caching for: Find foldable camping chairs under $15.
+📦 [BACKGROUND] Processing 10 products...
+Batch adding 10 chunks to the vector store...
+Added batch of 10 chunks. Total: 10/10
+✅ [BACKGROUND] Successfully cached 10 products for 'Find foldable camping chairs under $15.'
+
+🔄 BACKGROUND: Deep crawl for 'Find foldable camping chairs under $15.'...
+DEBUG: Starting background run_deep_crawl_process for Find foldable camping chairs under $15.
+DEBUG: Amazon returned status 503
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:57768 - "GET /api/templates HTTP/1.1" 200 OK
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: eBay returned 0 products with prices.
+🔍 GET /api/templates
+DEBUG: Found 10 real images with source URLs from Bing.
+🔍 POST /api/chat
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:57768 - "GET /api/templates HTTP/1.1" 200 OK
+📥 Body received
+🔥 Query: Minimalist desk lamp with CE certification.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Minimalist desk lamp with CE certification.
+DEBUG: Searching Amazon for: Minimalist desk lamp with CE certification.
+DEBUG: Searching eBay for: Minimalist desk lamp with CE certification.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Starting real-time DDG search_sources for: Minimalist desk lamp with CE certification.
+DEBUG: Amazon returned status 503
+🚀 [CRAWL] Start -> https://www.homedepot.com/b/Sports-Outdoors-Camping-Gear-Camping-Furniture-Camping-Chairs/N-5yc1vZc422
+[FETCH]... ↓ 
+https://duckduckgo.com/y.js?ad_domain=oneclearwi...07D1A3369F75694F2E08B4009
+E17687F&ID=DevEx,5038.1  | ✓ | ⏱: 24.11s 
+[SCRAPE].. ◆ 
+https://duckduckgo.com/y.js?ad_domain=oneclearwi...07D1A3369F75694F2E08B4009
+E17687F&ID=DevEx,5038.1  | ✓ | ⏱: 2.61s 
+[COMPLETE] ● 
+https://duckduckgo.com/y.js?ad_domain=oneclearwi...07D1A3369F75694F2E08B4009
+E17687F&ID=DevEx,5038.1  | ✓ | ⏱: 26.92s 
+Successfully crawled: https://duckduckgo.com/y.js?ad_domain=oneclearwinner.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=_E78ol1gQ9VQ9%2DqU5VuneSz0g_YZ6WHBBwnIGh_dFeF8KrljZkCsEbiTjOYpzaSciyrbDCfP5YI0UJQeeuDkgQklyV6KcDi6EgY9SG8qa_Hj2JBlPGqlPF5MOxcQDwyixiAUIds_F8_eNbRTKkBZvjk0IwtKaEs5YULKnm2t1rQ.l25W5NjorHWGqk6DlB4WHA&rut=98b3e767a071ff1e3e6f4213b8cad13e7fec46bdec629ffb4e60f5ef2676095c&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8LH_YSrxjUN_tfhXPxMyR4jVUCUw%2DvcQMMLtUgvODmLZLVeo6_foiVAcRTizoDrc8%2DeqgYl6hvZZnKEEVGbahT3f%2DeSOjn058ppzPntFhUaHgtB7SjHy9SOue%2DfgqsMXsZuwjdC0_%2Dv2OJHeJOZzUvgZOzidov7a6GcxH7xJE8RMX%2DJI79GRghjhLQ3xLQYYmXIhTz8aF4AJGWmzUBewavm8HzNA%26u%3DaHR0cHMlM2ElMmYlMmZyZXZpZXdzLm9uZWNsZWFyd2lubmVyLmNvbSUyZnByb2R1Y3QlMmZ1bHRyYWxpZ2h0LWNhbXAtY2hhaXIlMmYlM2Ztc2Nsa2lkJTNkOWVjNGY4M2UxYWQzMTM4ZjM0YWI5MWU5NGIzMzY1YTglMjZ1dG1fc291cmNlJTNkYmluZyUyNnV0bV9tZWRpdW0lM2RjcGMlMjZ1dG1fY2FtcGFpZ24lM2RnZW8lMjUzQVdXJTI1MjAlMjU3QyUyNTIwc2l0ZSUyNTNBT0NXX3Nzcl90MyUyNTIwJTI1N0MlMjUyMHR5cGUlMjUzQUtXcyUyNTIwJTI1N0MlMjUyMGNhdGVnb3J5JTI1M0FQb3NpdGl2ZVJPSTIlMjZ1dG1fdGVybSUzZHVsdHJhbGlnaHQlMjUyMGNhbXAlMjUyMGNoYWlyJTI2dXRtX2NvbnRlbnQlM2RBZCUyNTIwZ3JvdXAlMjUyMDY%26rlid%3D9ec4f83e1ad3138f34ab91e94b3365a8&vqd=4-148920953304697463282870831358132449336&iurl=%7B1%7DIG%3D90D19846B09C45C488076A665A2E978C%26CID%3D07D1A3369F75694F2E08B4009E17687F%26ID%3DDevEx%2C5038.1
+DEBUG: Extraction LLM call start (content length: 19827)
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: eBay returned 0 products with prices.
+DEBUG: Found 10 real images with source URLs from Bing.
+[FETCH]... ↓ 
+https://www.walmart.com/browse/sports-outdoors/c...VkIFByaWNlfHxzcGVjaWFsX29
+mZmVyczpSb2xsYmFjawieie  | ✓ | ⏱: 26.77s 
+[SCRAPE].. ◆ 
+https://www.walmart.com/browse/sports-outdoors/c...VkIFByaWNlfHxzcGVjaWFsX29
+mZmVyczpSb2xsYmFjawieie  | ✓ | ⏱: 0.05s 
+[COMPLETE] ● 
+https://www.walmart.com/browse/sports-outdoors/c...VkIFByaWNlfHxzcGVjaWFsX29
+mZmVyczpSb2xsYmFjawieie  | ✗ | ⏱: 26.86s 
+Failed to crawl: https://www.walmart.com/browse/sports-outdoors/camping-chairs/clearance/4125_546956_4128_1080625_6170779/c3BlY2lhbF9vZmZlcnM6Q2xlYXJhbmNlfHxzcGVjaWFsX29mZmVyczpSZWR1Y2VkIFByaWNlfHxzcGVjaWFsX29mZmVyczpSb2xsYmFjawieie. Error: Blocked by anti-bot protection: PerimeterX block
+🚀 [CRAWL] Start -> https://www.target.com/c/camping-chairs-furniture-gear-sports-outdoors/-/N-5xt62
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+[FETCH]... ↓ 
+https://duckduckgo.com/y.js?ad_domain=nilkamalfu...07D1A3369F75694F2E08B4009
+E17687F&ID=DevEx,5042.1  | ✓ | ⏱: 27.89s 
+[SCRAPE].. ◆ 
+https://duckduckgo.com/y.js?ad_domain=nilkamalfu...07D1A3369F75694F2E08B4009
+E17687F&ID=DevEx,5042.1  | ✓ | ⏱: 1.91s 
+[COMPLETE] ● 
+https://duckduckgo.com/y.js?ad_domain=nilkamalfu...07D1A3369F75694F2E08B4009
+E17687F&ID=DevEx,5042.1  | ✓ | ⏱: 29.95s 
+Successfully crawled: https://duckduckgo.com/y.js?ad_domain=nilkamalfurniture.com&ad_provider=bingv7aa&ad_type=txad&click_metadata=kyHUcsmqQR6uczdjul13GVkzrF0EWeS3y5hdlVoYJnaO2srIJci3klLbYG2fFsKHkzoyu%2DXdQGWKJDgMcRRajuz97rXqD7HJJO7KgtTdMF3c4q%2DgqZzGdWTLgzXouG6BueqR0AdYorwPPypJRFz2ClVT3decyFGAapEctHP0u2I.PcJwjAK4gpKQmxQJbtTWjA&rut=1850c670cf6d11f1c139be43df30e681fc0db8d6d496e0c61218ef653f8ff8f1&u3=https%3A%2F%2Fwww.bing.com%2Faclick%3Fld%3De8VXHBfFIoVy2tNhzJsft_dTVUCUytZE1kt1HXwgeahhfWn3VXai8ngRl%2DuA5HVXh6H75tfu8df%2DK2eQslX1C_Zwr9hkNKRWfvjUbBsb8BRtejRdmdDgRQDnWBruD4bkuctf5wmNXobyZAQ5QjdNFmfCxSFJBLc4EZH3SOqoPrziLjlLnHyK0i2Ni3SGNTus%2DHoqx%2DmS8bXkLjHXyTL_Lv6CCv4M8%26u%3DaHR0cHMlM2ElMmYlMmZ3d3cubmlsa2FtYWxmdXJuaXR1cmUuY29tJTJmJTNmdXRtX2FkZ3JvdXAlM2RCaWdfU3VtbWVyX1NhdmluZ3NfU2FsZV9QbHVzX0hpZ2hfU2VsbGluZ19Qcm9kdWN0c19TaG9waWZ5X0RhdGFfQXByMjYlMjZ1dG1fYWRpZCUzZCUyNm1zY2xraWQlM2RkZGViNmNhNWMyYmQxNmEzNGIxNjA1NzI5MzVkNjQyNCUyNnV0bV9zb3VyY2UlM2RiaW5nJTI2dXRtX21lZGl1bSUzZGNwYyUyNnV0bV9jYW1wYWlnbiUzZE5pbGthbWFsX1BlcmZvcm1hbmNlX01heF9KdWx5MjUlMjZ1dG1fdGVybSUzZHd3dy5uaWxrYW1hbGZ1cm5pdHVyZS5jb20lMjZ1dG1fY29udGVudCUzZEJpZ19TdW1tZXJfU2F2aW5nc19TYWxlX1BsdXNfSGlnaF9TZWxsaW5nX1Byb2R1Y3RzX1Nob3BpZnlfRGF0YV9BcHIyNg%26rlid%3Dddeb6ca5c2bd16a34b160572935d6424&vqd=4-257201530903154880768863020695239553435&iurl=%7B1%7DIG%3D90D19846B09C45C488076A665A2E978C%26CID%3D07D1A3369F75694F2E08B4009E17687F%26ID%3DDevEx%2C5042.1
+DEBUG: Extraction LLM call start (content length: 14188)
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 7 products
+🛒 RAG context: 25 docs in 1.27s
+🔍 GET /api/templates
+🔍 POST /api/chat
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:53342 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 POST /api/chat
+📥 Body received
+🔥 Query: Minimalist desk lamp with CE certification.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Minimalist desk lamp with CE certification.
+DEBUG: Searching Amazon for: Minimalist desk lamp with CE certification.
+DEBUG: Searching eBay for: Minimalist desk lamp with CE certification.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Starting real-time DDG search_sources for: Minimalist desk lamp with CE certification.
+📥 Body received
+🔥 Query: Minimalist desk lamp with CE certification.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Minimalist desk lamp with CE certification.
+DEBUG: Searching Amazon for: Minimalist desk lamp with CE certification.
+DEBUG: Searching eBay for: Minimalist desk lamp with CE certification.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Starting real-time DDG search_sources for: Minimalist desk lamp with CE certification.
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:53342 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:53342 - "GET /api/templates HTTP/1.1" 200 OK
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Amazon returned status 503
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Amazon returned status 503
+DEBUG: Found 10 real images with source URLs from Bing.
+🔍 GET /api/templates
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 7 products
+🛒 RAG context: 25 docs in 0.66s
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:53342 - "GET /api/templates HTTP/1.1" 200 OK
+DEBUG: eBay returned 0 products with prices.
+DEBUG: eBay returned 0 products with prices.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+🚀 [CRAWL] Start -> https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://www.campcherokeeadk.com/product/foldable-camping-chair/
+🔍 GET /api/templates
+🚀 [CRAWL] Start -> https://www.amazon.in/s?k=Find+foldable+camping+chairs+under+$15.
+🔍 POST /api/chat
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:53342 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 POST /api/chat
+📥 Body received
+🔥 Query: Minimalist desk lamp with CE certification.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Minimalist desk lamp with CE certification.
+DEBUG: Searching Amazon for: Minimalist desk lamp with CE certification.
+DEBUG: Searching eBay for: Minimalist desk lamp with CE certification.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Starting real-time DDG search_sources for: Minimalist desk lamp with CE certification.
+📥 Body received
+🔥 Query: Minimalist desk lamp with CE certification.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Minimalist desk lamp with CE certification.
+DEBUG: Searching Amazon for: Minimalist desk lamp with CE certification.
+DEBUG: Searching eBay for: Minimalist desk lamp with CE certification.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Starting real-time DDG search_sources for: Minimalist desk lamp with CE certification.
+📡 Grid: 7 products
+✅ Done in 27.2s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:46542 - "POST /api/chat HTTP/1.1" 200 OK
+
+🚀 [BACKGROUND] Starting caching for: Minimalist desk lamp with CE certification.
+📦 [BACKGROUND] Processing 7 products...
+Batch adding 7 chunks to the vector store...
+Added batch of 7 chunks. Total: 7/7
+✅ [BACKGROUND] Successfully cached 7 products for 'Minimalist desk lamp with CE certification.'
+
+🔄 BACKGROUND: Deep crawl for 'Minimalist desk lamp with CE certification.'...
+DEBUG: Starting background run_deep_crawl_process for Minimalist desk lamp with CE certification.
+DEBUG: Found 10 real images with source URLs from Bing.
+🔍 POST /api/chat
+🔍 GET /api/templates
+DEBUG: Found 10 real images with source URLs from Bing.
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:46542 - "GET /api/templates HTTP/1.1" 200 OK
+📥 Body received
+🔥 Query: Minimalist desk lamp with CE certification.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Minimalist desk lamp with CE certification.
+DEBUG: Amazon returned status 503
+DEBUG: Searching Amazon for: Minimalist desk lamp with CE certification.
+DEBUG: Searching eBay for: Minimalist desk lamp with CE certification.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Starting real-time DDG search_sources for: Minimalist desk lamp with CE certification.
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 7 products
+🛒 RAG context: 25 docs in 1.07s
+DEBUG: Amazon returned status 503
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 7 products
+🛒 RAG context: 25 docs in 1.12s
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Found 10 real images with source URLs from Bing.
+🔍 POST /api/chat
+📡 Grid: 7 products
+✅ Done in 27.0s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:57782 - "POST /api/chat HTTP/1.1" 200 OK
+📥 Body received
+🔥 Query: Minimalist desk lamp with CE certification.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Minimalist desk lamp with CE certification.
+DEBUG: Searching Amazon for: Minimalist desk lamp with CE certification.
+DEBUG: Searching eBay for: Minimalist desk lamp with CE certification.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Starting real-time DDG search_sources for: Minimalist desk lamp with CE certification.
+
+🚀 [BACKGROUND] Starting caching for: Minimalist desk lamp with CE certification.
+📦 [BACKGROUND] Processing 7 products...
+Batch adding 7 chunks to the vector store...
+Added batch of 7 chunks. Total: 7/7
+✅ [BACKGROUND] Successfully cached 7 products for 'Minimalist desk lamp with CE certification.'
+
+🔄 BACKGROUND: Deep crawl for 'Minimalist desk lamp with CE certification.'...
+DEBUG: Starting background run_deep_crawl_process for Minimalist desk lamp with CE certification.
+DEBUG: eBay scrape error: 
+DEBUG: eBay scrape error: 
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+Real-time search failed: . Falling back to image-source URLs.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Amazon returned status 503
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Amazon returned status 503
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: eBay returned 0 products with prices.
+DEBUG: eBay returned 0 products with prices.
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 7 products
+🛒 RAG context: 25 docs in 3.31s
+DEBUG: Found 10 real images with source URLs from Bing.
+📡 Grid: 7 products
+✅ Done in 26.1s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:53352 - "POST /api/chat HTTP/1.1" 200 OK
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://theawesomer.com/sjh-minimalist-desk-lamp/784467/
+🚀 [CRAWL] Start -> https://superhivemarket.com/products/minimalist-industrial-desk-lamp
+🚀 [CRAWL] Start -> https://www.feelgift.com/modern-minimalist-art-led-desk-lamp
+
+🚀 [BACKGROUND] Starting caching for: Minimalist desk lamp with CE certification.
+📦 [BACKGROUND] Processing 7 products...
+Batch adding 7 chunks to the vector store...
+Added batch of 7 chunks. Total: 7/7
+✅ [BACKGROUND] Successfully cached 7 products for 'Minimalist desk lamp with CE certification.'
+
+🔄 BACKGROUND: Deep crawl for 'Minimalist desk lamp with CE certification.'...
+DEBUG: Starting background run_deep_crawl_process for Minimalist desk lamp with CE certification.
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 7 products
+🛒 RAG context: 25 docs in 6.48s
+DEBUG: Found 10 real images with source URLs from Bing.
+🔍 POST /api/chat
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 7 products
+🛒 RAG context: 25 docs in 3.83s
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 7 products
+🛒 RAG context: 25 docs in 2.88s
+📥 Body received
+🔥 Query: Minimalist desk lamp with CE certification.
+🧠 Intent: shopping
+DEBUG: Starting get_fast_bing_data for Minimalist desk lamp with CE certification.
+DEBUG: Searching Amazon for: Minimalist desk lamp with CE certification.
+DEBUG: Searching eBay for: Minimalist desk lamp with CE certification.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: Starting real-time DDG search_sources for: Minimalist desk lamp with CE certification.
+📡 Grid: 7 products
+✅ Done in 42.3s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:52866 - "POST /api/chat HTTP/1.1" 200 OK
+
+🚀 [BACKGROUND] Starting caching for: Minimalist desk lamp with CE certification.
+📦 [BACKGROUND] Processing 7 products...
+Batch adding 7 chunks to the vector store...
+Added batch of 7 chunks. Total: 7/7
+✅ [BACKGROUND] Successfully cached 7 products for 'Minimalist desk lamp with CE certification.'
+
+🔄 BACKGROUND: Deep crawl for 'Minimalist desk lamp with CE certification.'...
+DEBUG: Starting background run_deep_crawl_process for Minimalist desk lamp with CE certification.
+Real-time search failed: . Falling back to image-source URLs.
+DEBUG: Starting lightweight image search for: minimalist desk lamp with ce certification.
+DEBUG: eBay scrape error: 
+Image search error: 
+DEBUG: Amazon scrape error: 
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://theawesomer.com/sjh-minimalist-desk-lamp/784467/
+🚀 [CRAWL] Start -> https://superhivemarket.com/products/minimalist-industrial-desk-lamp
+🚀 [CRAWL] Start -> https://www.feelgift.com/modern-minimalist-art-led-desk-lamp
+📡 Grid: 7 products
+✅ Done in 76.5s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:52878 - "POST /api/chat HTTP/1.1" 200 OK
+[FETCH]... ↓ 
+https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort  
+| ✓ | ⏱: 112.95s 
+[SCRAPE].. ◆ 
+https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort  
+| ✓ | ⏱: 8.54s 
+[COMPLETE] ● 
+https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort  
+| ✓ | ⏱: 122.02s 
+Successfully crawled: https://yattalife.com/blogs/news/top-5-foldable-camping-chairs-for-comfort
+DEBUG: Smart Start triggered at index 0
+DEBUG: Extraction LLM call start (content length: 25174)
+
+🚀 [BACKGROUND] Starting caching for: Minimalist desk lamp with CE certification.
+📦 [BACKGROUND] Processing 7 products...
+Batch adding 7 chunks to the vector store...
+Added batch of 7 chunks. Total: 7/7
+✅ [BACKGROUND] Successfully cached 7 products for 'Minimalist desk lamp with CE certification.'
+
+🔄 BACKGROUND: Deep crawl for 'Minimalist desk lamp with CE certification.'...
+DEBUG: Starting background run_deep_crawl_process for Minimalist desk lamp with CE certification.
+Image search error: 
+DEBUG: Combined sources — Amazon: 0, eBay: 0
+⚡ Live Amazon: 1 products

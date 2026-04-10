@@ -78,7 +78,7 @@ class AssetProcessor:
                 
                 # Strict Filtering: Only process actual image files
                 clean_url = image_url.split('?')[0].lower()
-                is_image = any(clean_url.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'])
+                is_image = any(clean_url.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.avif']) or "bing.net" in image_url or "m.media-amazon" in image_url or "image" in image_url.lower()
                 
                 # Filter out obvious logos/sprites based on URL
                 logolike_keywords = ["logo", "sprite", "icon", "banner", "header", "footer", "favicon"]
@@ -117,9 +117,18 @@ class AssetProcessor:
                              response = self.client.get(image_url, timeout=10.0, headers=headers)
                              print(f"INFO: Original image download status: {response.status_code}")
                         if response.status_code == 200:
+                            # Validate Content-Type
+                            content_type = response.headers.get("Content-Type", "").lower()
+                            if "gif" in content_type:
+                                print(f"SKIP: Image is a GIF: {image_url}")
+                                continue
+                            if not content_type.startswith("image/"):
+                                print(f"SKIP: Not a valid image type ({content_type}): {image_url}")
+                                continue
+                                
                             # Generate a unique file name with category structure
                             ext = image_url.split(".")[-1].split("?")[0]
-                            if len(ext) > 4: ext = "jpg" # Fallback
+                            if len(ext) > 4: ext = content_type.split("/")[-1] if "/" in content_type else "jpg" # Fallback
                             
                             # Use categorized structure for S3
                             filename = f"products/{category}/{subcategory}/{uuid.uuid4()}.{ext}"

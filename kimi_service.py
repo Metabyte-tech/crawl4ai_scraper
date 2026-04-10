@@ -573,9 +573,8 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         # 3. Process Images (S3 Upload & Filtering)
         from asset_processor import asset_processor
         if results:
-            print(f"DEBUG: Processing {len(results)} extracted products for S3 upload...", flush=True)
-            # AWAIT the async process_product_images
-            results = await asset_processor.process_product_images(results, category="retail", subcategory="live_search")
+            # Process images (synchronous call)
+            results = asset_processor.process_product_images(results, category="retail", subcategory="live_search")
             for p in results:
                 if p.get("s3_image_url"):
                     p["image_url"] = p["s3_image_url"] 

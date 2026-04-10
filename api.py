@@ -430,10 +430,17 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
             grid = f"<product_grid>{json.dumps(items)}</product_grid>"
             
             # Format text response and append the product grid
-            if bot_response:
-                final = f"{bot_response}\n\n{grid}"
+            has_template = bool(body.get("template_id"))
+            
+            if not has_template:
+                # No template selected -> return response in images only
+                final = grid
             else:
-                final = f"Here are the best results I found:\n\n{grid}"
+                # Template selected -> strictly follow template output format + grid
+                if bot_response:
+                    final = f"{bot_response}\n\n{grid}"
+                else:
+                    final = grid
                 
             print(f"📡 Grid: {len(items)} products", flush=True)
         else:

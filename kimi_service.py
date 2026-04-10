@@ -649,6 +649,8 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             f"- url: Original product URL\n"
             f"- moq: Minimum Order Quantity (e.g., '100 units' or '1 pc')\n"
             f"- details: A HIGHLY DETAILED summary of features, materials, and specifications.\n"
+            f"- advantages: A list of 2-3 main pros or advantages of the product\n"
+            f"- disadvantages: A list of 2-3 main cons or disadvantages of the product\n"
             f"- reviews: A list of 3-5 REAL user comments found in the text. Format: {{\"user\": \"name\", \"comment\": \"text\", \"rating\": 5}}\n"
             f"\nText to analyze:\n{truncated_content}"
         )
@@ -950,7 +952,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         search_results = []
         try:
             # Using DuckDuckGo HTML (lite) for easy scraping
-            search_url = f"https://duckduckgo.com/html/?q={query.replace(' ', '+')}+retail+buy+now"
+            from urllib.parse import quote_plus
+            top_sites = "(site:amazon.com OR site:amazon.in OR site:walmart.com OR site:target.com OR site:bestbuy.com OR site:croma.com OR site:flipkart.com)"
+            search_url = f"https://duckduckgo.com/html/?q={quote_plus(query + ' ' + top_sites)}"
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
             
             async with aiohttp.ClientSession() as session:

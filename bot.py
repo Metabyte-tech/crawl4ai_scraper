@@ -77,11 +77,21 @@ async def chat_with_bot(query: str, discovered_stores: list = None, live_context
     
     context = f"{live_context_str}\n\n{rag_context}".strip()
     
-    if intent_type == "shopping":
-        template = f"""You are a Hybrid AI Shopping Assistant.
+    if intent_type == "minimal_shopping":
+        template = f"""You are a Shopping Assistant.
         CONTEXT: {{context}}
         INSTRUCTIONS:
-        1. Summarize the best options.
+        1. Be extremely brief (max 1 sentence). 
+        2. Just say "Here are the best options for {{question}}:" or similar.
+        3. Do not list items in text if possible; keep it clean for the visual carousel.
+        CRITICAL: ONLY use REAL context.
+        Question: {{question}}
+        Answer:"""
+    elif intent_type == "shopping":
+        template = f"""You are a Retail Discovery Assistant.
+        CONTEXT: {{context}}
+        INSTRUCTIONS:
+        1. Provide a helpful summary of the search results.
         CRITICAL: ONLY use REAL names and URLs from CONTEXT. No hallucination.
         Question: {{question}}
         Answer:"""

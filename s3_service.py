@@ -43,4 +43,34 @@ class S3Service:
             print(f"Error uploading to S3 ({file_name}): {e}", flush=True)
             return None
 
+    def upload_data(self, content, file_name, content_type='application/json'):
+        """
+        Uploads generic data (JSON, Markdown) to S3.
+        """
+        try:
+            if isinstance(content, (dict, list)):
+                import json
+                body = json.dumps(content, indent=2)
+            else:
+                body = content
+
+            self.s3.put_object(
+                Bucket=self.bucket_name,
+                Key=file_name,
+                Body=body,
+                ContentType=content_type
+            )
+            
+            region = os.getenv("AWS_REGION", "us-east-1")
+            if region == "us-east-1":
+                url = f"https://{self.bucket_name}.s3.amazonaws.com/{file_name}"
+            else:
+                url = f"https://{self.bucket_name}.s3.{region}.amazonaws.com/{file_name}"
+                
+            print(f"Successfully archived data to S3: {url}", flush=True)
+            return url
+        except Exception as e:
+            print(f"Error archiving to S3 ({file_name}): {e}", flush=True)
+            return None
+
 s3_service = S3Service()

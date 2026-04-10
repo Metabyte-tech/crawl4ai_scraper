@@ -4,6 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
+import asyncio
 import time
 import re
 import json
@@ -350,29 +351,59 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     live_products = prod_res
             else:
                 bot_response = await report_task
-                
-            # Allow to fall through so if live_products exists, they are appended as a carousel!
 
         elif intent == "shopping":
-            # ALWAYS use live Amazon search for fresh prices/ratings first
-            live_products = await kimi_service.get_fast_bing_data(query)
-            print(f"⚡ Live Amazon: {len(live_products)} products", flush=True)
-
-            # Also query RAG for any supplemental context (for AI response quality)
+            # 1. Check RAG first to see if we have high-quality results from a previous crawl
             rag_start = time.time()
-            rag_results = fast_query(query, category="retail", threshold=1.5)
-            print(f"🛒 RAG context: {len(rag_results)} docs in {time.time()-rag_start:.2f}s", flush=True)
-            local_results = rag_results
+            rag_results = fast_query(query, category="retail", threshold=0.7, k=40)
+            
+            cached_products = []
+            seen_urls = set()
+            for doc, score in rag_results:
+                meta = doc.metadata
+                img = meta.get("s3_image_url") or meta.get("image_url")
+                url = meta.get("source") or meta.get("source_url")
+                norm_url = kimi_service._normalize_url(url)
+                
+                query_words = set(re.findall(r'\b\w+\b', query.lower()))
+                name_words = set(re.findall(r'\b\w+\b', meta.get("name", "").lower()))
+                if not query_words.intersection(name_words) and len(query_words) > 1:
+                    continue 
+                
+                if norm_url in seen_urls: continue
+                if img and str(img).startswith("http"):
+                    cached_products.append({
+                        "name": meta.get("name"),
+                        "price": meta.get("price"),
+                        "source_url": url,
+                        "image_url": img,
+                        "brand": meta.get("brand"),
+                        "source": meta.get("store_source") or "Cached",
+                        "rating_avg": meta.get("rating_avg"),
+                        "rating_count": meta.get("rating_count"),
+                        "details": meta.get("details"),
+                        "reviews": meta.get("reviews")
+                    })
+                    seen_urls.add(norm_url)
 
+            if len(cached_products) >= 8:
+                print(f"🚀 CACHE HIT: Found {len(cached_products)} products for '{query}'.", flush=True)
+                live_products = cached_products
+            else:
+                print(f"⚡ CACHE MISS/LOW: Triggering live search for '{query}'.", flush=True)
+                live_products = await kimi_service.get_fast_bing_data(query)
+
+            # Background enrichment
             if live_products:
-                # Cache results in background so next query is faster if needed
                 background_tasks.add_task(kimi_service.cache_and_store_products, live_products, query)
                 background_tasks.add_task(background_crawl_and_ingest, query, live_products)
 
-            bot_response = await chat_with_bot(
-                query=query, live_context=live_products,
-                intent_type=intent, local_docs=local_results
-            )
+            # For simple shopping with no template: skip the LLM completely for speed
+            # The carousel already shows everything the user needs
+            if live_products:
+                bot_response = f"Here are the best options for **{query}**:"
+            else:
+                bot_response = f"I couldn't find results for **{query}** right now. Please try again in a moment."
 
         else:
             bot_response = await chat_with_bot(
@@ -385,19 +416,19 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 live_products,
                 key=lambda p: 0 if (p.get("image_url") or p.get("s3_image_url")) else 1
             )
-            # Build product grid - ONLY include products with valid images
-            INVALID_IMG = {None, "", "not found", "null", "none", "n/a", "undefined"}
+            # Build product grid - prefer images but allow placeholder for products without
+            INVALID_IMG_STRS = {"not found", "null", "none", "n/a", "undefined"}
             items = []
             for p in ordered:
                 img = p.get("s3_image_url") or p.get("image_url") or p.get("Image URL")
-                img_str = str(img).lower()
+                img_str = str(img).lower() if img else ""
                 
-                # STRICT BLOCK: Skip any product that has no image, a broken image, or a placeholder
-                if not img or img_str in INVALID_IMG or "placehold.co" in img_str or "no image" in img_str:
-                    continue
+                # Only hard-skip obviously broken placeholder images
+                if img and (img_str in INVALID_IMG_STRS or "placehold.co" in img_str or "no image" in img_str):
+                    img = None  # Reset to None so we can use a generic placeholder
                 
-                # We have a valid image, proceed
-                if len(items) >= 10:
+                # We allow items with no image — the frontend shows a fallback card
+                if len(items) >= 20:
                     break
 
                 # Parse reviews
@@ -427,7 +458,21 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     "supplier_years": p.get("supplier_years") or None,
                     "is_verified": bool(p.get("is_verified") or False),
                 })
-            grid = f"<product_grid>{json.dumps(items)}</product_grid>"
+            
+            # FINAL DE-DUPLICATION (By name and URL)
+            final_items = []
+            seen_names = set()
+            seen_srcs = set()
+            for item in items:
+                n = item["name"].lower().strip()
+                u = kimi_service._normalize_url(item["source_url"])
+                if n in seen_names or u in seen_srcs:
+                    continue
+                final_items.append(item)
+                seen_names.add(n)
+                seen_srcs.add(u)
+            
+            grid = f"<product_grid>{json.dumps(final_items)}</product_grid>"
             
             # Format text response and append the product grid
             has_template = bool(body.get("template_id"))

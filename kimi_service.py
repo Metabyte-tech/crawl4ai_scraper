@@ -63,11 +63,98 @@ class KimiService:
         self.api_key = os.getenv("MOONSHOT_API_KEY")
         self.client = AsyncAnthropic(api_key=self.api_key)
         self.model = "claude-3-haiku-20240307"
-        # Increase semaphore to allow more parallel extraction
-        self.semaphore = asyncio.Semaphore(4)
+        self.semaphore = asyncio.Semaphore(6) # Global limit for parallel Playwright browsers
         self.base_retail_domains = [
-            "amazon.com", "amazon.in", "flipkart.com", "ebay.com"
+            "amazon.com", "amazon.in", "flipkart.com", "ebay.com", "walmart.com"
         ]
+        self.user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1"
+        ]
+
+    def _get_stealth_headers(self, domain="google.com"):
+        import random
+        return {
+            "User-Agent": random.choice(self.user_agents),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Referer": f"https://{domain}/",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "cross-site",
+            "Pragma": "no-cache",
+            "Cache-Control": "no-cache",
+        }
+
+    def _parse_price(self, price_str):
+        """Extract numeric value from a price string like '$19.99' or '₹1,299'."""
+        if not price_str or "Check" in str(price_str) or "Verifying" in str(price_str):
+            return float('inf')
+        try:
+            # Try to find currency + number pattern first (e.g. "for $19.99")
+            m = re.search(r'[\$₹]\s*([\d,.]+)', str(price_str))
+            if m:
+                clean = m.group(1).replace(',', '')
+            else:
+                # Fallback: remove commas and currency symbols, keep first numeric group
+                clean = re.sub(r'[^\d.]', '', str(price_str).replace(',', ''))
+            
+            # If multiple dots (e.g. from bad extraction), take the first one
+            if clean.count('.') > 1:
+                parts = clean.split('.')
+                clean = parts[0] + "." + parts[1]
+            return float(clean) if clean and any(c.isdigit() for c in clean) else float('inf')
+        except:
+            return float('inf')
+
+    @staticmethod
+    def _extract_brand(product_name: str, store_fallback: str = "") -> str:
+        """
+        Extract brand name from a product title.
+        Heuristic: the brand is usually the first 1-2 capitalized words before
+        common delimiters like '-', 'by', '|', ',', 'for', 'with'.
+        Returns the store name as fallback if nothing meaningful is found.
+        """
+        if not product_name:
+            return store_fallback
+        
+        # Common stop-words that are NOT brand names
+        STOP = {
+            "the", "a", "an", "and", "or", "for", "with", "in", "on", "at",
+            "new", "best", "premium", "pack", "set", "lot", "combo", "men",
+            "women", "kids", "adult", "size", "black", "white", "blue", "red"
+        }
+        
+        # Split on common brand-product separators
+        for sep in [' - ', ' | ', ' by ', ', ', ' for ', ' with ', ' & ']:
+            if sep.lower() in product_name.lower():
+                candidate = product_name.split(sep, 1)[0].strip()
+                words = candidate.split()
+                brand_words = []
+                for w in words[:3]:  # max 3 words for a brand
+                    clean = re.sub(r'[^a-zA-Z0-9\.\-]', '', w)
+                    if clean.lower() not in STOP and len(clean) > 1:
+                        brand_words.append(clean)
+                if brand_words:
+                    return " ".join(brand_words)
+        
+        # Fallback: take first 1-2 capitalized words from the title
+        words = product_name.split()
+        brand_words = []
+        for w in words[:4]:
+            clean = re.sub(r'[^a-zA-Z0-9\.\-]', '', w)
+            if clean and clean[0].isupper() and clean.lower() not in STOP and len(clean) > 1:
+                brand_words.append(clean)
+                if len(brand_words) == 2:
+                    break
+        
+        return " ".join(brand_words) if brand_words else store_fallback
+
 
     def detect_intent(self, query):
         q = query.lower()
@@ -85,14 +172,14 @@ class KimiService:
 
         # 🧸 Shopping / Products (Check this BEFORE vehicle to catch "car toys")
         shopping_keywords_exact = {
-            "toy", "gift", "miniature", "lego", "puzzle", "doll"
+            "toy", "gift", "miniature", "lego", "puzzle", "doll", "dolls", "car", "cars"
         }
         if "remote control" in q or "rc car" in q or any(x in words for x in shopping_keywords_exact):
             return "shopping"
 
         # 🚗 Vehicle / Mobility
         vehicle_keywords = {
-            "car", "bike", "vehicle", "mileage", "scooter", "truck",
+            "bike", "vehicle", "mileage", "scooter", "truck",
             "suv", "sedan", "hatchback", "coupe", "ev", "thar", "mahindra", 
             "toyota", "honda", "hyundai", "kia", "maruti", "suzuki", "ford", 
             "chevrolet", "bmw", "mercedes", "audi", "volkswagen", "jeep", 
@@ -119,7 +206,8 @@ class KimiService:
             "box", "bag", "lunch", "home", "kitchen", "furniture", "book", 
             "tool", "beauty", "care", "health", "product", "item", "unit", "set",
             "chair", "desk", "lamp", "lighting", "find",
-            "certificat", "customizable", "logo", "hires"
+            "certificat", "customizable", "logo", "hires",
+            "nursery", "baby", "clothes", "clothing", "gown", "cheap", "affordable"
         }
         
         if "new hires" in q or "under $" in q or "under ₹" in q or any(x in words for x in shopping_keywords):
@@ -261,20 +349,28 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         This bypasses all per-page retailer blocking.
         """
         print(f"DEBUG: Searching Amazon for: {query}", flush=True)
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-        }
+        # Use stealth headers to avoid 503
+        headers = self._get_stealth_headers("www.amazon.in")
         url = f"https://www.amazon.in/s?k={query.replace(' ', '+')}"
         
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=10) as response:
+                async with session.get(url, headers=headers, timeout=12) as response:
                     if response.status != 200:
                         print(f"DEBUG: Amazon returned status {response.status}", flush=True)
-                        return []
-                    html = await response.text()
+                        # Minimal retry logic if 503
+                        if response.status == 503:
+                            await asyncio.sleep(1)
+                            headers = self._get_stealth_headers("www.bing.com")
+                            async with session.get(url, headers=headers, timeout=12) as retry_res:
+                                if retry_res.status == 200:
+                                    html = await retry_res.text()
+                                else:
+                                    return []
+                        else:
+                            return []
+                    else:
+                        html = await response.text()
                     soup = BeautifulSoup(html, 'html.parser')
                     
                     products = []
@@ -318,7 +414,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                             "url": product_url,
                             "source_url": product_url,
                             "source": "Amazon India",
-                            "brand": "Amazon India"
+                            "brand": self._extract_brand(name.get_text(strip=True), "Amazon")
                         })
                     
                     print(f"DEBUG: Amazon returned {len(products)} products with prices.", flush=True)
@@ -334,12 +430,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         excellent complement to Amazon India for worldwide coverage.
         """
         print(f"DEBUG: Searching eBay for: {query}", flush=True)
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Referer": "https://www.google.com/"
-        }
+        headers = self._get_stealth_headers("www.ebay.com")
         url = f"https://www.ebay.com/sch/i.html?_nkw={query.replace(' ', '+')}&_sacat=0"
         
         try:
@@ -378,7 +469,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                                 "url": link.get("href") if link else url,
                                 "source_url": link.get("href") if link else url,
                                 "source": "eBay",
-                                "brand": "eBay",
+                                "brand": self._extract_brand(title, "eBay"),
                                 "details": ""
                             })
                         if len(products) >= limit: break
@@ -389,45 +480,249 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             print(f"DEBUG: eBay scrape error: {e}", flush=True)
             return []
     
-    async def get_fast_bing_data(self, query, num_results=10):
-        print(f"DEBUG: Starting get_fast_bing_data for {query}", flush=True)
-        # 1. Run Amazon India + eBay (global) + Image Lookup in parallel
-        amazon_task = self.search_amazon_products(query, limit=num_results)
-        ebay_task = self.search_ebay_products(query, limit=5)  # global USD prices
-        images_task = self.search_images(query)
-        ddg_task = self.search_sources(query, limit=5)  # supplementary
+    async def search_flipkart_products(self, query, limit=5):
+        """
+        Scrape Flipkart India search for competitive price data.
+        """
+        print(f"DEBUG: Searching Flipkart for: {query}", flush=True)
+        headers = self._get_stealth_headers("www.google.co.in")
+        url = f"https://www.flipkart.com/search?q={query.replace(' ', '%20')}"
         
-        amazon_products, ebay_products, images_res, ddg_results = await asyncio.gather(
-            amazon_task, ebay_task, images_task, ddg_task
-        )
-        bing_images = images_res.get("results", []) if images_res else []
-        print(f"DEBUG: Combined sources — Amazon: {len(amazon_products)}, eBay: {len(ebay_products)}", flush=True)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, timeout=10) as response:
+                    if response.status != 200:
+                        return []
+                    html = await response.text()
+                    soup = BeautifulSoup(html, 'html.parser')
+                    
+                    products = []
+                    # Flipkart layout can vary; try common selectors
+                    # Broaden selector to any div that looks like a product card
+                    for item in (soup.select('div[data-id]') or soup.select('div._1AtVbE') or soup.select('div._1sdM6s')):
+                        name_el = item.select_one('div._4rR01T') or item.select_one('a.IRpwTa') or item.select_one('a.s1Q9rs') or item.select_one('div._2Wk9S9')
+                        price_el = item.select_one('div._30jeq3') or item.select_one('div._3I9_ca')
+                        img_el = item.select_one('img')
+                        link_el = item.select_one('a')
+                        
+                        if not name_el or not price_el: continue
+                        
+                        name = name_el.get_text(strip=True)
+                        if len(name) < 10: continue
+                        
+                        p_url = urljoin("https://www.flipkart.com", link_el.get('href', '')) if link_el else url
+                        products.append({
+                            "name": name,
+                            "price": price_el.get_text(strip=True),
+                            "rating_avg": None,
+                            "image_url": img_el.get("src") if img_el else None,
+                            "url": p_url,
+                            "source_url": p_url,
+                            "source": "Flipkart",
+                            "brand": self._extract_brand(name, "Flipkart")
+                        })
+                        if len(products) >= limit: break
+                    
+                    print(f"DEBUG: Flipkart returned {len(products)} products.", flush=True)
+                    return products
+        except Exception as e:
+            print(f"DEBUG: Flipkart scrape error: {e}", flush=True)
+            return []
+
+    async def search_walmart_products(self, query, limit=5):
+        """
+        Scrape Walmart global search for competitive price data.
+        """
+        print(f"DEBUG: Searching Walmart for: {query}", flush=True)
+        headers = self._get_stealth_headers("www.walmart.com")
+        url = f"https://www.walmart.com/search?q={query.replace(' ', '+')}"
         
-        # 2. Build fast_results: Interleave Amazon India and eBay so both get fair visibility
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, timeout=10) as response:
+                    if response.status != 200:
+                        return []
+                    html = await response.text()
+                    soup = BeautifulSoup(html, 'html.parser')
+                    
+                    products = []
+                    # Walmart results often hide in JSON-LD or specific grids
+                    for item in soup.select('[data-testid="list-view-id"], [data-testid="grid-view-id"], .sans-serif'):
+                        name_el = item.select_one('span[data-automation-id="product-title"]') or item.select_one('.w_V_o') or item.select_one('span.normal')
+                        price_el = item.select_one('[data-automation-id="product-price"]') or item.select_one('.w_iUH7') or item.select_one('div.mr2')
+                        img_el = item.select_one('img')
+                        link_el = item.select_one('a')
+                        
+                        if not name_el: continue
+                        name = name_el.get_text(strip=True)
+                        if len(name) < 10 or "skip to" in name.lower(): continue
+                        
+                        # Extract price text manually
+                        price_text = price_el.get_text(strip=True) if price_el else "Check Site"
+                        if not any(c.isdigit() for c in price_text): price_text = "Check Site"
+                        
+                        p_url = urljoin("https://www.walmart.com", link_el.get('href', '')) if link_el else url
+                        products.append({
+                            "name": name,
+                            "price": price_text,
+                            "rating_avg": None,
+                            "image_url": img_el.get("src") if img_el else None,
+                            "url": p_url,
+                            "source_url": p_url,
+                            "source": "Walmart",
+                            "brand": "Walmart"
+                        })
+                        if len(products) >= limit: break
+                    
+                    print(f"DEBUG: Walmart returned {len(products)} products.", flush=True)
+                    return products
+        except Exception as e:
+            print(f"DEBUG: Walmart scrape error: {e}", flush=True)
+            return []
+
+    def _get_scrape_date(self):
+        import datetime
+        return datetime.datetime.now().strftime("%Y-%m-%d")
+
+    async def _archive_results(self, results, query, category="retail"):
+        """Archive search results to S3 for history and audit."""
+        from s3_service import s3_service
+        import datetime
+        import uuid
+        date_str = self._get_scrape_date()
+        timestamp = datetime.datetime.now().strftime("%H-%M-%S")
+        
+        # Results can come from many sources; use 'aggregated' as folder
+        filename = f"aggregated/{category}/{date_str}/results_{timestamp}_{uuid.uuid4().hex[:8]}.json"
+        s3_service.upload_data(results, filename)
+
+    async def get_fast_bing_data(self, query, num_results=20):
+        """
+        Orchestrates parallel retail scrapers and search fallbacks.
+        Enforces a strict global timeout for responsiveness.
+        """
+        # 1. Run all native scrapers in parallel with a strict 12s timeout
+        amazon_task = self.search_amazon_products(query, limit=8)
+        ebay_task = self.search_ebay_products(query, limit=8)
+        flipkart_task = self.search_flipkart_products(query, limit=8)
+        walmart_task = self.search_walmart_products(query, limit=8)
+        ddg_task = self.search_sources(query, limit=8)
+        
+        print("DEBUG: Launching parallel scrapers...", flush=True)
+        try:
+            # We skip 'images_task' (Bing) as it's slow/irrelevant per user feedback
+            amazon_products, ebay_products, flipkart_products, walmart_products, ddg_results = await asyncio.wait_for(
+                asyncio.gather(
+                    amazon_task, ebay_task, flipkart_task, walmart_task, ddg_task
+                ),
+                timeout=12.0
+            )
+            bing_images = [] # Legacy compatibility
+        except asyncio.TimeoutError:
+            print("WARNING: Fast path scrapers timed out! Returning partial/empty results to maintain low latency.", flush=True)
+            amazon_products, ebay_products, flipkart_products, walmart_products, ddg_results = [], [], [], [], []
+            bing_images = []
+        except Exception as e:
+            print(f"ERROR: Fast path gather failed: {e}", flush=True)
+            amazon_products, ebay_products, flipkart_products, walmart_products, ddg_results = [], [], [], [], []
+            bing_images = []
+        
+        # --- CLIENT REQUIREMENT: All Scraped Websites ---
+        # If any native scraper failed (0 results), trigger a targeted site-specific search
+        # as a backup to ensure that website is at least somewhat represented.
+        async def fetch_domain_fallback(domain_name, site_url):
+            print(f"DEBUG: Triggering fallback search for {domain_name}", flush=True)
+            results = await self.search_sources(f"site:{site_url} {query}", limit=3)
+            fallback_items = []
+            for res in results:
+                fallback_items.append({
+                    "name": res.get("title", f"{query} from {domain_name}"),
+                    "url": res["url"],
+                    "source_url": res["url"],
+                    "image_url": None,
+                    "price": "Check Site",
+                    "rating_avg": None,
+                    "source": domain_name,
+                    "brand": domain_name
+                })
+            return fallback_items
+
+        fallback_tasks = []
+        if not amazon_products: fallback_tasks.append(fetch_domain_fallback("Amazon India", "amazon.in"))
+        if not ebay_products: fallback_tasks.append(fetch_domain_fallback("eBay", "ebay.com"))
+        if not flipkart_products: fallback_tasks.append(fetch_domain_fallback("Flipkart", "flipkart.com"))
+        if not walmart_products: fallback_tasks.append(fetch_domain_fallback("Walmart", "walmart.com"))
+
+        if fallback_tasks:
+            try:
+                # Fallback search also gets a strict timeout
+                fallback_results = await asyncio.wait_for(asyncio.gather(*fallback_tasks), timeout=8.0)
+                # Merge fallbacks into products lists
+                for fb_list in fallback_results:
+                    if not fb_list: continue
+                    domain = fb_list[0]["source"]
+                    if domain == "Amazon India": amazon_products = fb_list
+                    elif domain == "eBay": ebay_products = fb_list
+                    elif domain == "Flipkart": flipkart_products = fb_list
+                    elif domain == "Walmart": walmart_products = fb_list
+            except asyncio.TimeoutError:
+                print("WARNING: Fallback search timed out! Proceeding with current partial results.", flush=True)
+            except Exception as e:
+                print(f"ERROR: Fallback gather failed: {e}", flush=True)
+
+        print(f"DEBUG: Final sources — Amazon: {len(amazon_products)}, eBay: {len(ebay_products)}, Flipkart: {len(flipkart_products)}, Walmart: {len(walmart_products)}", flush=True)
+        
+        # 2. Build fast_results: Interleave all sources
         fast_results = []
         all_live_products = []
-        max_len = max(len(amazon_products), len(ebay_products))
+        max_len = max(len(amazon_products), len(ebay_products), len(flipkart_products), len(walmart_products))
         for i in range(max_len):
-            if i < len(amazon_products):
-                all_live_products.append(amazon_products[i])
-            if i < len(ebay_products):
-                all_live_products.append(ebay_products[i])
+            if i < len(amazon_products): all_live_products.append(amazon_products[i])
+            if i < len(ebay_products): all_live_products.append(ebay_products[i])
+            if i < len(flipkart_products): all_live_products.append(flipkart_products[i])
+            if i < len(walmart_products): all_live_products.append(walmart_products[i])
         
+        # --- CLIENT REQUIREMENT: 'Cheap' / Ranking / Sorting Logic ---
+        # Detect intent and categorical focus for price-sensitive queries
+        ranking_keywords = ["cheap", "affordable", "low price", "budget", "under", "sort by price", "low to high", "cheapest"]
+        is_ranking_requested = any(word in query.lower() for word in ranking_keywords)
+        
+        if is_ranking_requested:
+            print("DEBUG: Price-based ranking/sorting requested. Applying low-to-high sort.", flush=True)
+            # Sort by parsed numeric price. 'Check Site'/inf items go to the back.
+            all_live_products.sort(key=lambda x: self._parse_price(x.get("price")))
+        else:
+            # Default: Rank by keyword relevance to avoid "Mixed results" (e.g. shoes in shirts query)
+            query_words = set(re.findall(r'\b\w+\b', query.lower()))
+            def relevance_score(p):
+                name_words = set(re.findall(r'\b\w+\b', (p.get("name") or "").lower()))
+                return len(query_words.intersection(name_words))
+            
+            all_live_products.sort(key=relevance_score, reverse=True)
+            print(f"DEBUG: Re-ranked {len(all_live_products)} products by keyword relevance.", flush=True)
+
         for idx, product in enumerate(all_live_products[:num_results]):
-            # Use Bing images for richer visuals if available, else source thumbnail
-            img_url = bing_images[idx].get("image_url") if idx < len(bing_images) else product.get("image_url")
+            # --- CRITICAL FIX: Prioritize Native Image ---
+            # Using index-based Bing image mapping causes product-image mismatches.
+            # We now prioritize the retailer's native image (Amazon/eBay) which is correct by definition.
+            # AssetProcessor already handles upscaling Amazon/eBay thumbnails to high-res.
+            img_url = product.get("image_url")
+            
+            # Use Bing image ONLY as a fallback if the product has no image at all
+            if not img_url and idx < len(bing_images):
+                img_url = bing_images[idx].get("image_url")
             
             fast_results.append({
                 "name": product["name"],
                 "url": product["url"],
                 "source_url": product["source_url"],
-                "image_url": img_url or product.get("image_url"),
+                "image_url": img_url,
                 "price": product["price"],
                 "rating_avg": product["rating_avg"],
                 "rating_count": product.get("rating_count"),
                 "brand": product["brand"],
                 "source": product["source"],
-                "details": f"{product['name']} - {product.get('price', '')} on Amazon India"
+                "details": f"{product['name']} - {product.get('price', '')} on {product['source']}"
             })
         
         # 3. Supplement with DDG results to fill up to num_results
@@ -444,8 +739,13 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 if any(native in domain for native in ['amazon', 'ebay']):
                     continue
                 
-                img_idx = len(fast_results)
-                img_url = bing_images[img_idx].get("image_url") if img_idx < len(bing_images) else None
+                # --- CRITICAL FIX: Avoid index-based fallback ---
+                # We no longer blindly assign i-th Bing image to i-th DDG result.
+                # Instead, we leave image_url as None and let the grid-builder 
+                # or a future specific-search step handle it, or we can use the first Bing image
+                # as a generic visual IF it matches the category.
+                # For now, it's safer to have no image than a mismatched one.
+                img_url = None
                 
                 # Skip if URL already in fast_results
                 existing_urls = {self._normalize_url(r["url"]) for r in fast_results}
@@ -484,6 +784,13 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         m = re.search(r'only\s+([\$\d\.]+)', snippet, re.I)
                         if m: price = m.group(1)
                 
+                # De-duplication check by URL and Name
+                norm_url = self._normalize_url(url)
+                if any(self._normalize_url(p.get("url")) == norm_url for p in fast_results):
+                    continue
+                if any(p.get("name") == res.get("title") for p in fast_results):
+                    continue
+
                 fast_results.append({
                     "name": res.get("title", f"{query.title()} from {store_name}"),
                     "url": url,
@@ -496,22 +803,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     "details": snippet
                 })
             
-        # Pad with bing images if we need more
-        if len(fast_results) < num_results:
-            for img in bing_images:
-                if len(fast_results) >= num_results: break
-                img_src = img.get("source_url")
-                if not any(self._normalize_url(r.get("source_url") or r.get("url")) == self._normalize_url(img_src) for r in fast_results):
-                    fast_results.append({
-                        "name": img.get("name"),
-                        "url": img_src,
-                        "source_url": img_src,
-                        "image_url": img.get("image_url"),
-                        "price": "Check Price",
-                        "brand": "Verifying...",
-                        "source": "Image Search",
-                        "details": f"High-quality {query} found via visual search. Click for full details and pricing."
-                    })
+        # 2. Archive the JSON results in the background
+        # Note: Image processing and storage are now handled in the background by api.py task
+        asyncio.create_task(self._archive_results(fast_results, query))
+        
         return fast_results
 
     async def run_deep_crawl_process(self, query, fast_bing_products):
@@ -524,11 +819,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             from crawler import crawl_site
             from crawl4ai import AsyncWebCrawler
             
-            # Use Semaphore to limit parallel browser tabs (avoid memory crashes)
-            semaphore = asyncio.Semaphore(3)
+            # Using the global class semaphore to avoid system exhaustion
+            # semaphore = asyncio.Semaphore(3) # Removed local
             
             async def crawl_and_extract_task(url, crawler):
-                async with semaphore:
+                async with self.semaphore:
                     try:
                         print(f"🚀 [CRAWL] Start -> {url}", flush=True)
                         content, _ = await crawl_site(url, crawler=crawler)
@@ -538,6 +833,15 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         clean = re.sub(r"<script.*?</script>", "", content, flags=re.DOTALL)
                         clean = re.sub(r"<style.*?</style>", "", clean, flags=re.DOTALL)
                         clean = re.sub(r"<[^>]+>", " ", clean)
+                        
+                        # --- CLIENT REQUIREMENT: Data Archival (Markdown) ---
+                        from s3_service import s3_service
+                        import datetime
+                        import uuid
+                        date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+                        safe_domain = urlparse(url).netloc.replace(".", "_")
+                        md_filename = f"{safe_domain}/markdown/{date_str}/raw_{uuid.uuid4().hex[:8]}.md"
+                        s3_service.upload_data(content, md_filename, content_type="text/markdown")
                         
                         extracted = await self.extract_product_data(clean, query, base_url=url)
                         
@@ -572,14 +876,20 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
 
         # 3. Process Images (S3 Upload & Filtering)
         from asset_processor import asset_processor
+        import datetime
+        date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        
         if results:
             # Process images (synchronous call)
-            results = asset_processor.process_product_images(results, category="retail", subcategory="live_search")
+            # Pass source/date for categorized folders
+            results = asset_processor.process_product_images(results, category="retail", subcategory="deep_crawl", source="deep_crawl", scrape_date=date_str)
             for p in results:
                 if p.get("s3_image_url"):
                     p["image_url"] = p["s3_image_url"] 
 
-        return results[:10]
+        # Archive final deep results
+        asyncio.create_task(self._archive_results(results, query, category="deep_crawl"))
+        return results[:20]
 
     async def extract_product_data(self, content, target_category="relevant", base_url=None):
         # PRO robust cleaning with BeautifulSoup
@@ -1056,15 +1366,28 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
     async def cache_and_store_products(self, products, query):
         """
         Background task to ingest live product data into the local vector store.
+        Includes S3 image processing and archival.
         """
         if not products:
             return
 
-        print(f"\n🚀 [BACKGROUND] Starting caching for: {query}", flush=True)
-        print(f"📦 [BACKGROUND] Processing {len(products)} products...", flush=True)
+        print(f"\n🚀 [BACKGROUND] Starting caching and S3 enrichment for: {query}", flush=True)
         
         try:
+            from asset_processor import asset_processor
             from ingest import add_multiple_contents_to_store
+            
+            # 1. PROCESS IMAGES FOR S3 (In the background!)
+            date_str = self._get_scrape_date()
+            products = asset_processor.process_product_images(
+                products, 
+                category="retail", 
+                subcategory="fast_carousel", 
+                source="aggregated", 
+                scrape_date=date_str
+            )
+
+            print(f"📦 [BACKGROUND] Processing {len(products)} products after S3 enrichment...", flush=True)
             
             ingest_items = []
             for product in products:

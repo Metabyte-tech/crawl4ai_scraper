@@ -42,11 +42,19 @@ class AssetProcessor:
             "Sec-Fetch-Site": "same-site",
             "Upgrade-Insecure-Requests": "1"
         }
-    def process_product_images(self, products, category="products", subcategory="general"):
+    def process_product_images(self, products, category="products", subcategory="general", source="other", scrape_date=None):
         """
         Iterates through products, downloads images from external URLs,
-        uploads them to S3, and updates the product metadata with S3 URLs.
+        uploads them to S3 using a website/category/date structure,
+        and updates the product metadata with S3 URLs.
         """
+        import datetime
+        if not scrape_date:
+            scrape_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        
+        # Ensure source is S3 key friendly
+        safe_source = str(source).replace(" ", "_").lower()
+        
         processed_products = []
         for product in products:
             image_url = product.get("image_url")
@@ -130,8 +138,9 @@ class AssetProcessor:
                             ext = image_url.split(".")[-1].split("?")[0]
                             if len(ext) > 4: ext = content_type.split("/")[-1] if "/" in content_type else "jpg" # Fallback
                             
-                            # Use categorized structure for S3
-                            filename = f"products/{category}/{subcategory}/{uuid.uuid4()}.{ext}"
+                            # Use categorized structure for S3: [website]/[category]/[date]/[uuid].ext
+                            # This strictly follows the client requirement for folder separation
+                            filename = f"{safe_source}/{category}/{scrape_date}/{uuid.uuid4()}.{ext}"
                             
                             # Upload to S3
                             s3_url = s3_service.upload_image(
@@ -161,9 +170,10 @@ class AssetProcessor:
         
         return processed_products
         
-    async def process_raw_content(self, content, category="uncategorized", subcategory="general"):
+    async def process_raw_content(self, content, category="uncategorized", subcategory="general", source="other", scrape_date=None):
         """
         Scans raw markdown for images, uploads them to S3, and returns cleaned content and first S3 image.
+        Uses categorized folder structure.
         """
         import re
         # Find all markdown images: ![alt](url)
@@ -185,7 +195,7 @@ class AssetProcessor:
             try:
                 # Prepare a mini-product for existing logic
                 mini_products = [{"image_url": url}]
-                processed = self.process_product_images(mini_products, category, subcategory)
+                processed = self.process_product_images(mini_products, category, subcategory, source, scrape_date)
                 if processed and processed[0].get("s3_image_url"):
                     s3_url = processed[0]["s3_image_url"]
                     content = content.replace(url, s3_url)

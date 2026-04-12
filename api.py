@@ -156,6 +156,11 @@ class CrawlRequest(BaseModel):
     url: str
 
 
+class CrawlBatchRequest(BaseModel):
+    urls: List[str]
+
+
+
 class ChatMessage(BaseModel):
     role: str
     content: Optional[str] = None
@@ -197,6 +202,51 @@ async def deep_crawl_endpoint(request: CrawlRequest, req: Request):
     # Offload to worker
     await req.app.state.arq_pool.enqueue_job('deep_crawl_task', query=request.url, fast_products=[])
     return {"status": "success", "message": "Deep ingestion started"}
+
+
+# ── Batch endpoints (multiple URLs at once) ──────────────────────────────────
+
+@app.post("/crawl/batch")
+async def crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
+    """Light crawl for multiple URLs. URLs are processed concurrently."""
+    valid = [u for u in request.urls if u.startswith("http")]
+    if not valid:
+        raise HTTPException(status_code=400, detail="No valid URLs provided (must start with http/https)")
+
+    from ingest import add_content_to_store
+    from crawler import crawl_site
+
+    async def ingest_one(url: str):
+        try:
+            content, _ = await crawl_site(url)
+            if content:
+                await add_content_to_store(content, {"source": url})
+        except Exception as e:
+            print(f"Batch crawl error for {url}: {e}", flush=True)
+
+    asyncio.create_task(asyncio.gather(*[ingest_one(u) for u in valid]))
+    return {
+        "status": "success",
+        "message": f"Ingestion started for {len(valid)} URL(s)",
+        "urls": valid,
+    }
+
+
+@app.post("/crawl/deep/batch")
+async def deep_crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
+    """Deep crawl for multiple URLs — each URL is enqueued as a separate worker job."""
+    valid = [u for u in request.urls if u.startswith("http")]
+    if not valid:
+        raise HTTPException(status_code=400, detail="No valid URLs provided (must start with http/https)")
+
+    for url in valid:
+        await req.app.state.arq_pool.enqueue_job('deep_crawl_task', query=url, fast_products=[])
+
+    return {
+        "status": "success",
+        "message": f"Deep ingestion queued for {len(valid)} URL(s)",
+        "urls": valid,
+    }
 
 
 @app.post("/clear")

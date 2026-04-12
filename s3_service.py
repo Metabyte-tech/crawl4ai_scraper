@@ -43,6 +43,13 @@ class S3Service:
             print(f"Error uploading to S3 ({file_name}): {e}", flush=True)
             return None
 
+    async def upload_image_async(self, file_content, file_name, content_type='image/jpeg'):
+        """
+        Asynchronous version of upload_image.
+        """
+        import asyncio
+        return await asyncio.to_thread(self.upload_image, file_content, file_name, content_type)
+
     def upload_data(self, content, file_name, content_type='application/json'):
         """
         Uploads generic data (JSON, Markdown) to S3.
@@ -72,5 +79,12 @@ class S3Service:
         except Exception as e:
             print(f"Error archiving to S3 ({file_name}): {e}", flush=True)
             return None
+            
+    async def upload_data_async(self, content, file_name, content_type='application/json'):
+        """
+        Asynchronous version of upload_data.
+        """
+        import asyncio
+        return await asyncio.to_thread(self.upload_data, content, file_name, content_type)
 
 s3_service = S3Service()

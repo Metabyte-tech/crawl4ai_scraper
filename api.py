@@ -16,6 +16,8 @@ from vector_store import clear_vector_store
 from query import fast_query
 from bot import chat_with_bot
 from kimi_service import kimi_service
+from arq import create_pool
+from arq.connections import RedisSettings
 from urllib.parse import urlparse
 
 last_crawled_domain = None
@@ -108,6 +110,25 @@ async def background_crawl_and_ingest(query: str, fast_products: list):
 
 app = FastAPI(title="Retail AI RAG API")
 
+@app.on_event("startup")
+async def startup():
+    redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+    print(f"📡 API attempting to connect to Redis at: {redis_url}", flush=True)
+    try:
+        app.state.arq_pool = await create_pool(RedisSettings.from_dsn(redis_url))
+        # Test connection
+        await app.state.arq_pool.set('api_health_check', 'ok')
+        print("🚀 ARQ Redis Pool initialized and verified", flush=True)
+    except Exception as e:
+        print(f"❌ ARQ Redis Pool failed to initialize: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await app.state.arq_pool.close()
+    print("💤 ARQ Redis Pool closed", flush=True)
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -153,18 +174,28 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/crawl")
-async def crawl_endpoint(request: CrawlRequest, background_tasks: BackgroundTasks):
+async def crawl_endpoint(request: CrawlRequest, req: Request):
     if not request.url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL protocol")
-    background_tasks.add_task(background_ingest, request.url, max_pages=1)
+    # background_tasks.add_task(background_ingest, request.url, max_pages=1)
+    # For now, keeping simple ingest local or we could add a new task to worker.py
+    # But since deep crawl is the bottleneck, we'll focus on that.
+    # To keep it consistent, let's just use the pool if needed.
+    from ingest import add_content_to_store
+    from crawler import crawl_site
+    async def run_ingest():
+         content, _ = await crawl_site(request.url)
+         if content: await add_content_to_store(content, {"source": request.url})
+    asyncio.create_task(run_ingest()) # Quick local async if arq task isn't defined yet
     return {"status": "success", "message": f"Ingestion started for {request.url}"}
 
 
 @app.post("/crawl/deep")
-async def deep_crawl_endpoint(request: CrawlRequest, background_tasks: BackgroundTasks):
+async def deep_crawl_endpoint(request: CrawlRequest, req: Request):
     if not request.url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL protocol")
-    background_tasks.add_task(background_ingest, request.url, max_pages=15)
+    # Offload to worker
+    await req.app.state.arq_pool.enqueue_job('deep_crawl_task', query=request.url, fast_products=[])
     return {"status": "success", "message": "Deep ingestion started"}
 
 
@@ -353,50 +384,61 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 bot_response = await report_task
 
         elif intent == "shopping":
-            # 1. Check RAG first to see if we have high-quality results from a previous crawl
-            rag_start = time.time()
-            rag_results = fast_query(query, category="retail", threshold=0.7, k=40)
+            # Execute RAG and Live Search in parallel for maximum speed
+            # Total flight time becomes max(RAG_time, Live_time) instead of RAG_time + Live_time
+            print(f"⚡ Launching Parallel RAG and Live Search for '{query}'...", flush=True)
             
+            # Use to_thread for fast_query since it's likely CPU/Disk bound and blocking
+            rag_task = asyncio.to_thread(fast_query, query, category="retail", threshold=0.7, k=40)
+            live_task = kimi_service.get_fast_bing_data(query)
+            
+            # Wait for both concurrently
+            rag_results, live_results = await asyncio.gather(rag_task, live_task)
+            
+            # Process RAG results
             cached_products = []
-            seen_urls = set()
+            seen_names = set()  # Use name+price for dedup, not URL (Amazon shares the same search URL for all results)
             for doc, score in rag_results:
                 meta = doc.metadata
                 img = meta.get("s3_image_url") or meta.get("image_url")
+                if not img or not str(img).startswith("http"):
+                    continue
                 url = meta.get("source") or meta.get("source_url")
-                norm_url = kimi_service._normalize_url(url)
                 
-                query_words = set(re.findall(r'\b\w+\b', query.lower()))
-                name_words = set(re.findall(r'\b\w+\b', meta.get("name", "").lower()))
-                if not query_words.intersection(name_words) and len(query_words) > 1:
-                    continue 
+                # Deduplicate by product name
+                name = meta.get("name", "").strip().lower()
+                if name in seen_names: continue
+                seen_names.add(name)
                 
-                if norm_url in seen_urls: continue
-                if img and str(img).startswith("http"):
-                    cached_products.append({
-                        "name": meta.get("name"),
-                        "price": meta.get("price"),
-                        "source_url": url,
-                        "image_url": img,
-                        "brand": meta.get("brand"),
-                        "source": meta.get("store_source") or "Cached",
-                        "rating_avg": meta.get("rating_avg"),
-                        "rating_count": meta.get("rating_count"),
-                        "details": meta.get("details"),
-                        "reviews": meta.get("reviews")
-                    })
-                    seen_urls.add(norm_url)
+                cached_products.append({
+                    "name": meta.get("name"),
+                    "price": meta.get("price"),
+                    "source_url": url,
+                    "image_url": img,
+                    "brand": meta.get("brand"),
+                    "source": meta.get("store_source") or "Cached",
+                    "rating_avg": meta.get("rating_avg"),
+                    "rating_count": meta.get("rating_count"),
+                    "details": meta.get("details"),
+                    "reviews": meta.get("reviews")
+                })
 
-            if len(cached_products) >= 8:
-                print(f"🚀 CACHE HIT: Found {len(cached_products)} products for '{query}'.", flush=True)
-                live_products = cached_products
-            else:
-                print(f"⚡ CACHE MISS/LOW: Triggering live search for '{query}'.", flush=True)
-                live_products = await kimi_service.get_fast_bing_data(query)
+            # Process Live results - also deduplicate by name
+            new_live_products = []
+            for p in live_results:
+                name = (p.get("name") or p.get("title", "")).strip().lower()
+                if name and name not in seen_names:
+                    new_live_products.append(p)
+                    seen_names.add(name)
 
-            # Background enrichment
+            # Combine: Prefer RAG (high quality) then Live
+            live_products = cached_products + new_live_products
+            print(f"🚀 Parallel completion: {len(cached_products)} cached, {len(new_live_products)} new live products.", flush=True)
+
+            # Background enrichment - OFFLOAD TO REDIS WORKER
             if live_products:
-                background_tasks.add_task(kimi_service.cache_and_store_products, live_products, query)
-                background_tasks.add_task(background_crawl_and_ingest, query, live_products)
+                await req.app.state.arq_pool.enqueue_job('cache_products_task', products=live_products, query=query)
+                await req.app.state.arq_pool.enqueue_job('deep_crawl_task', query=query, fast_products=live_products)
 
             # For simple shopping with no template: skip the LLM completely for speed
             # The carousel already shows everything the user needs
@@ -508,4 +550,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=False)

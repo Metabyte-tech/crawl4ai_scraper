@@ -112,6 +112,68 @@ class KimiService:
         except:
             return float('inf')
 
+    def _extract_price_from_snippet(self, snippet, domain=None, store_name=None):
+        """
+        Unified robust price extraction from DuckDuckGo/Bing snippets.
+        Handles multi-currency, original vs current price, and store-specific patterns.
+        """
+        if not snippet:
+            return "Check Site"
+            
+        snippet_lower = snippet.lower()
+        
+        # 0. Priority: Handle "current price" or "now" keywords which often appear in Google snippets
+        current_match = re.search(r'(?:current price|now|today|only|save)\s*[:\-]?\s*([$₹£€]\s?\d{1,7}(?:[.,]\d{2})?)', snippet_lower)
+        if current_match:
+            return current_match.group(1).strip()
+
+        # 1. Multi-currency and ISO patterns
+        price_patterns = [
+            r'([$₹£€]\s?\d{1,7}(?:[.,]\d{2})?)',           # Standard: $19.99
+            r'(\d{1,7}(?:[.,]\d{2})?\s?[$₹£€])',           # Reverse: 19.99$
+            r'(?:USD|INR|GBP|EUR)\s?(\d{1,7}(?:[.,]\d{2})?)', # ISO: USD 19.99
+            r'from\s?([$₹£€]\s?\d{1,7})',                  # Range: from $10
+        ]
+        
+        found_prices = []
+        for pattern in price_patterns:
+            matches = re.findall(pattern, snippet, re.I)
+            for m in matches:
+                # Ensure it's not a junk match
+                if any(c.isdigit() for c in m):
+                    found_prices.append(m)
+        
+        if not found_prices:
+            # 2. Store-Specific Heuristics (if standard patterns fail)
+            if store_name and ("best buy" in store_name.lower() or "bestbuy" in str(domain).lower()):
+                m = re.search(r'price[:\s]+([\$\d\.]+)', snippet, re.I)
+                if m: return m.group(1)
+            elif store_name and "wayfair" in store_name.lower():
+                m = re.search(r'for\s+([\$\d\.]+)', snippet, re.I)
+                if m: return m.group(1)
+            return "Check Site"
+            
+        # 3. Smart selection (Original vs Current)
+        # If multiple prices found, check for "was", "original", "list price" indicators near them
+        if len(found_prices) > 1:
+            # Simple heuristic: often the last mentioned price in a "was X now Y" snippet is the current one
+            # or the one not preceded by "was"
+            price_positions = []
+            for p in set(found_prices):
+                for m in re.finditer(re.escape(p), snippet):
+                    # Check context before the match (last 20 chars)
+                    context = snippet[max(0, m.start() - 20):m.start()].lower()
+                    is_original = any(word in context for word in ["was", "original", "list", "save"])
+                    price_positions.append({"price": p, "pos": m.start(), "is_original": is_original})
+            
+            # Prefer non-original prices, or the one closest to some high-intent keywords
+            current_prices = [p for p in price_positions if not p["is_original"]]
+            if current_prices:
+                # Return the one with the lowest value among non-originals (common for deals)
+                return min(current_prices, key=lambda x: self._parse_price(x["price"]))["price"]
+            
+        return found_prices[0]
+
     @staticmethod
     def _extract_brand(product_name: str, store_fallback: str = "") -> str:
         """
@@ -405,12 +467,16 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         
                         product_url = f"https://www.amazon.in{link_el.get('href', '')}" if link_el else url
                         
+                        # Fix 1: High-res Amazon image
+                        raw_img = img_el.get("src") if img_el else None
+                        img_url = re.sub(r'\._[^/]*\.', '.', raw_img) if (raw_img and "m.media-amazon.com" in raw_img) else raw_img
+                        
                         products.append({
                             "name": name.get_text(strip=True),
                             "price": price_str or "Check Site",
                             "rating_avg": rating_val,
                             "rating_count": reviews_count,
-                            "image_url": img_el.get("src") if img_el else None,
+                            "image_url": img_url,
                             "url": product_url,
                             "source_url": product_url,
                             "source": "Amazon India",
@@ -460,16 +526,20 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         img = item.find('img')
                         link = item.find('a')
                         
+                        # eBay image upscaling
+                        raw_img = img.get("src") if img else None
+                        img_url = re.sub(r's-l\d+', 's-l500', raw_img) if (raw_img and "s-l" in raw_img) else raw_img
+
                         if prices and len(prices) > 0:
                             products.append({
                                 "name": name_text[:70],
                                 "price": prices[0],  # Take the first price found
                                 "rating_avg": None,
-                                "image_url": img.get("src") if img else None,
+                                "image_url": img_url,
                                 "url": link.get("href") if link else url,
                                 "source_url": link.get("href") if link else url,
                                 "source": "eBay",
-                                "brand": self._extract_brand(title, "eBay"),
+                                "brand": self._extract_brand(name_text, "eBay"),
                                 "details": ""
                             })
                         if len(products) >= limit: break
@@ -500,10 +570,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     # Flipkart layout can vary; try common selectors
                     # Broaden selector to any div that looks like a product card
                     for item in (soup.select('div[data-id]') or soup.select('div._1AtVbE') or soup.select('div._1sdM6s')):
-                        name_el = item.select_one('div._4rR01T') or item.select_one('a.IRpwTa') or item.select_one('a.s1Q9rs') or item.select_one('div._2Wk9S9')
-                        price_el = item.select_one('div._30jeq3') or item.select_one('div._3I9_ca')
+                        name_el = item.select_one('a.atJtCj') or item.select_one('div._4rR01T') or item.select_one('a.IRpwTa') or item.select_one('a.s1Q9rs') or item.select_one('div._2Wk9S9')
+                        price_el = item.select_one('div.QiMO5r') or item.select_one('div._30jeq3') or item.select_one('div._3I9_ca')
                         img_el = item.select_one('img')
-                        link_el = item.select_one('a')
+                        link_el = item.select_one('a.atJtCj') or item.select_one('a')
                         
                         if not name_el or not price_el: continue
                         
@@ -562,6 +632,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         if not any(c.isdigit() for c in price_text): price_text = "Check Site"
                         
                         p_url = urljoin("https://www.walmart.com", link_el.get('href', '')) if link_el else url
+                        
                         products.append({
                             "name": name,
                             "price": price_text,
@@ -608,16 +679,18 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         walmart_task = self.search_walmart_products(query, limit=8)
         ddg_task = self.search_sources(query, limit=8)
         
+        images_task = self.search_images(query)
+        
         print("DEBUG: Launching parallel scrapers...", flush=True)
         try:
-            # We skip 'images_task' (Bing) as it's slow/irrelevant per user feedback
-            amazon_products, ebay_products, flipkart_products, walmart_products, ddg_results = await asyncio.wait_for(
+            # We run images_task in parallel to backfill any missing retailer images
+            amazon_products, ebay_products, flipkart_products, walmart_products, ddg_results, bing_res = await asyncio.wait_for(
                 asyncio.gather(
-                    amazon_task, ebay_task, flipkart_task, walmart_task, ddg_task
+                    amazon_task, ebay_task, flipkart_task, walmart_task, ddg_task, images_task
                 ),
                 timeout=12.0
             )
-            bing_images = [] # Legacy compatibility
+            bing_images = bing_res.get("results", []) if bing_res else []
         except asyncio.TimeoutError:
             print("WARNING: Fast path scrapers timed out! Returning partial/empty results to maintain low latency.", flush=True)
             amazon_products, ebay_products, flipkart_products, walmart_products, ddg_results = [], [], [], [], []
@@ -631,17 +704,47 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         # If any native scraper failed (0 results), trigger a targeted site-specific search
         # as a backup to ensure that website is at least somewhat represented.
         async def fetch_domain_fallback(domain_name, site_url):
-            print(f"DEBUG: Triggering fallback search for {domain_name}", flush=True)
-            results = await self.search_sources(f"site:{site_url} {query}", limit=3)
+            """
+            Native Recovery Strategy:
+            1. Find product URLs via Bing Images (more reliable than web search).
+            2. Scrape individual product pages for real JSON-LD prices in parallel.
+            """
+            print(f"DEBUG: Triggering Native Recovery fallback for {domain_name}", flush=True)
+            
+            # 1. Get URLs from Bing Images (proven to work)
+            img_results = await self.search_images(f"site:{site_url} {query}")
+            urls = []
+            for r in img_results.get("results", []):
+                if r.get("source_url") and site_url in r.get("source_url").lower():
+                    urls.append((r.get("source_url"), r.get("image_url")))
+            
+            if not urls:
+                print(f"DEBUG: Native Recovery failed to find URLs for {domain_name}", flush=True)
+                return []
+                
+            # 2. Parallel price/rating extraction from product pages using own session
+            async with aiohttp.ClientSession() as fallback_session:
+                extraction_tasks = []
+                for url, img_url in urls[:3]: # Limit to top 3 for speed
+                    extraction_tasks.append(self.rapid_extract_price_and_rating(fallback_session, url))
+                extraction_results = await asyncio.gather(*extraction_tasks)
+            
             fallback_items = []
-            for res in results:
+            for (url, data), (orig_url, img_url) in zip(extraction_results, urls[:3]):
+                if not data: continue
+                
+                # Use extracted data (JSON-LD/Meta) or reasonable defaults
+                found_price = data.get("price") or "Check Site"
+                found_title = data.get("description") or f"{query} from {domain_name}"
+                if len(found_title) > 80: found_title = found_title[:77] + "..."
+                
                 fallback_items.append({
-                    "name": res.get("title", f"{query} from {domain_name}"),
-                    "url": res["url"],
-                    "source_url": res["url"],
-                    "image_url": None,
-                    "price": "Check Site",
-                    "rating_avg": None,
+                    "name": found_title,
+                    "url": url,
+                    "source_url": url,
+                    "image_url": img_url,
+                    "price": found_price,
+                    "rating_avg": data.get("rating"),
                     "source": domain_name,
                     "brand": domain_name
                 })
@@ -733,19 +836,14 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 domain = urlparse(url).netloc.lower()
                 store_name = domain.replace("www.", "").split('.')[0].capitalize()
                 
-                # --- CRITICAL FIX ---
-                # Do NOT include DDG fallback links for domains we already scrape natively!
-                # This prevents "Check Site" duplicate cards for eBay or Amazon.
                 if any(native in domain for native in ['amazon', 'ebay']):
                     continue
                 
-                # --- CRITICAL FIX: Avoid index-based fallback ---
-                # We no longer blindly assign i-th Bing image to i-th DDG result.
-                # Instead, we leave image_url as None and let the grid-builder 
-                # or a future specific-search step handle it, or we can use the first Bing image
-                # as a generic visual IF it matches the category.
-                # For now, it's safer to have no image than a mismatched one.
+                # --- CRITICAL FIX: Backfill with Bing Image ---
+                # Instead of None, attempt to find a matching image from Bing
                 img_url = None
+                if idx < len(bing_images):
+                    img_url = bing_images[idx].get("image_url")
                 
                 # Skip if URL already in fast_results
                 existing_urls = {self._normalize_url(r["url"]) for r in fast_results}
@@ -754,35 +852,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 snippet = res.get("snippet", "")
                 
                 # --- ROBUST PRICE EXTRACTION ---
-                price = "Check Site"
-                
-                # 1. Multi-currency and Alphanumeric patterns (e.g. $49, USD 50, 49.99 CAD, from ₹100)
-                price_patterns = [
-                    r'([$₹£€]\s?\d{1,7}(?:[.,]\d{2})?)',           # Standard: $19.99
-                    r'(\d{1,7}(?:[.,]\d{2})?\s?[$₹£€])',           # Reverse: 19.99$
-                    r'(?:USD|INR|GBP|EUR)\s?(\d{1,7}(?:[.,]\d{2})?)', # ISO: USD 19.99
-                    r'from\s?([$₹£€]\s?\d{1,7})',                  # Range: from $10
-                ]
-                
-                for pattern in price_patterns:
-                    m = re.search(pattern, snippet, re.I)
-                    if m:
-                        price = m.group(0)
-                        break
-                
-                # 2. Store-Specific Heuristics (if regex fails)
-                if price == "Check Site":
-                    if "best buy" in store_name.lower() or "bestbuy" in domain:
-                        # Best Buy snippets often have "Price: $..."
-                        m = re.search(r'price[:\s]+([\$\d\.]+)', snippet, re.I)
-                        if m: price = m.group(1)
-                    elif "wayfair" in store_name.lower():
-                        # Wayfair often says "at Wayfair for $..."
-                        m = re.search(r'for\s+([\$\d\.]+)', snippet, re.I)
-                        if m: price = m.group(1)
-                    elif "staples" in store_name.lower():
-                        m = re.search(r'only\s+([\$\d\.]+)', snippet, re.I)
-                        if m: price = m.group(1)
+                price = self._extract_price_from_snippet(snippet, domain, store_name)
                 
                 # De-duplication check by URL and Name
                 norm_url = self._normalize_url(url)
@@ -880,9 +950,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         date_str = datetime.datetime.now().strftime("%Y-%m-%d")
         
         if results:
-            # Process images (synchronous call)
+            # Process images (asynchronous call)
             # Pass source/date for categorized folders
-            results = asset_processor.process_product_images(results, category="retail", subcategory="deep_crawl", source="deep_crawl", scrape_date=date_str)
+            results = await asset_processor.process_product_images(results, category="retail", subcategory="deep_crawl", source="deep_crawl", scrape_date=date_str)
             for p in results:
                 if p.get("s3_image_url"):
                     p["image_url"] = p["s3_image_url"] 
@@ -1256,48 +1326,66 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
     async def search_sources(self, query, intent="shopping", limit=10):
         """
-        Real-time lightweight DuckDuckGo Search for products and snippets via HTTPr.
+        Real-time lightweight Google Search for products and snippets using curl.
         """
-        print(f"DEBUG: Starting real-time DDG search_sources for: {query}", flush=True)
+        print(f"DEBUG: Starting real-time search_sources for: {query}", flush=True)
         search_results = []
         try:
-            # Using DuckDuckGo HTML (lite) for easy scraping
             from urllib.parse import quote_plus
-            top_sites = "(site:amazon.com OR site:amazon.in OR site:walmart.com OR site:target.com OR site:bestbuy.com OR site:croma.com OR site:flipkart.com)"
-            search_url = f"https://duckduckgo.com/html/?q={quote_plus(query + ' ' + top_sites)}"
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+            import subprocess
             
-            async with aiohttp.ClientSession() as session:
-                async with session.get(search_url, headers=headers, timeout=10) as response:
-                    if response.status == 200:
-                        content = await response.text()
-                        soup = BeautifulSoup(content, 'html.parser')
-                        # DDG HTML selectors
-                        for result in soup.select('.result'):
-                            title_el = result.select_one('.result__title a')
-                            snippet_el = result.select_one('.result__snippet')
-                            if title_el and snippet_el:
-                                url = title_el.get('href')
-                                if not url: continue
-                                # Clean redirect URLs from DDG if needed
-                                if "/l/?" in url:
-                                    from urllib.parse import parse_qs
-                                    parsed = urlparse(url)
-                                    url = parse_qs(parsed.query).get('uddg', [url])[0]
-                                
-                                search_results.append({
-                                    "url": url,
-                                    "title": title_el.get_text(strip=True),
-                                    "snippet": snippet_el.get_text(strip=True)
-                                })
-                            if len(search_results) >= limit: break
+            final_query = query
+            if "site:" not in query.lower():
+                top_sites = "(site:amazon.in OR site:flipkart.com OR site:walmart.com OR site:ebay.com OR site:bestbuy.com OR site:croma.com)"
+                final_query = f"{query} {top_sites}"
+                
+            search_url = f"https://www.google.com/search?q={quote_plus(final_query)}"
+            user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            
+            # Use curl subprocess as it's proven to work in this environment
+            cmd = [
+                "curl", "-s", "-L",
+                "-H", f"User-Agent: {user_agent}",
+                search_url
+            ]
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode == 0:
+                content = stdout.decode('utf-8', errors='ignore')
+                soup = BeautifulSoup(content, "html.parser")
+                
+                # Google search results are typically in div.g or matching containers
+                for result in (soup.select('div.g') or soup.select('div.tF2Cxc') or soup.select('div.MjjYud')):
+                    title_el = result.select_one('h3')
+                    link_el = result.select_one('a')
+                    snippet_el = result.select_one('div.VwiC3b') or result.select_one('span.aCOp9b') or result.select_one('div.itY3B')
+                    
+                    if title_el and link_el:
+                        url = link_el.get('href', '')
+                        if not url or any(x in url for x in ["google.com", "google.co.in", "youtube.com"]): continue
+                        
+                        search_results.append({
+                            "url": url,
+                            "title": title_el.get_text(strip=True),
+                            "snippet": snippet_el.get_text(strip=True) if snippet_el else ""
+                        })
+                    if len(search_results) >= limit: break
+            else:
+                print(f"DEBUG: curl failed with code {process.returncode}: {stderr.decode()}", flush=True)
+                raise Exception("curl search failed")
             
             if search_results:
-                print(f"DEBUG: Found {len(search_results)} real search results from DDG.", flush=True)
-                return search_results
+                 print(f"DEBUG: Found {len(search_results)} real search results from Google via curl.", flush=True)
+                 return search_results
                 
         except Exception as e:
-            print(f"Real-time search failed: {e}. Falling back to image-source URLs.", flush=True)
+            print(f"Real-time search failed: {e}. Falling back to image-source discovery.", flush=True)
 
         # Fallback to images if search crawl fails
         image_results = await self.search_images(query)
@@ -1379,11 +1467,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
             # 1. PROCESS IMAGES FOR S3 (In the background!)
             date_str = self._get_scrape_date()
-            products = asset_processor.process_product_images(
+            products = await asset_processor.process_product_images(
                 products, 
                 category="retail", 
                 subcategory="fast_carousel", 
-                source="aggregated", 
+                source="fast_carousel", 
                 scrape_date=date_str
             )
 

@@ -234,19 +234,15 @@ async def crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
 
 @app.post("/crawl/deep/batch")
 async def deep_crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
-    """Deep crawl for multiple URLs — each URL is enqueued as a separate worker job."""
+    """Deep crawl for multiple URLs. Offloads to background worker for deep recursive crawling."""
     valid = [u for u in request.urls if u.startswith("http")]
     if not valid:
-        raise HTTPException(status_code=400, detail="No valid URLs provided (must start with http/https)")
+        raise HTTPException(status_code=400, detail="No valid URLs provided")
 
     for url in valid:
-        await req.app.state.arq_pool.enqueue_job('deep_crawl_task', query=url, fast_products=[])
+        await req.app.state.arq_pool.enqueue_job('ingest_url_task', url=url, max_pages=10)
 
-    return {
-        "status": "success",
-        "message": f"Deep ingestion queued for {len(valid)} URL(s)",
-        "urls": valid,
-    }
+    return {"status": "success", "message": f"Deep ingestion queued for {len(valid)} URL(s)", "urls": valid}
 
 
 @app.post("/clear")

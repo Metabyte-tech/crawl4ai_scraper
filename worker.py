@@ -33,13 +33,25 @@ async def deep_crawl_task(ctx, query, fast_products):
     except Exception as e:
         print(f"--- [WORKER ERROR] deep_crawl_task failed: {e} ---", flush=True)
 
+async def ingest_url_task(ctx, url, max_pages):
+    """
+    Background task to perform recursive deep crawl for URL ingestion to RAG DB.
+    """
+    print(f"--- [WORKER] Starting ingest_url_task for URL: {url} ---", flush=True)
+    from api import background_ingest
+    try:
+        await background_ingest(url, max_pages)
+        print(f"--- [WORKER] Finished ingest_url_task for URL: {url} ---", flush=True)
+    except Exception as e:
+        print(f"--- [WORKER ERROR] ingest_url_task failed: {e} ---", flush=True)
+
 class WorkerSettings:
     """
     Arq worker configuration.
     """
-    functions = [cache_products_task, deep_crawl_task]
+    functions = [cache_products_task, deep_crawl_task, ingest_url_task]
     redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    # Increase timeout for heavy deep crawls
-    job_timeout = 600 # 10 minutes
+    # Increase timeout for heavy deep crawls (3600 = 1 hour)
+    job_timeout = 3600 
     # Max concurrent jobs per worker process
     max_jobs = 10

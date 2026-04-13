@@ -154,7 +154,7 @@ class AssetProcessor:
         processed_products = await asyncio.gather(*tasks)
         return list(processed_products)
         
-    async def process_raw_content(self, content, category="uncategorized", subcategory="general", source="other", scrape_date=None):
+    async def process_raw_content(self, content, base_url=None, category="uncategorized", subcategory="general", source="other", scrape_date=None):
         """
         Scans raw markdown for images, uploads them to S3, and returns cleaned content and first S3 image.
         Uses categorized folder structure.
@@ -176,9 +176,14 @@ class AssetProcessor:
                 if not first_s3_url: first_s3_url = url
                 continue
                 
+            full_url = url
+            if base_url and not full_url.startswith("http"):
+                from urllib.parse import urljoin
+                full_url = urljoin(base_url, full_url)
+
             try:
                 # Prepare a mini-product for existing logic
-                mini_products = [{"image_url": url}]
+                mini_products = [{"image_url": full_url}]
                 processed = await self.process_product_images(mini_products, category, subcategory, source, scrape_date)
                 if processed and processed[0].get("s3_image_url"):
                     s3_url = processed[0]["s3_image_url"]

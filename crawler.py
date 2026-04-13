@@ -182,8 +182,13 @@ async def crawl_site_recursive(base_url: str, max_pages: int = 20):
                         crawled_urls.add(url)
                         
                         # Add new internal links to queue
-                        for link in internal_links:
-                            link_url = link.get("href")
+                        links_list = internal_links.get("internal", []) if isinstance(internal_links, dict) else internal_links
+                        for link in links_list:
+                            if isinstance(link, dict):
+                                link_url = link.get("href")
+                            else:
+                                continue
+                            
                             if link_url:
                                 full_url = urljoin(url, link_url)
                                 if urlparse(full_url).netloc == urlparse(base_url).netloc:

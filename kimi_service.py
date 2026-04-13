@@ -884,6 +884,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         urls_with_images = {self._normalize_url(p["source_url"]): p.get("image_url") for p in fast_bing_products if p.get("source_url")}
         urls = list(urls_with_images.keys())
         
+        # If no fast products are provided but the query itself is a valid URL, add it.
+        if not urls and query.startswith("http"):
+            urls.append(query)
+            
+
         results = []
         if urls:
             from crawler import crawl_site

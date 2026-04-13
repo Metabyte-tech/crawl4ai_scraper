@@ -3,6 +3,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from vector_store import vector_store
+from product_extractor import product_extractor
 import os
 import asyncio
 
@@ -24,9 +25,16 @@ async def add_content_to_store(content, metadata):
     # 1. Identify and process the 'Best' image for the entire page
     _, page_image = await asset_processor.process_raw_content(
         content, 
+        base_url=metadata.get("source"),
         category=metadata.get("category", "retail"),
         subcategory=metadata.get("subcategory", "general")
     )
+    
+    # 2. Extract structured product data (Price, Rating, Brand)
+    extracted = product_extractor.extract_from_html(content, metadata.get("source"))
+    for k, v in extracted.items():
+        if v and not metadata.get(k):
+            metadata[k] = v
     
     text_splitter = get_text_splitter()
     chunks = text_splitter.split_text(content)
@@ -70,9 +78,21 @@ async def add_multiple_contents_to_store(items: list):
         # 1. Process images for the ENTIRE product content first
         _, page_image = await asset_processor.process_raw_content(
             content, 
+            base_url=url,
             category=metadata.get("category", "retail"),
             subcategory=metadata.get("subcategory", "general")
         )
+
+        # 1.5 Extract structured product data
+        extracted = product_extractor.extract_from_html(content, url)
+        for k, v in extracted.items():
+            if v and not metadata.get(k):
+                metadata[k] = v
+        
+        if metadata.get("price"):
+            print(f"DEBUG: Found price '{metadata['price']}' for {url}", flush=True)
+        else:
+            print(f"DEBUG: No price found for {url}", flush=True)
 
         # 2. Split the content into chunks
         chunks = text_splitter.split_text(content)

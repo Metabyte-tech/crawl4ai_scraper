@@ -1,0 +1,194 @@
+nohup: ignoring input
+Initializing Embeddings and Vector Store...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 2179.05it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+Vector Store Initialized.
+/home/himanshu/workspace/ai-agent/crawl4AI/api.py:114: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+/home/himanshu/workspace/ai-agent/crawl4AI/api.py:128: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("shutdown")
+INFO:     Started server process [18483]
+INFO:     Waiting for application startup.
+📡 API attempting to connect to Redis at: redis://127.0.0.1:6379
+🚀 ARQ Redis Pool initialized and verified
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+🔍 GET /admin/crawl/batch/batch_1776232420_f681c6
+📉 GET /admin/crawl/batch/batch_1776232420_f681c6 → 200
+INFO:     127.0.0.1:59500 - "GET /admin/crawl/batch/batch_1776232420_f681c6 HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:35224 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:35224 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:35224 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:54392 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:54392 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batch/undefined
+📉 GET /admin/crawl/batch/undefined → 404
+INFO:     127.0.0.1:51374 - "GET /admin/crawl/batch/undefined HTTP/1.1" 404 Not Found
+🔍 GET /admin/crawl/batch/undefined
+📉 GET /admin/crawl/batch/undefined → 404
+INFO:     127.0.0.1:51374 - "GET /admin/crawl/batch/undefined HTTP/1.1" 404 Not Found
+🔍 GET /admin/crawl/batch/undefined
+📉 GET /admin/crawl/batch/undefined → 404
+INFO:     127.0.0.1:37120 - "GET /admin/crawl/batch/undefined HTTP/1.1" 404 Not Found
+🔍 GET /admin/crawl/batch/undefined
+📉 GET /admin/crawl/batch/undefined → 404
+INFO:     127.0.0.1:37122 - "GET /admin/crawl/batch/undefined HTTP/1.1" 404 Not Found
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:44914 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:44914 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 POST /api/chat
+📥 Body received
+🔥 Query: kids shoes
+🧠 Intent: shopping
+⚡ Launching Parallel RAG and Live Search for 'kids shoes'...
+DEBUG: Launching parallel scrapers...
+DEBUG: Searching Amazon for: kids shoes
+DEBUG: Searching eBay for: kids shoes
+DEBUG: Searching Flipkart for: kids shoes
+DEBUG: Searching Walmart for: kids shoes
+DEBUG: Starting real-time search_sources for: kids shoes
+DEBUG: Starting lightweight image search for: kids shoes
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Starting lightweight image search for: kids shoes
+DEBUG: Amazon returned 8 products with prices.
+DEBUG: eBay returned 8 products with prices.
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Walmart scrape error: 
+DEBUG: Triggering Native Recovery fallback for Flipkart
+DEBUG: Starting lightweight image search for: site:flipkart.com kids shoes
+DEBUG: Triggering Native Recovery fallback for Walmart
+DEBUG: Starting lightweight image search for: site:walmart.com kids shoes
+DEBUG: Found 1 real images with source URLs from Bing.
+DEBUG: Rapid extract failed for https://www.flipkart.com/allen-cooper-1156-steel-toe-safety-shoe-black-grey-outdoors-men/p/itmfeygwfzyttuud with status 403
+DEBUG: Found 10 real images with source URLs from Bing.
+DEBUG: Error in rapid extract for https://www.walmart.com/ip/YHOON-Kids-Shoes-Girls-Sneakers-Running-Shoes-Slip-on-Sports-Fitness-Shoes-Purple-Little-Kid-Size-13/500429974: Tag.find() got multiple values for argument 'name'
+DEBUG: Error in rapid extract for https://www.walmart.com/ip/SILLENORTH-Kids-Toddler-Shoes-Boys-Girls-Breathable-Sneakers-Athletic-Running-Shoes-Toddler-Little-Kids-Big-Kids/487598151: Tag.find() got multiple values for argument 'name'
+DEBUG: Error in rapid extract for https://www.walmart.com/ip/DREAM-PAIRS-Kids-Girls-Rhinestones-Ballet-Flat-Shoes-Toddler-Fashion-Dress-Shoes-MUY-SHINE-INFANT-GOLD-GLITTER-Size-6T/500243039: Tag.find() got multiple values for argument 'name'
+DEBUG: Final sources — Amazon: 8, eBay: 8, Flipkart: 0, Walmart: 0
+DEBUG: Re-ranked 16 products by keyword relevance.
+Successfully archived data to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/aggregated/retail/2026-04-15/results_12-42-05_9aec3c04.json
+🚀 Parallel completion: 0 cached, 18 new live products.
+📡 Grid: 18 products
+✅ Done in 15.4s
+📉 POST /api/chat → 200
+INFO:     127.0.0.1:50382 - "POST /api/chat HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:33328 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:33328 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:35738 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:35738 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:48166 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:48166 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:58754 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /api/templates
+📉 GET /api/templates → 200
+INFO:     127.0.0.1:58754 - "GET /api/templates HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:58760 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:58760 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 POST /admin/crawl/batch
+📉 POST /admin/crawl/batch → 200
+INFO:     127.0.0.1:51316 - "POST /admin/crawl/batch HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:51316 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batch/undefined
+📉 GET /admin/crawl/batch/undefined → 404
+INFO:     127.0.0.1:41514 - "GET /admin/crawl/batch/undefined HTTP/1.1" 404 Not Found
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:36438 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:36438 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batch/undefined
+📉 GET /admin/crawl/batch/undefined → 404
+INFO:     127.0.0.1:36438 - "GET /admin/crawl/batch/undefined HTTP/1.1" 404 Not Found
+🔍 POST /admin/crawl/batch
+📉 POST /admin/crawl/batch → 200
+INFO:     127.0.0.1:59892 - "POST /admin/crawl/batch HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:59892 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batch/undefined
+📉 GET /admin/crawl/batch/undefined → 404
+INFO:     127.0.0.1:34392 - "GET /admin/crawl/batch/undefined HTTP/1.1" 404 Not Found
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:60168 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batch/batch_1776237993_ab8680
+📉 GET /admin/crawl/batch/batch_1776237993_ab8680 → 200
+INFO:     127.0.0.1:52762 - "GET /admin/crawl/batch/batch_1776237993_ab8680 HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batch/batch_1776237700_cd268d
+📉 GET /admin/crawl/batch/batch_1776237700_cd268d → 200
+INFO:     127.0.0.1:52776 - "GET /admin/crawl/batch/batch_1776237700_cd268d HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batch/batch_1776237700_cd268d
+📉 GET /admin/crawl/batch/batch_1776237700_cd268d → 200
+INFO:     127.0.0.1:39976 - "GET /admin/crawl/batch/batch_1776237700_cd268d HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:52072 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:52072 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batch/undefined
+📉 GET /admin/crawl/batch/undefined → 404
+INFO:     127.0.0.1:52072 - "GET /admin/crawl/batch/undefined HTTP/1.1" 404 Not Found
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:53838 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:54204 - "GET /admin/crawl/batches HTTP/1.1" 200 OK
+🔍 DELETE /admin/crawl/batch/batch_1776237700_cd268d
+📉 DELETE /admin/crawl/batch/batch_1776237700_cd268d → 405
+INFO:     127.0.0.1:50748 - "DELETE /admin/crawl/batch/batch_1776237700_cd268d HTTP/1.1" 405 Method Not Allowed
+🔍 GET /admin/crawl/batches
+📉 GET /admin/crawl/batches → 200
+INFO:     127.0.0.1:50758 - "GET /admin/crawl/batches HTTP/1.1" 200 OK

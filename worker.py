@@ -45,11 +45,53 @@ async def ingest_url_task(ctx, url, max_pages):
     except Exception as e:
         print(f"--- [WORKER ERROR] ingest_url_task failed: {e} ---", flush=True)
 
+async def admin_ingest_url_task(ctx, batch_id, url, max_pages):
+    """
+    Tracked background task to perform recursive deep crawl for URL ingestion.
+    """
+    print(f"--- [WORKER] Starting admin_ingest_url_task for Batch: {batch_id}, URL: {url} ---", flush=True)
+    from admin_service import admin_service
+    from api import background_ingest
+    
+    await admin_service.update_url_status(batch_id, url, "running")
+    try:
+        # We re-run the logic here because background_ingest in api.py 
+        # doesn't re-raise exceptions, making it hard to track failures there.
+        from crawler import crawl_site, crawl_site_recursive
+        from ingest import add_content_to_store, add_multiple_contents_to_store
+        
+        success = False
+        if max_pages <= 1:
+            content, _ = await crawl_site(url)
+            if content and len(content.strip()) > 10:
+                await add_content_to_store(content, {"source": url})
+                success = True
+            else:
+                error_reason = "No content extracted (maybe blocked or invalid URL)"
+        else:
+            results = await crawl_site_recursive(url, max_pages=max_pages)
+            if results:
+                await add_multiple_contents_to_store(results)
+                success = True
+            else:
+                error_reason = "No pages found in recursive crawl"
+        
+        if success:
+            await admin_service.update_url_status(batch_id, url, "success")
+            print(f"--- [WORKER] Finished admin_ingest_url_task for URL: {url} ---", flush=True)
+        else:
+            await admin_service.update_url_status(batch_id, url, f"failed: {error_reason}")
+            print(f"--- [WORKER FAILURE] admin_ingest_url_task for URL: {url} -> {error_reason} ---", flush=True)
+
+    except Exception as e:
+        print(f"--- [WORKER ERROR] admin_ingest_url_task failed for {url}: {e} ---", flush=True)
+        await admin_service.update_url_status(batch_id, url, f"failed: {str(e)}")
+
 class WorkerSettings:
     """
     Arq worker configuration.
     """
-    functions = [cache_products_task, deep_crawl_task, ingest_url_task]
+    functions = [cache_products_task, deep_crawl_task, ingest_url_task, admin_ingest_url_task]
     redis_settings = RedisSettings.from_dsn(REDIS_URL)
     # Increase timeout for heavy deep crawls (3600 = 1 hour)
     job_timeout = 3600 

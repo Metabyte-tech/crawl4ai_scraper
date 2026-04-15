@@ -1,0 +1,1207 @@
+nohup: ignoring input
+11:16:30: Starting worker for 4 functions: cache_products_task, deep_crawl_task, ingest_url_task, admin_ingest_url_task
+11:16:30: redis_version=7.0.15 mem_usage=1.42M clients_connected=5 db_keys=33
+11:23:40:   0.27s → ffe5eb71ad8943cf80931499b3d4fe26:admin_ingest_url_task(batch_id='batch_1776232420_f681c6', max_pages=10, url='https://example.com')
+--- [WORKER] Starting admin_ingest_url_task for Batch: batch_1776232420_f681c6, URL: https://example.com ---
+Initializing Embeddings and Vector Store...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 1143.06it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/all-MiniLM-L6-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+Vector Store Initialized.
+11:24:01:  21.32s → 68efde8f83b046dea528fe91c93ba201:admin_ingest_url_task(batch_id='batch_1776232420_f681c6', max_pages=10, url='http://invalid-domain-12…) delayed=21.32s
+--- [WORKER] Starting admin_ingest_url_task for Batch: batch_1776232420_f681c6, URL: http://invalid-domain-123456789.test ---
+[INIT].... → Crawl4AI 0.8.6 
+[INIT].... → Crawl4AI 0.8.6 
+[ANTIBOT]. ℹ http://invalid-domain-123456789.test               | Error: Proxy 
+direct failed: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_NAME_NOT_RESOLVED at http://invalid-domain-123456789.test/
+Call log:
+  - navigating to "http://invalid-domain-123456789.test/", waiting until 
+"domcontentloaded"
+ 
+[ERROR]... × http://invalid-domain-123456789.test               | Error: 
+Unexpected error in _crawl_web at line 778 in _crawl_web 
+(venv_new/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_NAME_NOT_RESOLVED at http://invalid-domain-123456789.test/
+Call log:
+  - navigating to "http://invalid-domain-123456789.test/", waiting until 
+"domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating 
+ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # 
+──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only 
+the last
+ 782                       # hop, so we trace the `request.redirected_from` 
+links until the
+ 783                       # first response that differs from the final one and 
+surface its 
+Failed to crawl: http://invalid-domain-123456789.test. Error: Unexpected error in _crawl_web at line 778 in _crawl_web (venv_new/lib/python3.12/site-packages/crawl4ai/async_crawler_strategy.py):
+Error: Failed on navigating ACS-GOTO:
+Page.goto: net::ERR_NAME_NOT_RESOLVED at http://invalid-domain-123456789.test/
+Call log:
+  - navigating to "http://invalid-domain-123456789.test/", waiting until "domcontentloaded"
+
+
+Code context:
+ 773                                   tag="GOTO",
+ 774                                   params={"url": url},
+ 775                               )
+ 776                               response = None
+ 777                           else:
+ 778 →                             raise RuntimeError(f"Failed on navigating ACS-GOTO:\n{str(e)}")
+ 779   
+ 780                       # ──────────────────────────────────────────────────────────────
+ 781                       # Walk the redirect chain.  Playwright returns only the last
+ 782                       # hop, so we trace the `request.redirected_from` links until the
+ 783                       # first response that differs from the final one and surface its
+--- [WORKER FAILURE] admin_ingest_url_task for URL: http://invalid-domain-123456789.test -> No pages found in recursive crawl ---
+11:24:03:   2.32s ← 68efde8f83b046dea528fe91c93ba201:admin_ingest_url_task ● 
+[FETCH]... ↓ https://example.com                                                
+| ✓ | ⏱: 0.72s 
+[SCRAPE].. ◆ https://example.com                                                
+| ✓ | ⏱: 0.01s 
+[COMPLETE] ● https://example.com                                                
+| ✓ | ⏱: 0.74s 
+Successfully crawled: https://example.com
+DEBUG: No price found for https://example.com
+Batch adding 1 chunks to the vector store...
+Added batch of 1 chunks. Total: 1/1
+--- [WORKER] Finished admin_ingest_url_task for URL: https://example.com ---
+11:24:05:  24.80s ← ffe5eb71ad8943cf80931499b3d4fe26:admin_ingest_url_task ● 
+12:16:30: recording health: Apr-15 12:16:30 j_complete=2 j_failed=0 j_retried=0 j_ongoing=0 queued=0
+12:42:06:   0.33s → 70eb97e5edc7422ba1a61929c26efcc6:cache_products_task(products=[{'name': 'VANS Sk8-Hi Black White Unisex Kids High Top Canvas Sneaker…)
+--- [WORKER] Starting cache_products_task for query: kids shoes ---
+
+🚀 [BACKGROUND] Starting caching and S3 enrichment for: kids shoes
+12:42:06:   0.94s → 47a1a3b0813d435097e6a1f49b860a61:deep_crawl_task(fast_products=[{'name': 'VANS Sk8-Hi Black White Unisex Kids High Top Canvas Sn…)
+--- [WORKER] Starting deep_crawl_task for query: kids shoes ---
+🔄 BACKGROUND: Deep crawl for 'kids shoes'...
+DEBUG: Starting background run_deep_crawl_process for kids shoes
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/8963a842-ce3f-4ad8-a329-808b146c9e9a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/aadd6702-3ddc-4374-8797-d2b5fe91298f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/069e81fe-5736-42f5-be4a-848e07f3e49b.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/bb7e0835-f80e-40d2-b9cf-bdd9b5035c78.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/3f4f6183-430d-4fd7-8900-a5d1c266bdbe.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/ace84a05-60f4-49f0-9e17-9d98e29e6adb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/b830fdfd-8b5c-4da6-85da-8487f9406941.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/5f9c1b0c-25f4-4728-9371-9ce4e2822364.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/2ba70812-8807-45e1-bfde-7c2c37a630ec.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/fedc20ad-1019-48fc-a4f3-01d0e15e0858.1
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/c205f438-7e19-41b5-aea8-0504e23323f4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/10cbe537-0aa9-45ca-a6bf-cde66d7c4b99.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/fast_carousel/retail/2026-04-15/e1b07c3b-a57b-4628-bcd9-416f9c4a2c0a.jpg
+📦 [BACKGROUND] Processing 18 products after S3 enrichment...
+DEBUG: Found price '$20.000' for https://www.ebay.com/itm/298228299045?_skw=kids+shoes&itmmeta=01KP7ZPTHF4JCY4PFRR6AWVADE&hash=item456fcab525:g:9jsAAeSwO6Vp3y3A&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xDh7ZzFO69oBB6MjJTi6yR4fDJUsQyxREkdEW0A64HDrpNzgIldc0BSUhDtvjm92622slQuuO2P6VV%2FW1%2FA%2FPkaGi68V4O8Vcxcm4OtSfCpIzYZ8yL9PJaKy5m3CTGjZt7Q4UWza2RCyFJrZOzIG20l%2F8Yb%2FsP4qZsjEck1bQq6rDdcl0AjBpa7IiEJemz3vQRYPTW9CYCp3pcAw1u51u0Mp2Fu7BM3k1wFJrvZPJYR3dPwbQM3t4z9wjRK3MJKeFk%3D%7Ctkp%3ABk9SR_6o2_-xZw
+DEBUG: Found price '₹2,754' for https://www.amazon.in/s?k=kids+shoes
+DEBUG: Found price '$53.38' for https://www.ebay.com/itm/115233745303?_skw=kids+shoes&itmmeta=01KP7ZPTHF3FJCMMGCMCP94RWX&hash=item1ad4776997:g:H04AAOSw2KRh-u5z&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xDYvRp4ZG49TFsUxjENyMy96cQsuPmgpF8AKb7UjZwhhAoMmxyKyIap%2Bg%2FdhiYXePhMsERCv7DDE0MdwinHU8TD%2BNC9rA7Lr9GDko%2B4atCgGxaYvgG%2FwR%2Bh0Aq0mTMezuDSf9EXjt%2BfseaJU42e5THuqhi%2FTKS96MP6gQcwBvLkc9dD8EITHVGTB6aHhGyxEFP1RXiZRJRhWQ4BjX%2BbniRPx9%2BDaLaRJIKjSD6WVpu1w35n2b3q4O%2FIO%2FvnXFGjzsM%3D%7Ctkp%3ABlBMUP6o2_-xZw
+DEBUG: Found price '₹795' for https://www.amazon.in/s?k=kids+shoes
+DEBUG: Found price '$89.99' for https://www.ebay.com/itm/366197553855?_skw=kids+shoes&itmmeta=01KP7ZPTHF30Y8TD3J1TSG91D1&hash=item5543133abf:g:PRMAAeSw-fVpjq4p&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xC6vSsj3lVM6hLqo%2Fdl6FFGK8QwQW%2BB7nov6AH%2Fry10428tmrxq034JbF3wZ1Hp4X1D%2FAwr%2FpEei2AIVwrDCHOfnzumIIqwFZ2pTeduaEUIrw7sKAaiMgeHhLM9HPgs1BzZujIEcP5En9xteNHyjCJd%2FlSHkxSi6SCIEZhCehRuoUfu%2FSDn5dEhQwbCW%2B5ygMBnY%2BQFVGpQ72xNLR50sWAYRQhYFUUlNeoEJrni05AhZw%3D%3D%7Ctkp%3ABlBMUP6o2_-xZw
+DEBUG: Found price '₹730' for https://www.amazon.in/s?k=kids+shoes
+DEBUG: Found price '$115.95' for https://www.ebay.com/itm/144482351958?_skw=kids+shoes&epid=13059762474&itmmeta=01KP7ZPTHFVK7N2KJ3HHQEBEKZ&hash=item21a3d1bb56:g:kFYAAOSwxkxiRJS6&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xAg7BbM08o9Izd2FaHFXtgDpwrzYFlWbXiRKnUwx2oZ3LQnyn8HtBDB2LGDvWtsKMnVSJUGy7XMf7TGKZuabcD9YCKFZmlq5dcVcP3hwT7sHJqxVbRZFGWPYYpAh39d8WPbEMcI1F9EmV4P13kLPHgesRMaWF4imw4UJD%2FBJRirayvw0RO0K%2B2ipjq8YDN2I1dKzTOXme%2BShpnHkQhK7vWEiu%2BFME2ibr28Hb8R9uAoGw%3D%3D%7Ctkp%3ABlBMUP6o2_-xZw
+DEBUG: Found price '₹409' for https://www.amazon.in/s?k=kids+shoes
+DEBUG: Found price '$74.99' for https://www.ebay.com/itm/366197546551?_skw=kids+shoes&itmmeta=01KP7ZPTHFTCSV13E69VRDFXWK&hash=item5543131e37:g:MNEAAeSw8NBpjqsg&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xAWbl3ZoPpRA2y5OtNWCs9rNYfdjOeBoLqsVUFnT34fWlg14TSW%2FoGNG96zjNXPw5IlysCk%2BrRvVM9ItZR2u9w1HymtDzAV5tROxGvL46WhlVmePdmn6Ev1PJRsw8qAswyFkgsjc3yF7EgnT5X0rBlNjxlxm6ZWbZ4gW1kR3gpt9LPj87vawJpduMus43zDtQcE4XRxTD8tNdLUp%2BVhxmCGGZqjsWbeyzcPMVQbEVI8NA%3D%3D%7Ctkp%3ABlBMUP6o2_-xZw
+DEBUG: Found price '$10.000' for https://www.ebay.com/itm/178035639787?_skw=kids+shoes&itmmeta=01KP7ZPTHF29N06F0C4YST968Q&hash=item2973c045eb:g:EXkAAeSwcnFp19f4&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xB2w3YRYPWkrpAMoGGayAvc31u6ac6qgKYdDs9sRYOcMH%2BvwWFHDWfnFbJN2O0jycFizwuKIQ%2FMpRs8XkmCIcoO%2F1t%2FW2Qv5rzr8t%2Fgw63E9K779bVD%2Fysxj226beTwUvOoCkewGgnYsMere2kEKOBjO76jPjCJcyHquWnCnmfZib9xY8%2B4Z2n1FBeCooV9%2FOZnn9dCiphI3pmUXY7mCT%2BwlokbPgKEQPMUJb42n08LnE0mUf%2FL%2FxkwKA7ikOJ%2FVeE%3D%7Ctkp%3ABk9SR_6o2_-xZw
+DEBUG: Found price '₹1,099' for https://www.amazon.in/s?k=kids+shoes
+DEBUG: Found price '$30.00' for https://www.ebay.com/itm/147255785364?_skw=kids+shoes&itmmeta=01KP7ZPTHFR81ZTY7WHYADN03Q&hash=item224920f794:g:884AAeSwYi9p3AIX&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xDnm%2Fx1k0cZUwixIynH4OHImbxNvFimx8bOK0%2BU3MHAVc3wVp5mBsgP5YS8g8xgUojVqVipeOsDpVSmxnBLSMoFOEum%2FBd3SWG03Oci5aQwDMrubhKdUy87Ts2KUWYW0iG0wfUfWRR5xIk9JeauhcgxddqYkjeh5H6pFKRXVixTrwigqY2LIV%2FmXpE%2FBVbgGORva8eBD4s3xg70vCEZH8xfPXkR2CMpCBorwSOJ4mXYYGHf9hHF4XEf4wSZ12RycB7ThLQh%2FibiVhZVlrY5C0QbzRdxEBW1LjUFFpPvD8SUuQ%3D%3D%7Ctkp%3ABk9SR_6o2_-xZw
+DEBUG: Found price '₹508' for https://www.amazon.in/s?k=kids+shoes
+DEBUG: Found price '$60.00' for https://www.ebay.com/itm/318141082888?_skw=kids+shoes&itmmeta=01KP7ZPTHF3HD02TPAD22FPH3C&hash=item4a12afad08:g:voYAAeSwqUtp2~9D&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xDb72qNwTavAJOaiHaUN3oVOfuLM3Ck58chxmYf%2BG9ky8LC%2FYQMb3hA1W0u9pLqeLSNSzzez3ptzMhTsGB9rfFxpCPSMS%2BKGrBCbx3NYMJRLsnXziw9eDOYcJdNzRN46co6Z7MF839Okbx9SnQ1YTUfHyJ9hYSe5P9mmGmBVunSLCeY5xr0z8C7LHIEImLBU1BVrbKi8497kCezZoGaDvp1zXlu7XG6coPPNezTWw8%2BCWb95Yg34loS0pXF%2FJ%2BjrfE%3D%7Ctkp%3ABk9SR_6o2_-xZw
+DEBUG: Found price 'Check Site' for https://www.vecteezy.com/png/44861276-kids-shoes-isolated
+DEBUG: Found price 'Check Site' for https://roadtekshoes.com/product/girls-kids-shoes/
+DEBUG: Found price 'Check Site' for https://pixabay.com/photos/search/kids shoes/
+DEBUG: Found price 'Check Site' for https://www.alamy.com/stock-photo-kids-shoes-52243421.html
+Batch adding 18 chunks to the vector store...
+Added batch of 18 chunks. Total: 18/18
+✅ [BACKGROUND] Successfully cached 18 products for 'kids shoes'
+
+--- [WORKER] Finished cache_products_task for query: kids shoes ---
+12:42:10:   4.04s ← 70eb97e5edc7422ba1a61929c26efcc6:cache_products_task ● 
+[INIT].... → Crawl4AI 0.8.6 
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/298228299045?_skw=kids+shoes&itmmeta=01KP7ZPTHF4JCY4PFRR6AWVADE&hash=item456fcab525:g:9jsAAeSwO6Vp3y3A&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xDh7ZzFO69oBB6MjJTi6yR4fDJUsQyxREkdEW0A64HDrpNzgIldc0BSUhDtvjm92622slQuuO2P6VV%2FW1%2FA%2FPkaGi68V4O8Vcxcm4OtSfCpIzYZ8yL9PJaKy5m3CTGjZt7Q4UWza2RCyFJrZOzIG20l%2F8Yb%2FsP4qZsjEck1bQq6rDdcl0AjBpa7IiEJemz3vQRYPTW9CYCp3pcAw1u51u0Mp2Fu7BM3k1wFJrvZPJYR3dPwbQM3t4z9wjRK3MJKeFk%3D%7Ctkp%3ABk9SR_6o2_-xZw
+🚀 [CRAWL] Start -> https://www.amazon.in/s?k=kids+shoes
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/115233745303?_skw=kids+shoes&itmmeta=01KP7ZPTHF3FJCMMGCMCP94RWX&hash=item1ad4776997:g:H04AAOSw2KRh-u5z&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xDYvRp4ZG49TFsUxjENyMy96cQsuPmgpF8AKb7UjZwhhAoMmxyKyIap%2Bg%2FdhiYXePhMsERCv7DDE0MdwinHU8TD%2BNC9rA7Lr9GDko%2B4atCgGxaYvgG%2FwR%2Bh0Aq0mTMezuDSf9EXjt%2BfseaJU42e5THuqhi%2FTKS96MP6gQcwBvLkc9dD8EITHVGTB6aHhGyxEFP1RXiZRJRhWQ4BjX%2BbniRPx9%2BDaLaRJIKjSD6WVpu1w35n2b3q4O%2FIO%2FvnXFGjzsM%3D%7Ctkp%3ABlBMUP6o2_-xZw
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/366197553855?_skw=kids+shoes&itmmeta=01KP7ZPTHF30Y8TD3J1TSG91D1&hash=item5543133abf:g:PRMAAeSw-fVpjq4p&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xC6vSsj3lVM6hLqo%2Fdl6FFGK8QwQW%2BB7nov6AH%2Fry10428tmrxq034JbF3wZ1Hp4X1D%2FAwr%2FpEei2AIVwrDCHOfnzumIIqwFZ2pTeduaEUIrw7sKAaiMgeHhLM9HPgs1BzZujIEcP5En9xteNHyjCJd%2FlSHkxSi6SCIEZhCehRuoUfu%2FSDn5dEhQwbCW%2B5ygMBnY%2BQFVGpQ72xNLR50sWAYRQhYFUUlNeoEJrni05AhZw%3D%3D%7Ctkp%3ABlBMUP6o2_-xZw
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/144482351958?_skw=kids+shoes&epid=13059762474&itmmeta=01KP7ZPTHFVK7N2KJ3HHQEBEKZ&hash=item21a3d1bb56:g:kFYAAOSwxkxiRJS6&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xAg7BbM08o9Izd2FaHFXtgDpwrzYFlWbXiRKnUwx2oZ3LQnyn8HtBDB2LGDvWtsKMnVSJUGy7XMf7TGKZuabcD9YCKFZmlq5dcVcP3hwT7sHJqxVbRZFGWPYYpAh39d8WPbEMcI1F9EmV4P13kLPHgesRMaWF4imw4UJD%2FBJRirayvw0RO0K%2B2ipjq8YDN2I1dKzTOXme%2BShpnHkQhK7vWEiu%2BFME2ibr28Hb8R9uAoGw%3D%3D%7Ctkp%3ABlBMUP6o2_-xZw
+🚀 [CRAWL] Start -> https://www.ebay.com/itm/366197546551?_skw=kids+shoes&itmmeta=01KP7ZPTHFTCSV13E69VRDFXWK&hash=item5543131e37:g:MNEAAeSw8NBpjqsg&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xAWbl3ZoPpRA2y5OtNWCs9rNYfdjOeBoLqsVUFnT34fWlg14TSW%2FoGNG96zjNXPw5IlysCk%2BrRvVM9ItZR2u9w1HymtDzAV5tROxGvL46WhlVmePdmn6Ev1PJRsw8qAswyFkgsjc3yF7EgnT5X0rBlNjxlxm6ZWbZ4gW1kR3gpt9LPj87vawJpduMus43zDtQcE4XRxTD8tNdLUp%2BVhxmCGGZqjsWbeyzcPMVQbEVI8NA%3D%3D%7Ctkp%3ABlBMUP6o2_-xZw
+[FETCH]... ↓ https://www.amazon.in/s?k=kids+shoes                               
+| ✓ | ⏱: 12.58s 
+[SCRAPE].. ◆ https://www.amazon.in/s?k=kids+shoes                               
+| ✓ | ⏱: 19.20s 
+[COMPLETE] ● https://www.amazon.in/s?k=kids+shoes                               
+| ✓ | ⏱: 32.03s 
+Successfully crawled: https://www.amazon.in/s?k=kids+shoes
+Successfully archived data to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/www_amazon_in/markdown/2026-04-15/raw_266842a3.md
+DEBUG: Smart Start triggered at index 605
+DEBUG: Extraction LLM call start (content length: 39069)
+[FETCH]... ↓ 
+https://www.ebay.com/itm/366197546551?_skw=kids+...hxmCGGZqjsWbeyzcPMVQbEVI8NA==
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 33.29s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/366197546551?_skw=kids+...hxmCGGZqjsWbeyzcPMVQbEVI8NA==
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 2.05s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/366197546551?_skw=kids+...hxmCGGZqjsWbeyzcPMVQbEVI8NA==
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 35.54s 
+Successfully crawled: https://www.ebay.com/itm/366197546551?_skw=kids+shoes&itmmeta=01KP7ZPTHFTCSV13E69VRDFXWK&hash=item5543131e37:g:MNEAAeSw8NBpjqsg&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xAWbl3ZoPpRA2y5OtNWCs9rNYfdjOeBoLqsVUFnT34fWlg14TSW%2FoGNG96zjNXPw5IlysCk%2BrRvVM9ItZR2u9w1HymtDzAV5tROxGvL46WhlVmePdmn6Ev1PJRsw8qAswyFkgsjc3yF7EgnT5X0rBlNjxlxm6ZWbZ4gW1kR3gpt9LPj87vawJpduMus43zDtQcE4XRxTD8tNdLUp%2BVhxmCGGZqjsWbeyzcPMVQbEVI8NA%3D%3D%7Ctkp%3ABlBMUP6o2_-xZw
+Successfully archived data to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/www_ebay_com/markdown/2026-04-15/raw_ed10b4d4.md
+DEBUG: Smart Start triggered at index 2212
+DEBUG: Extraction LLM call start (content length: 15225)
+[FETCH]... ↓ 
+https://www.ebay.com/itm/115233745303?_skw=kids+...WVpu1w35n2b3q4O/IO/vnXFGjzsM=
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 39.71s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/115233745303?_skw=kids+...WVpu1w35n2b3q4O/IO/vnXFGjzsM=
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 3.09s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/115233745303?_skw=kids+...WVpu1w35n2b3q4O/IO/vnXFGjzsM=
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 43.19s 
+Successfully crawled: https://www.ebay.com/itm/115233745303?_skw=kids+shoes&itmmeta=01KP7ZPTHF3FJCMMGCMCP94RWX&hash=item1ad4776997:g:H04AAOSw2KRh-u5z&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xDYvRp4ZG49TFsUxjENyMy96cQsuPmgpF8AKb7UjZwhhAoMmxyKyIap%2Bg%2FdhiYXePhMsERCv7DDE0MdwinHU8TD%2BNC9rA7Lr9GDko%2B4atCgGxaYvgG%2FwR%2Bh0Aq0mTMezuDSf9EXjt%2BfseaJU42e5THuqhi%2FTKS96MP6gQcwBvLkc9dD8EITHVGTB6aHhGyxEFP1RXiZRJRhWQ4BjX%2BbniRPx9%2BDaLaRJIKjSD6WVpu1w35n2b3q4O%2FIO%2FvnXFGjzsM%3D%7Ctkp%3ABlBMUP6o2_-xZw
+Successfully archived data to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/www_ebay_com/markdown/2026-04-15/raw_7cd61375.md
+DEBUG: Smart Start triggered at index 2311
+DEBUG: Extraction LLM call start (content length: 17247)
+[FETCH]... ↓ 
+https://www.ebay.com/itm/298228299045?_skw=kids+...ZPJYR3dPwbQM3t4z9wjRK3MJKeFk=
+|tkp:Bk9SR_6o2_-xZw  | ✓ | ⏱: 44.85s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/298228299045?_skw=kids+...ZPJYR3dPwbQM3t4z9wjRK3MJKeFk=
+|tkp:Bk9SR_6o2_-xZw  | ✓ | ⏱: 1.96s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/298228299045?_skw=kids+...ZPJYR3dPwbQM3t4z9wjRK3MJKeFk=
+|tkp:Bk9SR_6o2_-xZw  | ✓ | ⏱: 47.02s 
+Successfully crawled: https://www.ebay.com/itm/298228299045?_skw=kids+shoes&itmmeta=01KP7ZPTHF4JCY4PFRR6AWVADE&hash=item456fcab525:g:9jsAAeSwO6Vp3y3A&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xDh7ZzFO69oBB6MjJTi6yR4fDJUsQyxREkdEW0A64HDrpNzgIldc0BSUhDtvjm92622slQuuO2P6VV%2FW1%2FA%2FPkaGi68V4O8Vcxcm4OtSfCpIzYZ8yL9PJaKy5m3CTGjZt7Q4UWza2RCyFJrZOzIG20l%2F8Yb%2FsP4qZsjEck1bQq6rDdcl0AjBpa7IiEJemz3vQRYPTW9CYCp3pcAw1u51u0Mp2Fu7BM3k1wFJrvZPJYR3dPwbQM3t4z9wjRK3MJKeFk%3D%7Ctkp%3ABk9SR_6o2_-xZw
+Successfully archived data to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/www_ebay_com/markdown/2026-04-15/raw_0d6c90c3.md
+DEBUG: Smart Start triggered at index 2289
+DEBUG: Extraction LLM call start (content length: 10222)
+[FETCH]... ↓ 
+https://www.ebay.com/itm/366197553855?_skw=kids+...0sWAYRQhYFUUlNeoEJrni05AhZw==
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 47.51s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/366197553855?_skw=kids+...0sWAYRQhYFUUlNeoEJrni05AhZw==
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 1.77s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/366197553855?_skw=kids+...0sWAYRQhYFUUlNeoEJrni05AhZw==
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 49.52s 
+Successfully crawled: https://www.ebay.com/itm/366197553855?_skw=kids+shoes&itmmeta=01KP7ZPTHF30Y8TD3J1TSG91D1&hash=item5543133abf:g:PRMAAeSw-fVpjq4p&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xC6vSsj3lVM6hLqo%2Fdl6FFGK8QwQW%2BB7nov6AH%2Fry10428tmrxq034JbF3wZ1Hp4X1D%2FAwr%2FpEei2AIVwrDCHOfnzumIIqwFZ2pTeduaEUIrw7sKAaiMgeHhLM9HPgs1BzZujIEcP5En9xteNHyjCJd%2FlSHkxSi6SCIEZhCehRuoUfu%2FSDn5dEhQwbCW%2B5ygMBnY%2BQFVGpQ72xNLR50sWAYRQhYFUUlNeoEJrni05AhZw%3D%3D%7Ctkp%3ABlBMUP6o2_-xZw
+Successfully archived data to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/www_ebay_com/markdown/2026-04-15/raw_b0d668e0.md
+DEBUG: Smart Start triggered at index 2185
+DEBUG: Extraction LLM call start (content length: 15331)
+[FETCH]... ↓ 
+https://www.ebay.com/itm/144482351958?_skw=kids+...K7vWEiu+FME2ibr28Hb8R9uAoGw==
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 50.23s 
+[SCRAPE].. ◆ 
+https://www.ebay.com/itm/144482351958?_skw=kids+...K7vWEiu+FME2ibr28Hb8R9uAoGw==
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 1.84s 
+[COMPLETE] ● 
+https://www.ebay.com/itm/144482351958?_skw=kids+...K7vWEiu+FME2ibr28Hb8R9uAoGw==
+|tkp:BlBMUP6o2_-xZw  | ✓ | ⏱: 52.29s 
+Successfully crawled: https://www.ebay.com/itm/144482351958?_skw=kids+shoes&epid=13059762474&itmmeta=01KP7ZPTHFVK7N2KJ3HHQEBEKZ&hash=item21a3d1bb56:g:kFYAAOSwxkxiRJS6&itmprp=enc%3AAQALAAAAwGfYFPkwiKCW4ZNSs2u11xAg7BbM08o9Izd2FaHFXtgDpwrzYFlWbXiRKnUwx2oZ3LQnyn8HtBDB2LGDvWtsKMnVSJUGy7XMf7TGKZuabcD9YCKFZmlq5dcVcP3hwT7sHJqxVbRZFGWPYYpAh39d8WPbEMcI1F9EmV4P13kLPHgesRMaWF4imw4UJD%2FBJRirayvw0RO0K%2B2ipjq8YDN2I1dKzTOXme%2BShpnHkQhK7vWEiu%2BFME2ibr28Hb8R9uAoGw%3D%3D%7Ctkp%3ABlBMUP6o2_-xZw
+Successfully archived data to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/www_ebay_com/markdown/2026-04-15/raw_8b5acf98.md
+DEBUG: Smart Start triggered at index 2285
+DEBUG: Extraction LLM call start (content length: 18023)
+12:51:40:   0.08s → f3a2ae48a14b4a3e9a53802395d68610:admin_ingest_url_task(batch_id='batch_1776237700_cd268d', max_pages=10, url='https://godropship.co.uk')
+--- [WORKER] Starting admin_ingest_url_task for Batch: batch_1776237700_cd268d, URL: https://godropship.co.uk ---
+12:51:41:   0.55s → 5e08e2a601df461e9566549d5a0db9ed:admin_ingest_url_task(batch_id='batch_1776237700_cd268d', max_pages=10, url='https://ebebek.co.uk')
+--- [WORKER] Starting admin_ingest_url_task for Batch: batch_1776237700_cd268d, URL: https://ebebek.co.uk ---
+[INIT].... → Crawl4AI 0.8.6 
+[INIT].... → Crawl4AI 0.8.6 
+[FETCH]... ↓ https://godropship.co.uk                                           
+| ✓ | ⏱: 10.59s 
+[SCRAPE].. ◆ https://godropship.co.uk                                           
+| ✓ | ⏱: 8.74s 
+[COMPLETE] ● https://godropship.co.uk                                           
+| ✓ | ⏱: 19.43s 
+Successfully crawled: https://godropship.co.uk
+[FETCH]... ↓ https://ebebek.co.uk                                               
+| ✓ | ⏱: 20.05s 
+[SCRAPE].. ◆ https://ebebek.co.uk                                               
+| ✓ | ⏱: 0.89s 
+[COMPLETE] ● https://ebebek.co.uk                                               
+| ✓ | ⏱: 21.19s 
+Successfully crawled: https://ebebek.co.uk
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9b451ccc-8045-4e1a-883c-0f29b3b209c9.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8ef2650c-0bae-41ef-9dd9-1b53c0bc23c6.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/13dcd304-71bc-4da4-b25f-430770ce35e5.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/464d528c-8a95-47d1-8567-704bbecf7fff.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8cd7243d-c36f-4e85-b1d3-17132dc8ab08.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f6308ab8-7e75-4d65-aa09-a515751a19c4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6169fd95-6e98-4b75-97de-c7d6ebad584e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6e8cb992-7fe0-4c75-a9e7-a534516696b8.jpg
+[FETCH]... ↓ 
+https://ebebek.co.uk/customer_authentication/redirect?locale=en&region_country=G
+B                    | ✓ | ⏱: 5.72s 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/64470871-bbcb-4064-88a5-b764c5eccd01.jpg
+[SCRAPE].. ◆ 
+https://ebebek.co.uk/customer_authentication/redirect?locale=en&region_country=G
+B                    | ✓ | ⏱: 0.05s 
+[COMPLETE] ● 
+https://ebebek.co.uk/customer_authentication/redirect?locale=en&region_country=G
+B                    | ✓ | ⏱: 5.82s 
+Successfully crawled: https://ebebek.co.uk/customer_authentication/redirect?locale=en&region_country=GB
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1eb73517-1f98-4709-aba4-2c689f453741.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/53f808db-a772-4ed9-aff4-c0fa0a809452.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b52483b8-1655-42ed-ae30-17e392bc04f6.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1bbcdec5-39a6-47d5-9682-210821c4122f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/05c281a6-09a5-4fbc-9882-d03d83ea7249.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9744a0b6-daa4-4ac4-b9d8-f9c8cf39e014.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/18b0bc71-082f-46d4-98f2-21901b11ec40.jpg
+[FETCH]... ↓ https://ebebek.co.uk/                                              
+| ✓ | ⏱: 11.60s 
+[SCRAPE].. ◆ https://ebebek.co.uk/                                              
+| ✓ | ⏱: 1.09s 
+[COMPLETE] ● https://ebebek.co.uk/                                              
+| ✓ | ⏱: 12.86s 
+Successfully crawled: https://ebebek.co.uk/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3f11b5ee-08f6-451a-874e-268fa82f5607.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/39d1ceb8-824b-46bd-b6cc-b2c6228dd039.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8c4d8b88-8548-4c44-8e8b-63302a4aad81.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3137265a-b466-4558-95d5-cccd4a2250ac.jpg
+[FETCH]... ↓ https://ebebek.co.uk/collections/march-gear/                       
+| ✓ | ⏱: 15.57s 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/648bce2b-bd4b-4328-8038-bdf93aa1c0b9.jpg
+[SCRAPE].. ◆ https://ebebek.co.uk/collections/march-gear/                       
+| ✓ | ⏱: 1.62s 
+[COMPLETE] ● https://ebebek.co.uk/collections/march-gear/                       
+| ✓ | ⏱: 17.47s 
+Successfully crawled: https://ebebek.co.uk/collections/march-gear/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/84ccede1-bdde-466b-bf9d-0dfe92116173.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c556fbe9-595e-464a-a6a9-e19276f88a4b.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2d71de47-a4e2-4abd-97f1-1a145326193e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/62b1a4c4-b4ba-4774-b65e-9429125b0cba.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/150c895b-f837-465e-96ce-3ccd857a51ae.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9b175ff8-aea4-43ee-b2df-074979cbf273.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7d98abeb-800b-48dc-864f-780a27ab6dd2.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f61fa056-8ab9-415f-ada9-4763969e628b.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e370314d-f1ea-4280-9ac6-9d4b6c514a8e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2f999003-5d5b-4996-ac76-fd28f539ef35.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f6914dc5-f102-49df-874e-05041a188d76.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9c863e8a-c79b-43ce-ba30-398b86748da4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e5918b4c-b681-412f-8d17-aeba6b9355fb.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/04429aa7-9616-4990-a9d5-0ceb6034375d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4368502d-86ff-4410-ad93-a4840a9ee0f7.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3cc87122-1e7d-4ff1-909d-7e099742c8e7.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a237079e-0e6b-4b91-877a-66fc1557a569.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d334889a-09e2-41a3-84c8-bb82e0538082.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/16bfebb4-4924-4497-96c8-91c21d87a9de.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/96db6de1-9bd7-42c9-b86f-dd2ca83fa0a8.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/04fdef0f-664b-4b2f-b24f-c9f478630d72.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/89de42e1-1003-40c3-9a76-3875e0abab51.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1287a893-72fd-47d4-8e85-836d9591e141.png
+[FETCH]... ↓ https://ebebek.co.uk/collections/twin-prams-pushchairs/            
+| ✓ | ⏱: 14.25s 
+[SCRAPE].. ◆ https://ebebek.co.uk/collections/twin-prams-pushchairs/            
+| ✓ | ⏱: 3.23s 
+[COMPLETE] ● https://ebebek.co.uk/collections/twin-prams-pushchairs/            
+| ✓ | ⏱: 17.77s 
+Successfully crawled: https://ebebek.co.uk/collections/twin-prams-pushchairs/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/60b15104-c4fb-4e8c-b7b9-ee9ce702fc96.jpg
+[FETCH]... ↓ https://ebebek.co.uk/collections/pushchairs-prams/                 
+| ✓ | ⏱: 19.35s 
+[SCRAPE].. ◆ https://ebebek.co.uk/collections/pushchairs-prams/                 
+| ✓ | ⏱: 2.82s 
+[COMPLETE] ● https://ebebek.co.uk/collections/pushchairs-prams/                 
+| ✓ | ⏱: 22.42s 
+Successfully crawled: https://ebebek.co.uk/collections/pushchairs-prams/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1a1599e4-9872-4574-bde2-d25b6e062f35.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/91b306b2-f84b-4948-928f-e840c6bc7b9a.jpg
+[FETCH]... ↓ https://ebebek.co.uk/collections/pushchairs-car-seats/             
+| ✓ | ⏱: 24.37s 
+[SCRAPE].. ◆ https://ebebek.co.uk/collections/pushchairs-car-seats/             
+| ✓ | ⏱: 3.39s 
+[COMPLETE] ● https://ebebek.co.uk/collections/pushchairs-car-seats/             
+| ✓ | ⏱: 28.02s 
+Successfully crawled: https://ebebek.co.uk/collections/pushchairs-car-seats/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2659379b-4125-429e-ac9a-60c8fd249c09.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5bdb01e3-79c6-4356-88af-c0473e0a572f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e6c3b792-7077-43e7-85be-e0931ff90674.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a9561c30-d5d0-4a24-aa97-38f8f88634da.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1d1f7291-8416-44e2-ba60-8a7b8cbd6328.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c7559cf7-c596-4133-8b63-bf70134885b1.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4fcb84ec-b69e-4bee-a237-e6e5018f0715.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5e9fb6fd-5cd6-4b1c-bf94-58bded6255ca.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1a6fc9fd-f35f-4f46-a8e5-befd22684c6b.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1ad0c691-3ab9-4792-adbb-1385da25310e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a5ee8830-e9d7-4fc7-bc4c-3827f788afcf.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f63e0f24-1225-4761-aaf8-948db0498ed9.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2d8d80fa-4a2f-43a8-bd2b-273bcd51ef9d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/19c69ff1-9b89-4484-a39f-236c00bea4a1.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a3bede38-f1ab-4ae8-bf80-ca9e2c2e45fb.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/58a55c31-1898-4bb5-9f35-f35297c1cf63.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bae46e64-af2c-4541-9a52-649eeb6e8c78.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9da85f42-0a91-40ec-b680-e0c146aa5774.jpg
+[FETCH]... ↓ https://ebebek.co.uk/collections/bouncers-walkers-swings/          
+| ✓ | ⏱: 14.57s 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/18c34080-2728-43c1-8182-f1d8ea1a8ccf.jpg
+[SCRAPE].. ◆ https://ebebek.co.uk/collections/bouncers-walkers-swings/          
+| ✓ | ⏱: 2.00s 
+[COMPLETE] ● https://ebebek.co.uk/collections/bouncers-walkers-swings/          
+| ✓ | ⏱: 16.69s 
+Successfully crawled: https://ebebek.co.uk/collections/bouncers-walkers-swings/
+[FETCH]... ↓ https://ebebek.co.uk/collections/car-seats/                        
+| ✓ | ⏱: 17.30s 
+[SCRAPE].. ◆ https://ebebek.co.uk/collections/car-seats/                        
+| ✓ | ⏱: 2.98s 
+[COMPLETE] ● https://ebebek.co.uk/collections/car-seats/                        
+| ✓ | ⏱: 20.40s 
+Successfully crawled: https://ebebek.co.uk/collections/car-seats/
+[FETCH]... ↓ https://ebebek.co.uk/collections/highchairs/                       
+| ✓ | ⏱: 20.22s 
+[SCRAPE].. ◆ https://ebebek.co.uk/collections/highchairs/                       
+| ✓ | ⏱: 2.01s 
+[COMPLETE] ● https://ebebek.co.uk/collections/highchairs/                       
+| ✓ | ⏱: 22.36s 
+Successfully crawled: https://ebebek.co.uk/collections/highchairs/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ebf9e193-973f-4910-bdfb-23ab7465b8a3.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/199e9551-07d2-4ecc-9e38-33dffa9836b2.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/01cbcf73-0a6e-4d3f-b682-fa9ea4f34b34.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6cc83ff9-a3a3-47d5-8c01-1d2691d79caa.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/95cac2ac-72fa-41f2-8d7a-8a2a2197addd.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/93fdbab0-534e-4714-b91b-d0b4d8bc8316.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7be09bc4-5b7a-4160-a5f9-f52cbd771b35.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1259c973-fe05-455d-9856-f231dace9692.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ddb562cc-4db2-474d-bb73-a5144b0e9e9f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8a1e6729-4229-4be2-abb0-2c8b825bc201.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3695ffed-ee95-4aaa-8d79-c4de81f7a70c.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3168667d-317b-411f-8086-527101a8ee63.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f80cf9f5-e32d-4d0e-b3c4-86fd448a3231.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/43919301-fae8-46e1-bf07-08a030c918cd.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/34ad8a45-bef9-4f80-ae32-871c1fe7150d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1417aebe-bc3b-4520-9b17-9871a6bd95a2.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b03526d0-1302-4ca3-b7fe-f78f553d7dc5.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a990b57f-abcb-4316-af49-ab1e5f527bcc.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4db44278-acdc-4036-be56-edea5e17379a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/47b5add0-44cc-4c5f-b41c-ad947254af54.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8132f17c-c8de-49da-a0fc-6c412f624914.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1b9cd951-56f2-44db-a018-2f2fae781164.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e1e846e2-8aa9-46df-a3d3-6c54c094d35c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4857e0db-6d66-4b2b-8316-a3b1da92de34.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b7a79cbe-a298-4b1c-809a-546263b7b549.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b80ccabf-5e75-44e8-b646-202f82274415.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/96f2ec1b-a612-482b-ab1d-24f6bd590b7d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d9b37092-acaf-43eb-9359-4309ab21164d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b04bebd8-2344-4975-b5b9-28c30d6862ac.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e958a984-2ac3-4710-b68d-ffc8acc1e466.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f66f2a9e-ce99-4f38-9995-a90afb17cf3d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3e58efc6-33a8-4e59-8311-c621aa13eb5f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/282a8f4a-81f0-405f-9949-b9e1465333a9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/257af29c-9790-4bc6-9e07-749646ac27ff.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5b1fb5fe-c669-44e6-92f1-4e9449d9b66a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/638b7f18-d435-4f97-9496-bc5b2952762f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/002be0ad-0334-4ab3-868e-0eec1dfe8202.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/921b33fd-a085-4dfa-b7a6-9f7e5fb8ab9a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/87acd978-0000-440a-b80f-8aef0c2e089e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c86175c1-8e53-4871-9907-e8e8322a9bb0.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/83b45f57-3633-44c8-bd58-d1a6b0e20055.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ee14eeb1-8f64-4e1e-9100-6ad2ee6297a0.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/87ee03e5-a02f-4b78-aa45-40467fca09e1.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/981e1a3b-2c2d-421c-bbfc-30829f7a1d86.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6c3b59f4-9923-404d-a428-bf2e2262851c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/37960fe6-e42f-435a-854e-ba55777f3900.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5cbb3750-30e8-4c5f-ae41-ed6951e0f77c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6eb79859-6e4e-43e6-8ece-0d1af9cf0bdd.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e21edc63-f2a2-4fe1-a189-f10a2d9d7b4f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0f6f7308-d36a-402e-90e8-3fc5d07a618e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9a3eff46-2023-4965-a181-1ea11fb1b49d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/99af48c3-ff42-43ff-b37b-3da0d2723425.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a448d1bc-711e-4fb5-be59-a945aac674b5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/eeba52bc-545c-49c4-9aef-d375b0e6bf34.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c98848e4-08fb-497a-a676-a80f9bcc83a2.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/cf691944-cdca-45aa-938a-bdc529dd5800.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/97be5cde-7ef0-4ceb-a504-f5c2404ed947.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/27a1b179-464e-4983-aa83-f68af1b3c7cf.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/797758ac-f88b-4a95-9666-5a81074b72bc.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/77f72924-c729-4d5a-9d5f-3966f8681077.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5006dec8-46ec-469b-b8bc-b55f05ea2c33.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9f9812e4-1004-4505-b250-33c06980dae4.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ba3ad4c0-d361-4139-a550-fb197530584e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0edea34c-663e-483f-ade9-5bc601fd272f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e92e5101-326d-473c-a792-f2b5a09a6c8d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3f4900a2-5783-406f-857f-26f0a49becde.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d42765fb-bc80-4b72-8b03-a1425495eabd.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/331a2402-1362-41cb-a189-9fea5ce97b7d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5c2b0f91-b406-4d87-a3d0-c693f96509b8.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6c10daa4-305d-4f1d-b752-5ae0ee2e0532.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3b5255e1-f635-4377-b737-52de76377bbc.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2ae4a930-68b7-4405-a1bb-85d8898e57fa.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/70802461-840d-4dd4-8e67-fe5465dcd1bc.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0a5914f9-a0e5-44eb-b9ff-e14c0759c06b.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/357bcb62-bac9-4ed8-9b26-8cce4f29edb3.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9c2fdde4-6ee2-4551-8b1e-4f5f26621574.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/45657d10-26d4-4779-bc1a-42b0d342bc00.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3b5f0df5-5ef9-4e1c-8694-fe5d39d867c7.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9f3c1fa8-8db5-4ef9-9d38-a668a6dfaa38.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/388972d9-600f-4ced-af99-e949f01ed36d.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e1ff2aaf-6c11-4025-82ce-27a764cc3b36.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c69a4640-eded-4576-ab7e-6ad8a6b5c3cd.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2f54b2f3-14ac-4abd-a68b-36f4a78fca5e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/be14f738-bc91-4371-9d0a-a032084fb036.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f6555692-4b2e-4c45-9629-ecfc60be368f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/08ccb61e-5260-4f5f-9a08-9f8deb846a93.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ae076696-4cb4-4144-8dfe-11c3c04729d8.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f9bfe379-c1c5-493b-b66f-6e2e90c3f158.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1ccaf735-5bfc-481d-8156-925824e2841c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9919bc1b-6c34-418d-a7ad-55a5f5a5bc36.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/52a5ddce-50a7-45ae-963c-e9898abb63ba.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/68fa5e6d-f3e1-46fb-9ad6-9a604b6cfafb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bc9bfd0c-9f05-4ca5-a525-41e1bb68ce98.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6bd3ed56-3344-4599-a7cc-269d86865db2.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4f3056d5-f8cb-4fef-8c88-e13ba735487d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7bd96dc4-cb22-4c11-98de-087c492760ea.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8b72f7f6-9244-4351-a10b-334922ff98a1.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3468b2ff-3c8f-42d4-b2e8-267e78b55e26.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ccd94b0a-b732-441c-b2e0-b9e63dc176ad.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d6a70259-4b58-499f-9eec-999211135391.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bc331b75-74b1-43a6-9903-b8f937844914.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3d66a54c-2624-40fc-b4ed-8f6edd5a5a80.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2425ecd5-35ef-45e7-8216-13b8b7f68bbe.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/afb0ade5-d700-4c2b-a804-34a04caf0ab0.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2e40c349-3e7f-4055-9e9f-503f3348a203.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/37554011-8edf-4c11-816c-4aefb5d663f4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0a0a0f17-12d4-428b-9251-d7698a123b29.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/31efe47e-4366-406a-aab7-79824110c1c6.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9ffef1a4-bc76-4f81-b25d-c493b97703fb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/989df28e-a994-4751-9985-b9478ee9e3ac.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1d8810ce-0e5b-4132-af51-b0b5748e1a89.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bfbab4bd-f416-42a3-bda8-a6edcf631968.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b5dacf49-9a66-42b1-be44-2308aee49872.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e154af3b-f095-4958-8b47-4cc94efa3c4d.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8a782728-c032-4464-bd2d-2aaccd535a04.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d0bf47ec-0bd2-49f6-be6b-0a59874468c2.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ad557bf7-d1c1-459e-ba9e-834692a07bfa.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8b1e9d39-145f-4b76-88ff-16aa84142b4f.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a16942d6-4586-42e9-833d-7ed12c4d4251.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f18de0e9-a07e-4f2f-ae14-220961805b43.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a7fa7ec5-c6dc-409c-81c5-e79cccfea3f9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/fb182581-f221-4e2c-95e3-e9006c581bd3.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/65af9648-a250-469d-bf80-ecbffdb53435.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e2595332-664d-4c10-a7c4-d27afd3659e2.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4b38304c-3890-4097-93fa-cd8cc94d3595.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5724f81a-ee70-4b9c-b3c5-5f461a793d55.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3b2cbfa5-040d-44a8-ad31-333ce4ca591c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/47383ead-388c-4ec4-b1cb-743585b0235d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5b6c0a72-1ca8-4485-9a63-b4f7bfaff49a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/926cbea2-6342-44a9-9109-911088332f9c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2f390a8f-f727-472a-9de8-fe57e239a49a.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0e71c2c0-ebe5-43b3-97c8-6abf11c8959f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5fe3436e-6cf8-4c12-960a-9218897ae9d9.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c359d40d-321a-4d4c-85ae-799f35b878fc.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/90c4dfa0-461b-4d8e-ada6-d92d78df96e3.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7da60b12-286d-48ed-bc0b-ab2701cb6f38.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d57446d0-26aa-4f5f-93d1-c322127b365e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6e0ca20f-57f1-4157-a2fa-11acc7750e88.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/43ee2b90-0777-4832-b358-b1651f2d4a2f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/cfdbb1fd-5d5e-452a-abea-652f254209c1.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2166c32a-e644-4278-ac19-e1343b6e4598.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/42ae3b32-0a2b-40f3-80e0-b8e372dd03fd.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/07be9e0a-184b-4d2e-ae7b-4516656d578f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/296de538-b44b-4c9c-b6d7-bd735f9ef82c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e08247eb-f307-45d0-b126-697b25f9751b.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/028559d5-53c2-4d9e-9938-2dccea01436c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/253c4f36-dbae-4c85-a326-df7198cdcbd6.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7421d1d4-eaa5-4f7d-ba93-ffb3cd28ccd5.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/59120f70-6d92-46d7-a155-46a2199756d0.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c9bac0f2-598d-4f25-9f68-7a2b86d8bcb1.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/408ba2cf-610a-4edf-b7a7-26430cdf50a0.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2585bc89-5c85-4479-abd5-753d4f599411.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/93f5179f-e419-4d6a-aed7-07ccd558d954.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0145f472-a508-43e4-a65a-b0fcbfcae7c1.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/970bacf1-73ad-4ba8-b2ec-a6a8c59646d8.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/858bbf47-f0a2-4e1a-9d0b-2107b85bc47c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6596a8a2-6758-4bda-bcfd-dd800f01353a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c983cdb3-3ff2-4e70-9d4b-1872d3f08ce6.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c8c03b4e-542d-4e8a-ab3f-4fbb2b5b37c5.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/df43ae46-44df-45a6-902f-1d3f25192bd3.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/47da4d0d-eaa4-479a-b25f-8dca56c8e88c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/845ca80d-1ed1-4aba-b71b-7938bd43c735.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/38315e01-eba1-4bcf-8b14-590243e65875.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e74aa8c6-c1a5-44f1-8a31-51bd0f272999.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/57600812-dabd-47b4-9e39-a5019e2470b2.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2ec5d2c9-7bcc-4738-808d-efad56a12ba2.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/509b2255-f4a4-48bb-94e0-0c50ff0dc56c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4fb4b2d2-1858-42ce-925b-cb02e637d79e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/dda8ce17-48aa-44e1-962d-fcb3dd4934e3.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ac63f99b-f900-43be-8fa7-0000e293ab3f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7fd80f34-95a9-4cb2-8bbe-0665ca9f0ada.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9b5a9268-6115-45fa-8998-476f99b511d2.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/75cb30f6-ea8e-4097-9f89-909c25c03ef6.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7142bec3-be02-4441-b7a1-b3b42963129a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8db42fba-eb69-4a35-9b54-be8de8086c68.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/56ae1b48-a455-4d61-8d6b-87e1efbecb70.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/94806e2b-a6db-4d6c-bd55-ee090fb6696a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2a6bf066-6288-498c-b561-3291b58b5615.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f6106832-5c54-41fa-a706-dca0bf476e42.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/16e5b61c-0ef3-4d4f-bab3-fb2d52d72464.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d100c68f-d48c-4b77-b367-9960b7e9322e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7774e95e-655c-4a2f-8719-cf89e8744638.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a57cc6b0-e7dc-4776-a170-669307ea7af7.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/acce1bb4-62e1-4637-b1bc-f4fb06fa3b35.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3ab54732-a177-40f1-809d-e67f80509c9b.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3b6615fd-f3dd-439a-924f-d5be100804d6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f6daf837-72ab-496b-84d2-fa217387d5f4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bac80811-3e73-423e-8146-308c1a4f1fb9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0ea805ad-c906-405e-81a8-a5104820d5a9.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0f387c59-55af-46e4-b445-5f8b6a8ff06a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/886299cf-2f1a-44d0-be44-5421ddfeb642.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/dcdd0532-2059-4967-8139-8c7133cd5384.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/088fd340-d4bd-4247-a23e-aff245931ce6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/495b6fb7-cd00-4a53-98fb-49b37e8f2ceb.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/accef420-d9d6-499b-8d21-a4b722ec1cfa.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7b58c4b5-3baa-4b29-919b-cb4f91f46c37.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0f452f27-5a9a-4ec5-9168-4fd00f16923e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/df695e6b-3f90-48df-bcf5-e52ea30fe3af.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/481633d2-32e8-4c5c-8b7b-524f2810f35f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/17e2213c-f5c2-46d9-b06e-bde6c51e591c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7289f4a5-5c41-4ee0-9178-8584e4e8a810.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c38e350b-3605-4f21-9db0-c45aebd2b5de.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d074b1ae-b432-4f43-adc4-88591e1b6e2f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/113626c6-9193-4998-9446-4d2f35fb574e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/420a2087-fee4-47cc-be97-c0cc5aa855f5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/296f6271-77d3-42c0-86a2-e7c44f8a634f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f44bf2cf-3a97-4c31-bc0a-750af8de275c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4083219f-9079-4d39-a18a-4be6e2df5a4e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0fab7fb9-c914-4c86-9b8f-aeb061eb08c4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/726749c3-23d7-4c36-9b66-75a35d011d70.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/af8575ff-10ed-4c62-a84a-64b5d2a6e3fe.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b8e9700b-3bf9-42dd-a3ee-7815f69db838.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/27c53edf-f507-4285-bdfe-05f541f1f4e3.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d2c7688f-9a8c-4276-9cdc-0ccecbf5c16f.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c1472013-fa17-49c5-96b1-b33fbca94e17.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ae946a7f-15c4-4091-a573-9bb2e1cc4fe4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7fc8f9cf-95b9-46a6-a866-2a85b3682b7a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d91a1dfb-91cf-4d12-b30d-7ecd1607b3d4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0407f631-131f-4c56-8d00-42506dd575c3.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0f6ce7be-2851-48ed-97ff-9e515b7bf689.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/796a0b88-6513-4825-84e0-9592d594830c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ef180301-085b-458c-badf-816d51efe49c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a2f7e8f6-d669-4c70-a785-4f4735e86d13.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1176aff2-cd77-4646-9df3-9f87c28ff061.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/92c1a314-ec81-4472-a4df-145a9d660b50.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c177ee48-b33f-4eb6-9abd-4a63efd830e6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0519d5c8-507c-46a5-85e9-d2294d2b0d19.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9298a580-9eb7-4f6a-b96f-f2f12589f3f3.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1a9d09fc-7a13-45de-aaf8-16cae7444a8e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/decd40d6-3f1c-40cf-829a-b96c1280c832.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0fabc5e4-b4d0-4f30-86a0-f80c868ab32e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c73db0a9-71ef-45b1-b73a-0d0df5a9e64f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6d4949e5-f3a8-4aad-bdb7-e18553c9fd36.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2ccb2152-440e-4a90-a3a1-dbb548a78a9f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c6885e71-1986-493f-97d2-c739b685a37a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/17cb7013-137a-4d35-aeef-6c8d943c0272.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f3616f4d-e4a2-47bd-99c5-e9424be6bc7f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e5c80b75-c213-4eaa-9c8e-dd0d5ed7ba9c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9c91ca0b-564c-4353-95f4-b8e9113426e6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4aee33fd-ace0-4d38-90e6-2dcf3a7cd42e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d3b9cb0d-8f76-4f7f-b451-113a3e3552b9.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f266cefd-8f3f-4b2a-9e78-b55828fe5d3d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/aad5ac71-dca1-4c25-87a7-74729581bcab.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/705f179d-4296-4a2f-8b0d-d6d044806bc8.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b60b1b2e-b76b-47be-859e-a82ade1f2826.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/95083968-29f5-49b0-98a4-9280d2c70d5f.jpg
+DEBUG: Found price '£7.13' for https://godropship.co.uk
+Batch adding 503 chunks to the vector store...
+Added batch of 500 chunks. Total: 500/503
+Added batch of 3 chunks. Total: 503/503
+--- [WORKER] Finished admin_ingest_url_task for URL: https://godropship.co.uk ---
+12:55:55: 254.54s ← f3a2ae48a14b4a3e9a53802395d68610:admin_ingest_url_task ● 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/47884e1d-e1c4-47bf-83fc-fd14e9b850d5.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d9fc7dd1-2630-4a7f-8d6b-8d5b8a622b49.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/50e41e82-af50-4e6c-bf20-b7ab239e2b22.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6e377cb6-e6ab-4608-b109-1570ab82fd5f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bf7966f4-f977-4196-b573-98f267df231a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1bcfa677-c833-4daf-81ee-05c289476c62.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b65ff61c-0fe3-48f8-93ee-2f3e171d1406.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d088c289-9c62-474b-9c29-48651653ecd5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e8836da5-2eca-4918-9f0c-af260969ba89.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f539379a-905b-4a49-96b9-b56f2acf0da1.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bf9828f5-d2b4-4e70-85df-29489ff1dcad.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d2e37fc3-4a3b-454c-9921-1502263b8b01.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8797f65f-26b2-43ee-b901-1ffeefda62b6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/87579b05-e154-47ce-a241-ce7df810ff1a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8e8fdef4-bd40-4545-b7ba-ff201116fa66.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/49f5b2d0-cfe8-40c5-8fb4-a4b134fbece1.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6fd53473-cf52-4528-8a6e-0a304819bb7f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ac6b5826-41a4-46d7-95bc-dbc025cb97d6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a2e09d71-45d7-4d2f-9f77-139fa70c8bc2.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/397b36a9-474f-4345-b7ea-12dae2b844b3.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/974dc002-1d82-456a-93c7-20a02031a9ab.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/99721ce4-44e9-44b0-b2b9-f41f863b4174.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1b504961-8e61-4ad9-8aaf-a4c94bad5579.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/51020858-e5ea-4743-b1d4-b3380f94f4f5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5c138c69-9d84-4414-a8eb-4c0c1c12691e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/81b34d48-8a97-46a1-910a-e9a06893515d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2c91f5bc-3e3e-485e-8f3f-2899a0bd5aa2.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/653dc92d-82ba-4aa7-a098-76ecad7588e8.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e1432085-89ba-4a0d-be1b-c396309e70bb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4bc9a51f-3a80-4436-be91-7afb5cc7991f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c5d51280-86e3-4b44-ae36-a88387b35a00.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5389fd3d-a52a-4355-a06d-61031bf8c8e1.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0610d757-8734-4a00-b7f6-5ab1333af044.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5a7038ef-05f4-409f-a303-0831da1f8591.jpg
+12:56:34:   0.35s → 1f71b4145c1a4f2694023e42f0f92224:admin_ingest_url_task(batch_id='batch_1776237993_ab8680', max_pages=10, url='https://angelwholesale.c…)
+--- [WORKER] Starting admin_ingest_url_task for Batch: batch_1776237993_ab8680, URL: https://angelwholesale.co.uk ---
+12:56:34:   0.49s → b13653b7edf34d4cb329934900c5e2ac:admin_ingest_url_task(batch_id='batch_1776237993_ab8680', max_pages=10, url='https://avasam.com')
+--- [WORKER] Starting admin_ingest_url_task for Batch: batch_1776237993_ab8680, URL: https://avasam.com ---
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/410724bc-f5be-4bd0-a795-13a51dd0cc8b.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5ccc731a-8060-4a21-a391-91d72291fcc4.webp
+[INIT].... → Crawl4AI 0.8.6 
+[INIT].... → Crawl4AI 0.8.6 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5525a895-55c0-4e1c-a796-6ec206cf89a4.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f976296b-9a36-4012-8398-19096d2c731a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/eb23ba59-78cf-49f0-9752-03fe15b2fc72.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/52e7ef1e-5d57-41e7-a67d-516ba89450de.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8ad5d6b4-a3ce-44dd-9a6b-a2f146f30a6d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0005265f-22d3-48b1-b129-0e73c526a8f0.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/598be537-27eb-45a2-bdb1-afcbaf1aa05f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/82ec4080-22da-469c-8b7b-2d3555799a80.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b81d8dcb-4f81-45e4-a153-702871eddeea.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c9c11b3b-4f31-4f2e-a67c-ed61a3c44790.jpg
+[FETCH]... ↓ https://angelwholesale.co.uk                                       
+| ✓ | ⏱: 10.22s 
+[SCRAPE].. ◆ https://angelwholesale.co.uk                                       
+| ✓ | ⏱: 3.93s 
+[COMPLETE] ● https://angelwholesale.co.uk                                       
+| ✓ | ⏱: 14.33s 
+Successfully crawled: https://angelwholesale.co.uk
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/08a0dfa1-c057-4cf5-b534-2c3f8b2ab2ac.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7b0e37f5-70e2-48ad-9a48-1e00a38bfdae.jpg
+[FETCH]... ↓ https://avasam.com                                                 
+| ✓ | ⏱: 15.73s 
+[SCRAPE].. ◆ https://avasam.com                                                 
+| ✓ | ⏱: 0.76s 
+[COMPLETE] ● https://avasam.com                                                 
+| ✓ | ⏱: 16.65s 
+Successfully crawled: https://avasam.com
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/660970bf-8c96-4309-a09d-2927f7bd1286.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/cc80d2ce-5c85-489f-8cbf-d74d1fe19d10.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/98fb2bc1-4cb3-4479-baaf-5c4378806990.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4aa6aee0-b2a1-4f52-b385-89088e9b088f.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/59128046-d613-4bb9-be03-9ffc28736092.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/effc5cb7-4658-4487-8510-defff1f744d2.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3543e322-f1f2-467c-b6d5-8934522d5ebb.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1efdadc6-c441-4c73-bfe2-868c3fdd8ee4.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f22426eb-1bba-4641-950c-d2612b073b1d.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/36694f7f-8e6c-4494-a331-e454e06c860c.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/157a07dd-a0db-4d4b-859e-23c562a7892e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/985a961d-2555-4b8a-a7c4-0ee04469ca24.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b733a668-833b-4726-be03-4d9c4fa73592.png
+DEBUG: Async image processing error for https://data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAALCAMAAABBPP0LAAAAmVBMVEViZsViZMJiYrf9gnL8eWrlYkjgYkjZYkj8/PujwPybvPz4+PetraBEgfo+fvo3efkydfkqcvj8Y2T8UlL8Q0P8MzP9k4Hz8/Lu7u4DdPj9/VrKysI9fPoDc/EAZ7z7IiLHYkjp6ekCcOTk5OIASbfY/v21takAJrT5Dg6sYkjc3Nn94t2RkYD+y8KeYkjs/v7l5fz0dF22YkjWvcOLAAAAgElEQVR4AR2KNULFQBgGZ5J13KGGKvc/Cw1uPe62eb9+Jr1EUBFHSgxxjP2Eca6AfUSfVlUfBvm1Ui1bqafctqMndNkXpb01h5TLx4b6TIXgwOCHfjv+/Pz+5vPRw7txGWT2h6yO0/GaYltIp5PT1dEpLNPL/SdWjYjAAZtvRPgHJX4Xio+DSrkAAAAASUVORK5CYII=: Invalid port: 'image'
+DEBUG: Async image processing error for https://data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAALCAMAAABBPP0LAAAAt1BMVEWSmb66z+18msdig8La3u+tYX9IaLc7W7BagbmcUW+kqMr/q6n+//+hsNv/lIr/jIGMnNLJyOP9/fyQttT/wb3/////aWn+YWF5kNT0oqz0i4ueqtIZNJjhvt/8gn//WVr/6+rN1+o9RKZwgcMPJpX/VFT9UEn+RUX8Ozv2Ly+FGzdYZrfU1e/8LS/lQkG/mbVUX60AE231hHtcdMb0mp3qYFTFwNu3w9prcqSURGNDaaIUMX5FNW5wYt7AAAAAjklEQVR4AR3HNUJEMQCGwf+L8RR36ajR+1+CEuvRdd8kK9MNAiRQNgJmVDAt1yM6kSzYVJUsPNssAk5N7ZFKjVNFAY4co6TAOI+kyQm+LFUEBEKKzuWUNB7rSH/rSnvOulOGk+QlXTBqMIrfYX4tSe2nP3iRa/KNK7uTmWJ5a9+erZ3d+18od4ytiZdvZyuKWy8o3UpTVAAAAABJRU5ErkJggg==: Invalid port: 'image'
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d5e89c82-5aff-4c91-ad28-cadcc49ed78b.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4819476b-eb7e-4f8e-bd9e-dfe012c911af.png
+[FETCH]... ↓ https://angelwholesale.co.uk/reviews/                              
+| ✓ | ⏱: 7.44s 
+[SCRAPE].. ◆ https://angelwholesale.co.uk/reviews/                              
+| ✓ | ⏱: 1.77s 
+[COMPLETE] ● https://angelwholesale.co.uk/reviews/                              
+| ✓ | ⏱: 9.34s 
+Successfully crawled: https://angelwholesale.co.uk/reviews/
+[FETCH]... ↓ https://angelwholesale.co.uk/blog/                                 
+| ✓ | ⏱: 9.25s 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/cae8955c-087f-4157-8ae5-1dd2120b8301.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5517ed88-4fce-4825-99b8-e1a50ba5324a.webp
+[SCRAPE].. ◆ https://angelwholesale.co.uk/blog/                                 
+| ✓ | ⏱: 1.61s 
+[COMPLETE] ● https://angelwholesale.co.uk/blog/                                 
+| ✓ | ⏱: 10.96s 
+Successfully crawled: https://angelwholesale.co.uk/blog/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/908f2107-7d96-4ec3-a703-f13b25ff813c.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/11fbb545-9d04-4cc6-a1c2-e60565d68ebb.png
+DEBUG: Found price '$253 minutes' for https://avasam.com
+Batch adding 629 chunks to the vector store...
+Added batch of 500 chunks. Total: 500/629
+Added batch of 129 chunks. Total: 629/629
+--- [WORKER] Finished admin_ingest_url_task for URL: https://avasam.com ---
+12:57:13:  39.28s ← b13653b7edf34d4cb329934900c5e2ac:admin_ingest_url_task ● 
+[FETCH]... ↓ https://angelwholesale.co.uk/                                      
+| ✓ | ⏱: 21.94s 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0a4f6b6d-ea0e-4d50-ac03-13aa5dc91701.webp
+[SCRAPE].. ◆ https://angelwholesale.co.uk/                                      
+| ✓ | ⏱: 2.79s 
+[COMPLETE] ● https://angelwholesale.co.uk/                                      
+| ✓ | ⏱: 24.80s 
+Successfully crawled: https://angelwholesale.co.uk/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/876ba550-b132-4f23-80f8-6a9739386e0a.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/07562b10-f53a-40dd-ab0c-515c0456b6d4.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3142bae5-68ab-4943-87fc-5d9b028baaf6.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/26a9bb8c-a8cb-4114-a405-a6fdf222b46e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5407c47c-78cd-4072-a779-6941f5f77f61.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8d567c1f-f409-46c2-b1bd-edc64af100c2.webp
+[FETCH]... ↓ https://angelwholesale.co.uk/Category/Brands                       
+| ✓ | ⏱: 5.19s 
+[SCRAPE].. ◆ https://angelwholesale.co.uk/Category/Brands                       
+| ✓ | ⏱: 1.41s 
+[COMPLETE] ● https://angelwholesale.co.uk/Category/Brands                       
+| ✓ | ⏱: 6.67s 
+Successfully crawled: https://angelwholesale.co.uk/Category/Brands
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/51c4b4f4-168d-4150-8cf9-2bc7b2ac20ec.jpg
+[FETCH]... ↓ https://angelwholesale.co.uk/Category/All-Occasions                
+| ✓ | ⏱: 7.62s 
+[SCRAPE].. ◆ https://angelwholesale.co.uk/Category/All-Occasions                
+| ✓ | ⏱: 1.26s 
+[COMPLETE] ● https://angelwholesale.co.uk/Category/All-Occasions                
+| ✓ | ⏱: 8.95s 
+Successfully crawled: https://angelwholesale.co.uk/Category/All-Occasions
+[FETCH]... ↓ https://angelwholesale.co.uk/Category/Wholesale-baby-products      
+| ✓ | ⏱: 8.89s 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e78cf663-da41-45b6-9095-1b8285913a89.webp
+[SCRAPE].. ◆ https://angelwholesale.co.uk/Category/Wholesale-baby-products      
+| ✓ | ⏱: 2.36s 
+[COMPLETE] ● https://angelwholesale.co.uk/Category/Wholesale-baby-products      
+| ✓ | ⏱: 11.31s 
+Successfully crawled: https://angelwholesale.co.uk/Category/Wholesale-baby-products
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a86cb788-a280-48a8-9b98-477fa1ed306a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4801ae76-9b8c-455e-830f-86acf1bb0cc9.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/154473c9-2cc5-4a88-82b8-3ddf61ab0436.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4143b155-f1c6-48a2-8d36-1d6929d5eda9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5564cf9e-da7a-4bda-8ab6-0a4a3c621ad0.webp
+[FETCH]... ↓ https://angelwholesale.co.uk/Category/Clothing                     
+| ✓ | ⏱: 5.48s 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/fa4d32f0-21b1-438c-8c28-e292896b9ca7.webp
+[SCRAPE].. ◆ https://angelwholesale.co.uk/Category/Clothing                     
+| ✓ | ⏱: 2.49s 
+[COMPLETE] ● https://angelwholesale.co.uk/Category/Clothing                     
+| ✓ | ⏱: 8.07s 
+Successfully crawled: https://angelwholesale.co.uk/Category/Clothing
+[FETCH]... ↓ https://angelwholesale.co.uk/Category/Character                    
+| ✓ | ⏱: 9.01s 
+[SCRAPE].. ◆ https://angelwholesale.co.uk/Category/Character                    
+| ✓ | ⏱: 1.23s 
+[COMPLETE] ● https://angelwholesale.co.uk/Category/Character                    
+| ✓ | ⏱: 10.30s 
+Successfully crawled: https://angelwholesale.co.uk/Category/Character
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1b892047-6e74-4809-a50c-9c399814e984.webp
+[FETCH]... ↓ 
+https://angelwholesale.co.uk/Category/Baby-and-clothing-blanks-wholesale        
+| ✓ | ⏱: 11.00s 
+[SCRAPE].. ◆ 
+https://angelwholesale.co.uk/Category/Baby-and-clothing-blanks-wholesale        
+| ✓ | ⏱: 1.01s 
+[COMPLETE] ● 
+https://angelwholesale.co.uk/Category/Baby-and-clothing-blanks-wholesale        
+| ✓ | ⏱: 12.06s 
+Successfully crawled: https://angelwholesale.co.uk/Category/Baby-and-clothing-blanks-wholesale
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c5848f77-7ecb-463f-85aa-48768ff0f44f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/61ebcc71-4c63-40d5-8888-3616f0195f37.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/388869a8-fa2e-4ee4-9594-92a157497dcd.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9a74ad63-eda2-4c9c-be0e-9ad2ea1aba64.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/aefe1c40-ab66-4475-8286-1d7b83df8d4a.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b9a51280-c9ab-4c23-9a2b-f41291810fe6.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a59baa71-fa97-48ad-b03a-6d7ce1e176b3.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1938519a-8a98-4cae-bab0-de964c938fcb.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a0c12ca2-c6fd-4469-ae31-0e23756e206c.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1132caf1-0ad4-47b0-b1ec-61e159763c4d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e804a7b0-fb67-41ba-857a-e81883ac610c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/af65817d-69d7-4140-9704-946c072e9ddb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2e0ba859-f401-42e8-bb71-002c92bb380a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/08d0ad6d-a857-4b08-a143-23c83285fef3.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/74b05606-0c4c-4a16-981e-3011ad2cfff7.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/327246f3-a35c-4ff3-a317-062a3b84748a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/19d8bc70-74ac-4e1f-ab98-75a78bf78bac.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7495dd4c-edaf-4124-948e-7ec02dfae9e0.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b7b48d81-6d74-421e-85f2-71904325a739.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/39515e6a-eb59-4512-a9dc-2532bd83711d.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/183c9fbe-6807-4d6f-83c1-312a1df8b2ce.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ab13a86a-1b5c-44e0-a06f-dc56a619121b.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/37400215-049c-4f8a-bf7a-d3fa56fb4b6b.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b5a72432-08dc-46d8-ac83-4533f03a42db.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b29525a9-7a3d-48a8-9c09-8e69f66b28b9.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7b53a79c-bd2f-4cdf-863c-faa6c27fae87.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a300b0b0-f841-49c5-967e-56b76491dca9.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3fa22276-4c6b-4e53-be68-944e18de71ea.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1172b17c-187a-4c48-bf68-3113a19fe0cf.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1eb9f036-4aab-4767-a4e2-f41ee910186e.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7669c30e-06ae-44d7-ab52-f84ad25978a8.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/daa76072-f96a-4cab-8c16-ee49f28c6c1c.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/cfdeacdb-3372-4d8f-861f-eada4d8efc47.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/59234cd3-69b4-4bc6-b0d0-280e487d9978.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3ffadbb1-7f8a-4e4b-8959-279743f22ffd.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/fc758d95-c6be-49a3-bc91-989ee0a88251.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/19720e35-086b-4c37-acfc-678f3c02676f.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b7de377a-305b-4f32-a70a-b083b190cb4d.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b9bd48c0-ee36-47e4-8e2b-7b136a0a7388.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ee8cede1-b1aa-48b1-a222-5dfad855c50f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0863971a-4529-4caf-97e5-0741d152b127.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/945001c0-4aed-41e5-abb4-9abc1b5ef83d.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0f8d62be-361a-4b58-9000-3490e9c8b8e9.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f2b35fd2-35f2-4f83-a0e9-f82f22f80b56.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7d5f17e1-9f0d-45b8-879a-7d399e1bae30.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/29d95d77-eb52-4a60-bfa5-d84e33547296.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e3ffa366-7e23-4b5d-88e0-bbf59c4a429a.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9b8d3bfa-53d1-4547-bfbf-9cbfe845e0a1.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9e1dba4e-146f-422c-b504-3bff48d48f2f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7be27512-b173-484e-a244-2d804ee3aeb1.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6a728d17-b867-440e-903c-ce80e9fedae9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/aed7a700-0b63-4cd5-bd9a-fd733b759068.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/974bac68-a792-4e31-949a-3be471a1b02a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0615628d-1414-4be0-825e-56102f275a6b.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/05fe959c-99b9-4c7b-9837-2268c110db68.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1363fa16-e821-42e8-a41a-d1c121e2ed0e.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b783e5f8-65bf-43ef-8c6f-73bcc442528f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/beaa5760-3a1a-4ea8-9b4a-cc79d5e18980.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ebbe445c-2685-476f-8bdc-1297f26217a6.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6a81baba-52cc-4e1d-9f89-cfffd17d6ebb.webp
+DEBUG: Found price '£1.29' for https://angelwholesale.co.uk
+DEBUG: No price found for https://angelwholesale.co.uk/reviews/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/25d71209-ed91-4c98-b69a-53b331e437f0.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/915a564d-5217-4177-8953-c051e48bff28.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b8c1700f-d744-486d-9757-ddcde9ede5a3.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/121dcad1-93bf-4c6a-ab60-e45a0340871f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/76177d0c-beae-4437-8f46-3fc626493db9.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0e811604-b196-42a5-9dde-4b0f020e6a53.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a16468ae-74e2-4359-91bf-772562f09cb1.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7ae38c7e-fade-4437-95ea-2115dc9b3e7e.webp
+DEBUG: No price found for https://angelwholesale.co.uk/blog/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/956fe8ec-61e2-415e-aa2b-78b228f8d4ab.gif
+DEBUG: Found price '£1.29' for https://angelwholesale.co.uk/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ccca9436-c902-475b-b78c-36eb6e7eb122.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3989f912-afc3-472f-941f-df890dec95c9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/477ff4dc-f0d2-4fde-87a5-3afb73183dc5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/18e8285a-7aaf-4b68-904c-5c47ade04ef7.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e125b122-a4ce-4859-bd5b-96fc215002db.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f796c432-0b92-4cea-be80-1a1525aa5aa5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a3a8f352-d0ed-4f5b-b154-6e6915101e1c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ca17f35a-83ca-4624-b142-ad4867793393.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7e2e4c81-46cc-4e0e-aef3-748d94b1dcd1.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b5e5e0a3-1c86-4d22-99cd-cbed483d1a4f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5d3aa91e-c5e1-4819-9e07-b2f8288d186c.webp
+DEBUG: No price found for https://angelwholesale.co.uk/Category/All-Occasions
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/77e6837a-7809-468f-8ad8-b67245ab231a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/88fce66d-e8f2-4906-909d-33f2006553b5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0435bb38-bf89-4226-b9e4-18e6f8b75180.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/86afb847-1404-41ee-8746-cae6a330a1ad.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/40c62f5e-cb85-49a0-bef1-c80c423de862.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/83482051-5d7b-488a-a4a6-329ce8dbc6ef.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7a875aa0-38f1-4d29-971e-8496fa88af91.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4861da80-edec-4b45-b8ec-e469c8b7c249.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/062804f2-363d-4ec9-93bc-292007ad920c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b5bd2796-c7d0-4a1d-bf93-83ca72360a5d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/147889bd-e75f-4e16-924f-8e315d3323b6.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/019934e5-80f7-4f45-a809-9c9dc184280b.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0cad38f6-717b-4d8b-8e6d-2e5e61a8c906.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9002b821-9cb8-48d9-b279-c687925fbca1.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9a916640-6916-4499-a5d8-173b768db134.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/33a06e4a-5ae7-47b7-830c-07e0a332686a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1850f142-3da7-4878-b2b0-a84f139b1e01.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/76dcc42b-6c2b-4c7f-8c20-8a87d70a56d7.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/88f2ee20-c438-4be6-94f8-4eeb44637d95.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6c3a64fa-03f4-4db3-ab2f-23843f552147.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f18bbf0e-3558-417c-b897-a16d0459657d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/43994f6d-da01-4752-8180-2dea3686583b.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/249ba9d2-4ea4-4e20-94c3-cd3844572bdc.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e74cb88d-3b41-42f0-9d57-68833e9110cc.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bcce3689-8ed5-4b76-bff4-529e913d826a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9084a4a4-eada-4d8b-bd65-0ba37c92906e.jpg
+DEBUG: Found price '£500' for https://ebebek.co.uk
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f90532ab-11c6-4258-b1ec-11fb74f0b4c2.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e158b47e-d02b-4b74-ba72-ba0915db8357.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1b0602f7-f095-445b-a1c2-48935654fb7a.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bda2cfc2-5740-46a8-9ad8-d831a3dc6622.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/15239a2b-6214-423d-a202-d3de082b9d51.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b1f8a8fb-0f71-423e-9b6f-43e1475bee0f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/48825128-8adb-4050-b420-a91dc25cf2f8.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/fe663e3f-710c-4b4d-a73e-9fa0bcca9559.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4cdbdee5-5089-4620-853c-eaec8e03bf5c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2bde1eeb-5af9-44dc-931a-6972998512ce.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1588f4d5-f877-4f9f-84d8-980e58de9825.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/cf9dc5c5-dcbb-4427-9267-eada27cd5f4d.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9b62633c-6468-4244-b790-efc5d8811a11.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0b882790-af8e-4143-9218-41e2475ce2bf.png
+DEBUG: Found price '£500' for https://ebebek.co.uk/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ae51a6fd-a3cc-438e-a0e1-3e0cff533171.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6c773f81-2dcd-403d-8d54-408ee4dfd7e8.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b9eaeeda-3e8a-4ed5-bbe2-416f626ff899.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d004a237-6039-44fe-bee6-5594ccbaf13a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f6bc2479-cbbc-48c0-b4c6-47bddc8c8e6c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d6ba87fe-0e65-4925-b148-b56ae3ee9185.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8c500a7e-2c04-4cdc-a767-0a3bde5ced8c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c5da8eef-a96d-4f6d-bad2-01c139b582a5.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8b7885ba-c784-4fed-b3f7-192919db05b9.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e13b43ca-5069-47b4-90cd-5a0db1595de8.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1045e7b3-723b-4a4b-8780-f40e01381e8a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c8e368df-d209-4951-98f0-3f91b0cf84cc.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/902fe3fc-776c-43bc-968e-d17a26a8dbd8.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/95aab093-fbb4-48cb-8f73-826757e8f88d.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/acb3cda5-753a-4b34-911b-10a43b9ecdf9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/28735d52-021b-413d-8165-ccbbd5354e1c.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bc3d288f-102e-4a9d-b63f-61c4cd6740db.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a2ff25ff-57f0-4ab9-8195-4ff509ec5c75.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/eae77b8b-6c83-442e-af7a-d861929f1350.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/652e1bd9-a6e9-4d7b-9b87-cab17136f9cd.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/20473d4c-fd07-409e-9f6e-4c8d5798739c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/fff1c16b-4762-4868-a804-6dcfb8bb0b8b.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2e4dcaae-4e4d-43b9-a2fc-8f14fc3325f9.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e2e87bf5-1da7-44c8-805d-9d47af5db247.jpg
+DEBUG: Found price '£2.88' for https://angelwholesale.co.uk/Category/Wholesale-baby-products
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/85b4afce-59fe-4d57-8617-ff2d7499d103.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5a0cb775-36cc-4b0e-a777-5d504f6d4145.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/604d493e-8fa6-4a0f-91ff-d7ea043d6bc4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/620ada0a-6254-446b-973d-ffdb61866b51.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bdb11b6f-ea7b-4457-ac50-c305905ecd15.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7933d074-6f2a-4baa-a4f0-a50ee60c5b60.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/0e5524c7-ec79-4f70-9aed-d400595df029.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/402e5b62-9087-49ae-852c-98f7647f0bfd.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c8ae8dfb-4e4c-498d-8746-bad0ceb7535a.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8f9fa32a-6d6d-47c4-9811-4bade1615b98.jpg
+DEBUG: No price found for https://angelwholesale.co.uk/Category/Brands
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/12d4fac7-8705-4308-a29e-a2434cf37c2c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/51ec3236-51f4-482c-9550-08ed91e011c4.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6f46d589-7619-4c02-a509-fe4a9877e3bb.webp
+DEBUG: Found price '£299' for https://ebebek.co.uk/collections/march-gear/
+DEBUG: No price found for https://ebebek.co.uk/customer_authentication/redirect?locale=en&region_country=GB
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a0b9a9d7-87ff-46be-8e3e-1dd7ad87ad01.webp
+DEBUG: No price found for https://angelwholesale.co.uk/Category/Baby-and-clothing-blanks-wholesale
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/57a6ae0d-8a83-4a95-98a8-c1411d267e97.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/555e4e8c-5321-4197-8020-adcb707bfc4e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1653afad-c334-42c7-947a-83d20f3e1f09.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/38391a13-0f0b-4555-9cd9-73946c2b8d31.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ee7ef467-13ff-4be3-8a2c-5f0c515ade3b.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/15417352-603f-4f9f-babd-468d9a7bfdcb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/92db448b-d8df-45b1-ba17-cb89c82fe896.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ef333297-4911-43f5-b8cd-bbaf17f67b46.png
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2ac70d4b-eb7f-499c-b4d8-443a88176a92.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9996c1e0-d822-4dd7-b6f9-cff630b1a9ca.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9f37dad3-6f99-4cdc-9da4-a00ac1a30e14.webp
+DEBUG: No price found for https://angelwholesale.co.uk/Category/Character
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/46e122dc-fcf7-4516-b3b1-a2043bdd01bc.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5c81fe49-fbf8-4da5-9829-aa822892b1bf.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e6e2b58d-98fd-4a38-b693-7a61356b6cf0.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3323dd8d-4760-47fa-845e-33e7ab192794.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e5a66e26-e2f3-44a3-bbf2-3df14a8705ca.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e1c5551b-c34d-4145-afae-b6a6665fabde.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bd3a6c7d-dfd0-42e4-8b87-efa8d074df7e.webp
+DEBUG: No price found for https://angelwholesale.co.uk/Category/Clothing
+Batch adding 11599 chunks to the vector store...
+Added batch of 500 chunks. Total: 500/11599
+Added batch of 500 chunks. Total: 1000/11599
+Added batch of 500 chunks. Total: 1500/11599
+Added batch of 500 chunks. Total: 2000/11599
+Added batch of 500 chunks. Total: 2500/11599
+Added batch of 500 chunks. Total: 3000/11599
+Added batch of 500 chunks. Total: 3500/11599
+Added batch of 500 chunks. Total: 4000/11599
+Added batch of 500 chunks. Total: 4500/11599
+Added batch of 500 chunks. Total: 5000/11599
+Added batch of 500 chunks. Total: 5500/11599
+Added batch of 500 chunks. Total: 6000/11599
+Added batch of 500 chunks. Total: 6500/11599
+Added batch of 500 chunks. Total: 7000/11599
+Added batch of 500 chunks. Total: 7500/11599
+Added batch of 500 chunks. Total: 8000/11599
+Added batch of 500 chunks. Total: 8500/11599
+Added batch of 500 chunks. Total: 9000/11599
+Added batch of 500 chunks. Total: 9500/11599
+Added batch of 500 chunks. Total: 10000/11599
+Added batch of 500 chunks. Total: 10500/11599
+Added batch of 500 chunks. Total: 11000/11599
+Added batch of 500 chunks. Total: 11500/11599
+Added batch of 99 chunks. Total: 11599/11599
+--- [WORKER] Finished admin_ingest_url_task for URL: https://angelwholesale.co.uk ---
+13:03:30: 416.17s ← 1f71b4145c1a4f2694023e42f0f92224:admin_ingest_url_task ● 
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9bc75482-8cc8-41e1-b721-3acb6bb6f197.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d7da6555-0fb7-4657-934a-7ac0537c3b91.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/87871cd8-5000-4c76-8f9a-ca9c4f97a6f7.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/55600c09-3d4b-462a-8da6-e053b6612246.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ba5a5c03-1e76-457a-883d-b482f2d4f9e0.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3696e7b7-0e94-4adb-a585-2c8bc838f30a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d759c021-79e9-468c-850c-053f71639838.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/91b38d16-a6c8-4b70-8d9b-e0f55e39ee97.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/37599b8c-a86a-456d-a921-dba43117a8cb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/60934106-321e-4b07-8109-438bf117c44f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/48496111-ee94-4cef-8aa7-78d01e557f05.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4bb7ad40-7db5-4c50-a06d-e0c94dd309bd.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a1c5e9c1-acc2-4f8a-9632-36efa2fd5a5b.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/44a61188-0d63-44ad-9a9b-1a8b099d56c8.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c27ebde1-d910-4b60-b3ab-879de3370f6b.webp
+DEBUG: Found price '£299' for https://ebebek.co.uk/collections/pushchairs-car-seats/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bdaca4ae-06fd-4c81-8348-af5eda4847fe.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e5400aa0-f34f-4202-b507-ae4edd01fb54.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3d887bc9-9733-47fb-9f7c-26f02a736be6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/fbacdf90-f021-454c-b0d4-d82a85b663e4.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d5f0c4ff-3d58-491a-9304-d8b2389ebae1.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d30c1a45-29ad-4a46-a3b2-7d2a752a0dbf.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ce5e4bd7-f6d6-4e33-b137-f027ef710e7f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/62e765cb-d76c-4e10-b292-6d0b83153843.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7296012f-28df-4cfe-967e-37e82a27954d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/252b993e-91f9-4f2b-9241-e1f0a75d3b8f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8a9810b3-5b4c-4873-b8b6-c607d977fa15.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5e51000e-c959-4ecd-aaef-ffa9505b9451.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f02d9cc2-e859-4da5-83f6-1ed21e5fa1fb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/690b5cbd-dc9c-4062-8e1c-ebd121cf2fb9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b24971a5-b9d7-4c24-a795-abad152a404e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c2186ea0-1008-411b-8f91-bf9f4bd581e3.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/077f8029-85b5-4c9d-81ff-bdce5d5ffddd.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4a2205a8-7d27-4774-8b18-8ca9607ab4e6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2b658fd9-8286-4e8e-a7a8-953f16fd4a99.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/47097ded-1c5d-4d14-a663-a6e005dc90f5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/765535ec-3968-4499-b833-26723bc3a415.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/494f8481-a605-467c-b5aa-340c430e3009.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/70c4d7e4-f139-4e7e-8dab-184bdf483408.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7b9c3d2d-1474-42c3-b35a-c1b74ee58d13.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b8f5c468-0607-4dcf-8299-3a5437a5afa2.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a94fc1b5-da34-456b-b7df-0e78bf154708.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b258245f-c8f7-4524-91ab-2656e61eb75c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/7f3f9fd6-ed48-45c5-b013-17928d34ad41.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d1184ee5-cde4-4c24-9472-bf10d670d712.webp
+DEBUG: Found price '£399' for https://ebebek.co.uk/collections/pushchairs-prams/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2e351c0b-309f-4c9a-9a72-c7055fc191a4.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/be8d7764-751c-449d-909a-063da1bad092.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/eb3a9d99-47a0-470b-8e26-d92304838426.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/22a9b618-d9dd-4094-9cc7-7751cd8a8d33.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/eb296417-4132-42b8-9f2b-9c59c6c39e5a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1941a73c-8737-4ed4-87b2-02b6868e3b05.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6b7bd2cc-8fd0-4479-9e27-bd410eaf7573.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5a41fabf-c69c-4390-b802-df9c6a8164b2.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/dc8cab15-988b-494c-a89e-e30d584b0d0f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/82fa2530-86a7-4aa5-946a-feef4787b9fc.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/84ec319b-fe0f-435e-bf58-d29c39352e7c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/60108552-e8be-4889-87c9-d4fe42019f3d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1633a16b-3726-4b23-a7cf-9bd9721bd04c.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b3d94299-d72d-4b71-ab22-3a9772b9ed0a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f37930c3-3048-4044-9363-071b14cf5933.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5848a5d4-62a7-44b9-9ecb-b98142c5cb57.webp
+DEBUG: Found price '£129' for https://ebebek.co.uk/collections/twin-prams-pushchairs/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c939a384-8120-48e4-90ff-87a5308f99b6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e0e8341f-08ba-4793-951a-59de6d0b80a9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/17d32791-6e82-44e2-9789-f486acd20fe1.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/346f8eb0-4f57-474b-8437-cf3d4722004f.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d1c79bdf-c92a-4baf-b8ef-2c18e922d744.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8584a762-630b-4377-8878-805520b3db56.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/457d9782-117a-434d-a479-01feabd23f84.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/f23a32f8-2af1-46a5-8a9e-3119b8ac0abd.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b7adca1b-c23c-4aac-a966-ca841b6275e4.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a25d7239-779d-47bf-9d9f-44e2bd2f4b57.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/96a2055a-7f2b-4e26-a756-dbe000d6619f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/dca3fbe8-d2e3-42c9-84c6-9d176c113554.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/05055103-2ada-48f2-b046-144e89339d39.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d762ba22-6bb9-4ea1-bbf8-e0ba155de658.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ba59325a-0801-4d2f-b432-87b2bddd4710.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/3a83a741-2275-4115-8c3b-24399d41de98.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/63c668e2-0104-4735-b11b-f0fc3319b04d.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/75ec5dff-102a-485c-8285-0541bc0c1782.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8ef22981-8def-48c7-ad9a-62a46b10d377.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4615aafe-da52-4f32-a9b0-dbef5c57b560.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/060a2766-5cba-42a3-af7b-0369e0729ed0.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/93cb845b-0190-4759-bbb0-a3d04c109b35.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bb4bcf4f-eb45-44ec-b879-4750b46d4ffc.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d71db492-8d74-44cc-a1d7-0a9bb58b52f0.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9962266d-033f-4e63-9738-5166ead8c0e8.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9746f5e7-6377-4397-af96-a2d5c85a29b0.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c194064b-b39b-4063-9ec0-5cbfbc6f709e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e8ed37aa-1332-47c8-8206-a1cf70b8bbee.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/65bd9343-d0c8-4dbf-b6c9-048269dba790.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/79ed9b38-a990-41ba-9c32-ada63a4274b8.webp
+DEBUG: Found price '£299' for https://ebebek.co.uk/collections/car-seats/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8cecb8da-b67c-499a-8719-bc789a380c68.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4c6fd074-4aa2-42b5-aa56-62eeaed130cb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5149b451-b706-407e-935e-ea2bf0daa6d2.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c57a4efe-3777-47ac-873c-2fbf6cfb1146.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/432a3e31-86fa-49cb-9723-11342fd556a5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/46e1e364-5cda-427d-8d59-db4febc43432.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1998aecf-7ee0-4b9e-981b-ab30e3c46593.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8fe3092b-b349-4900-bb5b-eaa71fd9029f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9bdc37e2-2230-4ee5-b61e-a9d8f9933f62.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e9860a0a-19f3-4a95-9fe4-e3f7b3ec7b76.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c6f2b489-d64e-4811-a34c-c89e06ceb1cb.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5b3d968a-8b86-4a79-a3a1-0f70aec932b9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/1c8c7099-3020-4b85-8c60-312c675b9234.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4cf6d105-f85d-49a4-ae2c-9fee656d0530.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a6cdda4c-7f25-4f1c-9795-befcac36b1fa.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4a8813c1-3e21-40e8-acef-cf0b84240360.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5ed047fc-6df7-4f98-8a03-8b31dcc01261.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/5c9dfa74-8b94-4a1b-8795-3ebe4f0e6727.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6dd0e3d8-b332-4137-9fe0-56d0f1bf51de.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/79fcf118-911c-4628-b85d-b1190f9a738c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/c07f0968-54fe-4cb1-9b5f-56044108c38b.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/32f304f8-c7a4-4c77-9d10-604c8ace3754.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e1f09776-87ab-4dfc-876c-44761b81cab4.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a0398426-05af-41e6-aee0-16d72ef84fa9.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/cf98de8c-316a-4507-8aa6-62b7a48f979a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/84870499-3faf-42d8-b0ec-0f73b450051a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/6899d9bf-dad0-4d0d-a11b-7a219ea3cd76.webp
+DEBUG: Found price '£999' for https://ebebek.co.uk/collections/highchairs/
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/074a0187-3242-4aed-a68f-46973303302a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d04039f5-fa2f-4516-a882-3bdd30ac7e34.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a21c3855-49c6-41a7-bbce-2a8b3af8fb04.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8c7147eb-5007-447f-97f5-73aa8c72f3df.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/579c4125-5620-427a-a15f-9078c573233f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a8aee6e9-d708-4f15-addc-920f49c6d6a0.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/ea1a1354-2ecb-42d3-b3a0-dcd350cc8c24.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/49788ee2-a491-430c-923f-895b192d8e1c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/a7c20039-2fca-4d77-910a-bc479f0c1322.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/9072ce29-f6a1-4a2f-85bd-81bed16066b5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/118bb12d-c32e-4bbd-ae13-2d464ddd7fc3.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/bf4129f5-f59b-4ebc-9daf-9e06adacd3ca.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/b9fac3c6-c36e-4a44-ad17-23a76ad10d3b.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e7045624-d388-4c28-b413-6fd30136e964.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/4958c425-cbff-4137-9d89-27d45480ffd6.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/2c0fbd4d-146f-4c57-8d8a-865543fb1b7f.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/251f20fb-7118-41ed-a046-f2f6215cfcb6.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/e0b55772-a0c2-45be-b3d6-20ec9ae29df5.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/448c5a66-cf26-44cd-8666-fff451aa206b.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/57410b73-d2ee-4bbb-833e-0179a2ab027c.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/22cbf4d0-ef9b-4535-b08c-22c912656a97.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/54c5a20e-ff25-4ead-b68e-fe0ccafcd230.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/267b43e0-ede4-4027-9a04-9c072ee3cb2a.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/40674e88-ab78-4f89-9a37-2ecdef92c62e.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/d98d860e-7711-4179-b4db-153447b4c4ad.jpg
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/99f7bacf-72c8-49af-bc07-ea03bb579041.webp
+Successfully uploaded to S3: https://ai-gent-storage.s3.ap-south-1.amazonaws.com/other/retail/2026-04-15/8737bd58-67e8-4d49-a190-e56906bbbe22.webp
+DEBUG: Found price '£299' for https://ebebek.co.uk/collections/bouncers-walkers-swings/
+Batch adding 19018 chunks to the vector store...
+Added batch of 500 chunks. Total: 500/19018
+Added batch of 500 chunks. Total: 1000/19018
+Added batch of 500 chunks. Total: 1500/19018
+Added batch of 500 chunks. Total: 2000/19018
+Added batch of 500 chunks. Total: 2500/19018
+Added batch of 500 chunks. Total: 3000/19018
+Added batch of 500 chunks. Total: 3500/19018
+Added batch of 500 chunks. Total: 4000/19018
+Added batch of 500 chunks. Total: 4500/19018
+Added batch of 500 chunks. Total: 5000/19018
+Added batch of 500 chunks. Total: 5500/19018
+Added batch of 500 chunks. Total: 6000/19018
+Added batch of 500 chunks. Total: 6500/19018
+Added batch of 500 chunks. Total: 7000/19018
+Added batch of 500 chunks. Total: 7500/19018
+Added batch of 500 chunks. Total: 8000/19018
+Added batch of 500 chunks. Total: 8500/19018
+Added batch of 500 chunks. Total: 9000/19018
+Added batch of 500 chunks. Total: 9500/19018
+Added batch of 500 chunks. Total: 10000/19018
+Added batch of 500 chunks. Total: 10500/19018
+Added batch of 500 chunks. Total: 11000/19018
+Added batch of 500 chunks. Total: 11500/19018
+Added batch of 500 chunks. Total: 12000/19018
+Added batch of 500 chunks. Total: 12500/19018
+Added batch of 500 chunks. Total: 13000/19018
+Added batch of 500 chunks. Total: 13500/19018
+Added batch of 500 chunks. Total: 14000/19018
+Added batch of 500 chunks. Total: 14500/19018
+Added batch of 500 chunks. Total: 15000/19018
+Added batch of 500 chunks. Total: 15500/19018
+Added batch of 500 chunks. Total: 16000/19018
+Added batch of 500 chunks. Total: 16500/19018
+Added batch of 500 chunks. Total: 17000/19018
+Added batch of 500 chunks. Total: 17500/19018
+Added batch of 500 chunks. Total: 18000/19018
+Added batch of 500 chunks. Total: 18500/19018
+Added batch of 500 chunks. Total: 19000/19018
+Added batch of 18 chunks. Total: 19018/19018
+--- [WORKER] Finished admin_ingest_url_task for URL: https://ebebek.co.uk ---
+13:12:06: 1225.52s ← 5e08e2a601df461e9566549d5a0db9ed:admin_ingest_url_task ● 
+13:16:30: recording health: Apr-15 13:16:30 j_complete=7 j_failed=0 j_retried=0 j_ongoing=1 queued=1

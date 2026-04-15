@@ -19,6 +19,7 @@ from kimi_service import kimi_service
 from arq import create_pool
 from arq.connections import RedisSettings
 from urllib.parse import urlparse
+from admin_service import admin_service
 
 last_crawled_domain = None
 
@@ -243,6 +244,49 @@ async def deep_crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
         await req.app.state.arq_pool.enqueue_job('ingest_url_task', url=url, max_pages=10)
 
     return {"status": "success", "message": f"Deep ingestion queued for {len(valid)} URL(s)", "urls": valid}
+
+
+# ── Admin endpoints (tracked batch crawls) ───────────────────────────────────
+
+@app.post("/admin/crawl/batch")
+async def admin_crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
+    """Deep crawl for multiple URLs with admin-level status tracking."""
+    valid = [u for u in request.urls if u.startswith("http")]
+    if not valid:
+        raise HTTPException(status_code=400, detail="No valid URLs provided")
+
+    batch_id = await admin_service.start_batch(valid)
+    
+    for url in valid:
+        # Enqueue with higher priority if needed, or just same pool
+        await req.app.state.arq_pool.enqueue_job('admin_ingest_url_task', batch_id=batch_id, url=url, max_pages=10)
+
+    return {
+        "status": "success", 
+        "message": f"Tracked batch crawl started for {len(valid)} URL(s)", 
+        "batch_id": batch_id,
+        "urls": valid
+    }
+
+@app.get("/admin/crawl/batches")
+async def list_admin_batches():
+    """Returns a list of recent admin crawl batches."""
+    batches = await admin_service.list_recent_batches()
+    return {"batches": batches}
+
+@app.get("/admin/crawl/batch/{batch_id}")
+async def get_admin_batch_status(batch_id: str):
+    """Returns the detailed status of a specific crawl batch."""
+    status = await admin_service.get_batch_status(batch_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    return status
+
+@app.delete("/admin/crawl/batch/{batch_id}")
+async def delete_admin_batch(batch_id: str):
+    """Deletes a specific crawl batch and its URL tracking data."""
+    await admin_service.delete_batch(batch_id)
+    return {"status": "success", "message": f"Batch {batch_id} deleted"}
 
 
 @app.post("/clear")

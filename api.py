@@ -360,7 +360,7 @@ async def get_categories():
 
             items.append({
                 "name": meta.get("name") or meta.get("title") or "Unnamed Product",
-                "price": meta.get("price") or meta.get("Price") or "",
+                "price": kimi_service._extract_price_from_snippet(meta.get("price") or meta.get("Price") or ""),
                 "url": url,
                 "image_url": img,
                 "score": float(score),
@@ -577,7 +577,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 items.append({
                     "name": p.get("name") or p.get("title") or "Product",
                     "brand": p.get("brand") or p.get("source") or "Store",
-                    "price": p.get("price") or "Check Site",
+                    "price": kimi_service._extract_price_from_snippet(p.get("price")),
                     "image_url": img,
                     "source_url": p.get("source_url") or p.get("url") or p.get("source"),
                     "source": p.get("source") or "Search",

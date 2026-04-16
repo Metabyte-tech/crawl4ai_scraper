@@ -1,0 +1,16 @@
+[Unit]
+Description=Crawl4AI FastAPI Search Backend
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=himanshu
+Group=himanshu
+WorkingDirectory=/home/himanshu/workspace/ai-agent/crawl4AI
+EnvironmentFile=/home/himanshu/workspace/ai-agent/crawl4AI/.env
+ExecStart=/home/himanshu/workspace/ai-agent/crawl4AI/venv_new/bin/python3 api.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

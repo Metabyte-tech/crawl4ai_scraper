@@ -92,87 +92,81 @@ class KimiService:
         }
 
     def _parse_price(self, price_str):
-        """Extract numeric value from a price string like '$19.99' or '₹1,299'."""
         if not price_str or "Check" in str(price_str) or "Verifying" in str(price_str):
             return float('inf')
         try:
-            # Try to find currency + number pattern first (e.g. "for $19.99")
-            m = re.search(r'[\$₹]\s*([\d,.]+)', str(price_str))
+            m = re.search(r'[$₹£€Rs]\s*([\d,]+\.?\d*)', str(price_str), re.IGNORECASE)
             if m:
                 clean = m.group(1).replace(',', '')
             else:
-                # Fallback: remove commas and currency symbols, keep first numeric group
                 clean = re.sub(r'[^\d.]', '', str(price_str).replace(',', ''))
             
-            # If multiple dots (e.g. from bad extraction), take the first one
             if clean.count('.') > 1:
                 parts = clean.split('.')
-                clean = parts[0] + "." + parts[1]
+                clean = parts[0] + "." + parts[1][:2]
             return float(clean) if clean and any(c.isdigit() for c in clean) else float('inf')
         except:
             return float('inf')
 
     def _extract_price_from_snippet(self, snippet, domain=None, store_name=None):
         """
-        Unified robust price extraction from DuckDuckGo/Bing snippets.
-        Handles multi-currency, original vs current price, and store-specific patterns.
+        Unified robust price extraction from DuckDuckGo/Bing snippets and scrapers.
+        Handles multi-currency, merged text (e.g. NOW$2399current price), and store patterns.
         """
-        if not snippet:
-            return "Check Site"
-            
-        snippet_lower = snippet.lower()
+        if not snippet: return "Check Site"
         
-        # 0. Priority: Handle "current price" or "now" keywords which often appear in Google snippets
-        current_match = re.search(r'(?:current price|now|today|only|save)\s*[:\-]?\s*([$₹£€]\s?\d{1,7}(?:[.,]\d{2})?)', snippet_lower)
-        if current_match:
-            return current_match.group(1).strip()
+        prices = set()
+        # Find formatted prices globally
+        matches = re.finditer(r'(?i)([$₹£€]|rs\.?|inr|usd|gbp|eur)\s*([\d,]+\.?\d*)', str(snippet))
+        
+        symbols_map = {"rs": "₹", "rs.": "₹", "inr": "₹", "usd": "$", "gbp": "£", "eur": "€"}
+        for m in matches:
+            sym = m.group(1).lower()
+            sym = symbols_map.get(sym, m.group(1).upper() if len(m.group(1)) > 1 else m.group(1))
+            num = m.group(2).strip()
+            if num and num != '.' and any(c.isdigit() for c in num):
+                if num.endswith('.') and num.count('.') == 1:
+                    num = num[:-1]
+                if any(c.isdigit() for c in num):
+                    prices.add(f"{sym}{num}")
 
-        # 1. Multi-currency and ISO patterns
-        price_patterns = [
-            r'([$₹£€]\s?\d{1,7}(?:[.,]\d{2})?)',           # Standard: $19.99
-            r'(\d{1,7}(?:[.,]\d{2})?\s?[$₹£€])',           # Reverse: 19.99$
-            r'(?:USD|INR|GBP|EUR)\s?(\d{1,7}(?:[.,]\d{2})?)', # ISO: USD 19.99
-            r'from\s?([$₹£€]\s?\d{1,7})',                  # Range: from $10
-        ]
-        
-        found_prices = []
-        for pattern in price_patterns:
-            matches = re.findall(pattern, snippet, re.I)
-            for m in matches:
-                # Ensure it's not a junk match
-                if any(c.isdigit() for c in m):
-                    found_prices.append(m)
-        
-        if not found_prices:
-            # 2. Store-Specific Heuristics (if standard patterns fail)
-            if store_name and ("best buy" in store_name.lower() or "bestbuy" in str(domain).lower()):
-                m = re.search(r'price[:\s]+([\$\d\.]+)', snippet, re.I)
-                if m: return m.group(1)
-            elif store_name and "wayfair" in store_name.lower():
-                m = re.search(r'for\s+([\$\d\.]+)', snippet, re.I)
-                if m: return m.group(1)
-            return "Check Site"
+        prices = list(prices)
+
+        if not prices:
+            # Fallback ISO or reverse
+            reverse_prices = re.findall(r'\d{1,7}(?:[.,]\d{3})*(?:[.,]\d{2})?\s?[$₹£€]', str(snippet))
+            for rp in reverse_prices:
+                prices.append(rp.strip())
+
+        if prices:
+            valid_prices = []
+            for p in prices:
+                is_original = False
+                for m in re.finditer(re.escape(p), str(snippet)):
+                    ctx = str(snippet)[max(0, m.start() - 25):m.start()].lower()
+                    if any(w in ctx for w in ["was", "original", "list", "save"]):
+                        is_original = True
+                if not is_original:
+                    valid_prices.append(p)
+                    
+            choices = valid_prices if valid_prices else prices
             
-        # 3. Smart selection (Original vs Current)
-        # If multiple prices found, check for "was", "original", "list price" indicators near them
-        if len(found_prices) > 1:
-            # Simple heuristic: often the last mentioned price in a "was X now Y" snippet is the current one
-            # or the one not preceded by "was"
-            price_positions = []
-            for p in set(found_prices):
-                for m in re.finditer(re.escape(p), snippet):
-                    # Check context before the match (last 20 chars)
-                    context = snippet[max(0, m.start() - 20):m.start()].lower()
-                    is_original = any(word in context for word in ["was", "original", "list", "save"])
-                    price_positions.append({"price": p, "pos": m.start(), "is_original": is_original})
+            # Heuristic: Filter out obvious concatenations (e.g., $2399 vs $23.99)
+            parsed_choices = [(c, self._parse_price(c)) for c in choices]
+            vals = [p[1] for p in parsed_choices]
+            final_choices = []
+            for c, v in parsed_choices:
+                if v / 100.0 in vals or v / 10.0 in vals:
+                    continue
+                final_choices.append((c, v))
+
+            if not final_choices:
+                final_choices = parsed_choices
+
+            return min(final_choices, key=lambda x: x[1])[0]
             
-            # Prefer non-original prices, or the one closest to some high-intent keywords
-            current_prices = [p for p in price_positions if not p["is_original"]]
-            if current_prices:
-                # Return the one with the lowest value among non-originals (common for deals)
-                return min(current_prices, key=lambda x: self._parse_price(x["price"]))["price"]
-            
-        return found_prices[0]
+        return "Check Site"
+
 
     @staticmethod
     def _extract_brand(product_name: str, store_fallback: str = "") -> str:
@@ -473,7 +467,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         
                         products.append({
                             "name": name.get_text(strip=True),
-                            "price": price_str or "Check Site",
+                            "price": self._extract_price_from_snippet(price_str) if price_str else "Check Site",
                             "rating_avg": rating_val,
                             "rating_count": reviews_count,
                             "image_url": img_url,
@@ -518,11 +512,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         if name_text in ("Shop on eBay", "", "New Listing") or "Opens in a new window" in name_text and len(name_text) < 30: 
                             continue
                             
-                        # Clean up eBay's screen reader text
-                        name_text = name_text.replace("Opens in a new window or tab", "").strip()
-                        
                         text = item.get_text()
-                        prices = re.findall(r'\$[\d,.]+', text)
+                        found_price = self._extract_price_from_snippet(text)
+
                         img = item.find('img')
                         link = item.find('a')
                         
@@ -530,10 +522,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         raw_img = img.get("src") if img else None
                         img_url = re.sub(r's-l\d+', 's-l500', raw_img) if (raw_img and "s-l" in raw_img) else raw_img
 
-                        if prices and len(prices) > 0:
+                        if found_price != "Check Site":
                             products.append({
                                 "name": name_text[:70],
-                                "price": prices[0],  # Take the first price found
+                                "price": found_price,
                                 "rating_avg": None,
                                 "image_url": img_url,
                                 "url": link.get("href") if link else url,
@@ -583,7 +575,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         p_url = urljoin("https://www.flipkart.com", link_el.get('href', '')) if link_el else url
                         products.append({
                             "name": name,
-                            "price": price_el.get_text(strip=True),
+                            "price": self._extract_price_from_snippet(price_el.get_text(strip=True)),
                             "rating_avg": None,
                             "image_url": img_el.get("src") if img_el else None,
                             "url": p_url,
@@ -627,9 +619,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         name = name_el.get_text(strip=True)
                         if len(name) < 10 or "skip to" in name.lower(): continue
                         
-                        # Extract price text manually
-                        price_text = price_el.get_text(strip=True) if price_el else "Check Site"
-                        if not any(c.isdigit() for c in price_text): price_text = "Check Site"
+                        # Extract price text manually and use unified method
+                        raw_price_text = price_el.get_text(strip=True) if price_el else ""
+                        price_text = self._extract_price_from_snippet(raw_price_text, "walmart.com", "Walmart")
                         
                         p_url = urljoin("https://www.walmart.com", link_el.get('href', '')) if link_el else url
                         
@@ -1299,6 +1291,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                                 data["price"] = f"${data['price']}"
                             break
                 
+                # Double-check all prices using the new formatter to standardize output
+                if data["price"]:
+                    data["price"] = self._extract_price_from_snippet(data["price"])
+                    
                 if not data["rating"]:
                     meta_r = soup.find("meta", property="og:rating") or soup.find("meta", name="rating")
                     if meta_r: data["rating"] = meta_r.get("content")

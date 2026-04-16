@@ -159,9 +159,18 @@ async def crawl_site_recursive(base_url: str, max_pages: int = 20):
                 print(f"Error crawling {url}: {e}")
                 return url, None, []
 
+    # Global timeout for the entire recursive crawl (10 minutes)
+    MAX_CRAWL_TIME = 600
+    start_time = time.time()
+
     try:
         async with AsyncWebCrawler(config=browser_config) as crawler:
             while pages_to_crawl and len(crawled_urls) < max_pages:
+                # Check for global timeout
+                if time.time() - start_time > MAX_CRAWL_TIME:
+                    print(f"DEBUG: Recursive crawl timeout reached ({MAX_CRAWL_TIME}s). Returning partial results.")
+                    break
+
                 # Prepare batch of URLs
                 batch_size = min(len(pages_to_crawl), 3)
                 current_batch = []

@@ -57,7 +57,8 @@ async def add_content_to_store(content, metadata):
 
     if all_chunks:
         async with write_lock:
-            vector_store.add_documents(all_chunks, batch_size=64)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, lambda: vector_store.add_documents(all_chunks, batch_size=64))
             print(f"Added {len(all_chunks)} chunks for {metadata.get('source')} with image: {page_image}", flush=True)
 
 async def add_multiple_contents_to_store(items: list):
@@ -137,17 +138,29 @@ async def add_multiple_contents_to_store(items: list):
         print(f"DEBUG: Deduplication complete. Removed {reduction} duplicate chunks. Unique chunks: {len(unique_chunks)}", flush=True)
         
         if unique_chunks:
-            async with write_lock:
-                # Reduced batch size for stability with single-threaded embeddings on EC2
-                batch_size = 100
-                total_unique = len(unique_chunks)
-                for i in range(0, total_unique, batch_size):
-                    batch = unique_chunks[i : i + batch_size]
-                    print(f"DEBUG: Processing batch {i//batch_size + 1}/{(total_unique-1)//batch_size + 1} ({len(batch)} chunks)...", flush=True)
-                    
-                    import time
-                    start_t = time.time()
-                    vector_store.add_documents(batch)
-                    elapsed = time.time() - start_t
-                    
-                    print(f"Added batch of {len(batch)} chunks in {elapsed:.2f}s. Total: {min(i + batch_size, total_unique)}/{total_unique}", flush=True)
+            # reduced batch size for stability with single-threaded embeddings on EC2
+            batch_size = 50 
+            total_unique = len(unique_chunks)
+            print(f"DEBUG: Starting ingestion of {total_unique} chunks in batches of {batch_size}...", flush=True)
+            
+            for i in range(0, total_unique, batch_size):
+                batch = unique_chunks[i : i + batch_size]
+                batch_num = i // batch_size + 1
+                total_batches = (total_unique - 1) // batch_size + 1
+                
+                print(f"DEBUG: Processing batch {batch_num}/{total_batches} ({len(batch)} chunks)...", flush=True)
+                
+                import time
+                start_t = time.time()
+                
+                # Move lock INSIDE the loop so we don't block the entire event loop for an hour
+                async with write_lock:
+                    # Use a thread pool for the synchronous add_documents to avoid blocking the event loop
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(None, vector_store.add_documents, batch)
+                
+                elapsed = time.time() - start_t
+                print(f"Added batch {batch_num} of {len(batch)} chunks in {elapsed:.2f}s. Total: {min(i + batch_size, total_unique)}/{total_unique}", flush=True)
+                
+                # IMPORTANT: Yield to the event loop to allow heartbeat logs to be sent and other tasks to run
+                await asyncio.sleep(0.1)

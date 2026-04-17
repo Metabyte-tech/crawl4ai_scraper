@@ -7,6 +7,12 @@ from product_extractor import product_extractor
 import os
 import asyncio
 import hashlib
+import gc
+from concurrent.futures import ThreadPoolExecutor
+
+# Dedicated executor for heavy embedding tasks to prevent overloading EC2 RAM/CPU
+# We limit this to ONE thread to ensure heavy model calls are serialized globally across the process.
+embedding_executor = ThreadPoolExecutor(max_workers=1)
 
 # Global lock for vector store writes to avoid SQLite concurrency issues
 write_lock = asyncio.Lock()
@@ -58,8 +64,13 @@ async def add_content_to_store(content, metadata):
     if all_chunks:
         async with write_lock:
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, lambda: vector_store.add_documents(all_chunks, batch_size=64))
+            # Use dedicated single-threaded executor for the heavy model call
+            await loop.run_in_executor(embedding_executor, lambda: vector_store.add_documents(all_chunks, batch_size=64))
             print(f"Added {len(all_chunks)} chunks for {metadata.get('source')} with image: {page_image}", flush=True)
+        
+        # Free memory immediately
+        del all_chunks
+        gc.collect()
 
 async def add_multiple_contents_to_store(items: list):
     """
@@ -137,6 +148,10 @@ async def add_multiple_contents_to_store(items: list):
         reduction = len(all_chunks) - len(unique_chunks)
         print(f"DEBUG: Deduplication complete. Removed {reduction} duplicate chunks. Unique chunks: {len(unique_chunks)}", flush=True)
         
+        # Free the original list early to save memory
+        del all_chunks
+        gc.collect()
+        
         if unique_chunks:
             # reduced batch size for stability with single-threaded embeddings on EC2
             batch_size = 50 
@@ -155,12 +170,16 @@ async def add_multiple_contents_to_store(items: list):
                 
                 # Move lock INSIDE the loop so we don't block the entire event loop for an hour
                 async with write_lock:
-                    # Use a thread pool for the synchronous add_documents to avoid blocking the event loop
+                    # Use dedicated single-threaded executor for the heavy model call
                     loop = asyncio.get_running_loop()
-                    await loop.run_in_executor(None, vector_store.add_documents, batch)
+                    await loop.run_in_executor(embedding_executor, vector_store.add_documents, batch)
                 
                 elapsed = time.time() - start_t
                 print(f"Added batch {batch_num} of {len(batch)} chunks in {elapsed:.2f}s. Total: {min(i + batch_size, total_unique)}/{total_unique}", flush=True)
                 
                 # IMPORTANT: Yield to the event loop to allow heartbeat logs to be sent and other tasks to run
                 await asyncio.sleep(0.1)
+                
+            # Final cleanup for this task
+            del unique_chunks
+            gc.collect()

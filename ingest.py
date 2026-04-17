@@ -6,6 +6,7 @@ from vector_store import vector_store
 from product_extractor import product_extractor
 import os
 import asyncio
+import hashlib
 
 # Global lock for vector store writes to avoid SQLite concurrency issues
 write_lock = asyncio.Lock()
@@ -119,12 +120,29 @@ async def add_multiple_contents_to_store(items: list):
                 all_chunks.append(Document(page_content=clean_chunk, metadata=chunk_metadata))
     
     if all_chunks:
-        print(f"Batch adding {len(all_chunks)} chunks to the vector store...", flush=True)
-        async with write_lock:
-            # Reduced batch size for stability with single-threaded embeddings on EC2
-            batch_size = 100
-            for i in range(0, len(all_chunks), batch_size):
-                batch = all_chunks[i : i + batch_size]
-                print(f"DEBUG: Processing batch {i//batch_size + 1}/{(len(all_chunks)-1)//batch_size + 1} ({len(batch)} chunks)...", flush=True)
-                vector_store.add_documents(batch)
-                print(f"Added batch of {len(batch)} chunks. Total: {min(i + batch_size, len(all_chunks))}/{len(all_chunks)}", flush=True)
+        print(f"DEBUG: Deduping {len(all_chunks)} chunks for the vector store...", flush=True)
+        seen_hashes = set()
+        unique_chunks = []
+        
+        for doc in all_chunks:
+            # Normalize text for hash (strip extra whitespace)
+            norm_text = " ".join(doc.page_content.split())
+            content_hash = hashlib.md5(norm_text.encode('utf-8')).hexdigest()
+            
+            if content_hash not in seen_hashes:
+                seen_hashes.add(content_hash)
+                unique_chunks.append(doc)
+        
+        reduction = len(all_chunks) - len(unique_chunks)
+        print(f"DEBUG: Deduplication complete. Removed {reduction} duplicate chunks. Unique chunks: {len(unique_chunks)}", flush=True)
+        
+        if unique_chunks:
+            async with write_lock:
+                # Reduced batch size for stability with single-threaded embeddings on EC2
+                batch_size = 100
+                total_unique = len(unique_chunks)
+                for i in range(0, total_unique, batch_size):
+                    batch = unique_chunks[i : i + batch_size]
+                    print(f"DEBUG: Processing batch {i//batch_size + 1}/{(total_unique-1)//batch_size + 1} ({len(batch)} chunks)...", flush=True)
+                    vector_store.add_documents(batch)
+                    print(f"Added batch of {len(batch)} chunks. Total: {min(i + batch_size, total_unique)}/{total_unique}", flush=True)

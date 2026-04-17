@@ -121,10 +121,10 @@ async def add_multiple_contents_to_store(items: list):
     if all_chunks:
         print(f"Batch adding {len(all_chunks)} chunks to the vector store...", flush=True)
         async with write_lock:
-            # ChromaDB has a max batch size of 5461. 
-            # Using manual loop of 500 to guarantee stability across all library versions.
-            batch_size = 500
+            # Reduced batch size for stability with single-threaded embeddings on EC2
+            batch_size = 100
             for i in range(0, len(all_chunks), batch_size):
                 batch = all_chunks[i : i + batch_size]
+                print(f"DEBUG: Processing batch {i//batch_size + 1}/{(len(all_chunks)-1)//batch_size + 1} ({len(batch)} chunks)...", flush=True)
                 vector_store.add_documents(batch)
                 print(f"Added batch of {len(batch)} chunks. Total: {min(i + batch_size, len(all_chunks))}/{len(all_chunks)}", flush=True)

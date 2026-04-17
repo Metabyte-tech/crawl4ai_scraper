@@ -1227,13 +1227,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         try:
             # Enhanced headers to avoid "Bot Detection" on top retailers
             symbols = {"$": "$", "USD": "$", "RS": "₹", "INR": "₹", "GBP": "£", "EUR": "€"}
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5",
-                "Referer": "https://www.google.com/"
-            }
-            async with session.get(url, headers=headers, timeout=5) as response:
+            domain = urlparse(url).netloc
+            headers = self._get_stealth_headers(domain)
+            async with session.get(url, headers=headers, timeout=8) as response:
                 if response.status != 200: 
                     print(f"DEBUG: Rapid extract failed for {url} with status {response.status}", flush=True)
                     return url, None
@@ -1296,11 +1292,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     data["price"] = self._extract_price_from_snippet(data["price"])
                     
                 if not data["rating"]:
-                    meta_r = soup.find("meta", property="og:rating") or soup.find("meta", name="rating")
+                    meta_r = soup.find("meta", property="og:rating") or soup.find("meta", attrs={"name": "rating"})
                     if meta_r: data["rating"] = meta_r.get("content")
                 
                 # 3. Simple description
-                meta_desc = soup.find("meta", name="description") or soup.find("meta", property="og:description")
+                meta_desc = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", property="og:description")
                 if meta_desc: data["description"] = meta_desc.get("content")[:500]
                 
                 print(f"DEBUG: Rapid extracted data for {url}: {data['price']}, {data['rating']}", flush=True)

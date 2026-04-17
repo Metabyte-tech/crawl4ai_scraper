@@ -13,14 +13,17 @@ DB_DIR = "./chroma_db"
 print("Initializing Embeddings and Vector Store...", flush=True)
 # ✅ Load once at startup
 embeddings = HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2"
+    model_name="all-MiniLM-L6-v2",
+    model_kwargs={'device': 'cpu'}
 )
+
+# Warmup call to initialize C++ hooks/buffers
+print("Warming up embeddings model...", flush=True)
+embeddings.embed_query("warmup")
 
 vector_store = Chroma(
     persist_directory=DB_DIR,
     embedding_function=embeddings,
-
-
     collection_name="crawl4ai_collection"
 )
 print("Vector Store Initialized.", flush=True)

@@ -144,5 +144,10 @@ async def add_multiple_contents_to_store(items: list):
                 for i in range(0, total_unique, batch_size):
                     batch = unique_chunks[i : i + batch_size]
                     print(f"DEBUG: Processing batch {i//batch_size + 1}/{(total_unique-1)//batch_size + 1} ({len(batch)} chunks)...", flush=True)
+                    
+                    import time
+                    start_t = time.time()
                     vector_store.add_documents(batch)
-                    print(f"Added batch of {len(batch)} chunks. Total: {min(i + batch_size, total_unique)}/{total_unique}", flush=True)
+                    elapsed = time.time() - start_t
+                    
+                    print(f"Added batch of {len(batch)} chunks in {elapsed:.2f}s. Total: {min(i + batch_size, total_unique)}/{total_unique}", flush=True)

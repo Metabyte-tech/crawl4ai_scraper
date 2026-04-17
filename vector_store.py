@@ -1,6 +1,12 @@
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-import os
 
 DB_DIR = "./chroma_db"
 

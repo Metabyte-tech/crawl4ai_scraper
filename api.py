@@ -458,16 +458,18 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 bot_response = await report_task
 
         elif intent == "shopping":
-            # Execute RAG and Live Search in parallel for maximum speed
-            # Total flight time becomes max(RAG_time, Live_time) instead of RAG_time + Live_time
+            # Execute RAG and Live Search in parallel
+            # We run fast_query directly (not in to_thread) to avoid Segfaults in Torch/ONNX
+            # while parallel async scrapers are running.
             print(f"⚡ Launching Parallel RAG and Live Search for '{query}'...", flush=True)
             
-            # Use to_thread for fast_query since it's likely CPU/Disk bound and blocking
-            rag_task = asyncio.to_thread(fast_query, query, category="retail", threshold=0.7, k=40)
-            live_task = kimi_service.get_fast_bing_data(query)
-            
-            # Wait for both concurrently
-            rag_results, live_results = await asyncio.gather(rag_task, live_task)
+            try:
+                rag_results = fast_query(query, category="retail", threshold=0.7, k=40)
+            except Exception as e:
+                print(f"RAG search error (skipping): {e}", flush=True)
+                rag_results = []
+                
+            live_results = await kimi_service.get_fast_bing_data(query)
             
             # Process RAG results
             cached_products = []

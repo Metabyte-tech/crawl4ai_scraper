@@ -183,17 +183,10 @@ class ChatRequest(BaseModel):
 async def crawl_endpoint(request: CrawlRequest, req: Request):
     if not request.url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL protocol")
-    # background_tasks.add_task(background_ingest, request.url, max_pages=1)
-    # For now, keeping simple ingest local or we could add a new task to worker.py
-    # But since deep crawl is the bottleneck, we'll focus on that.
-    # To keep it consistent, let's just use the pool if needed.
-    from ingest import add_content_to_store
-    from crawler import crawl_site
-    async def run_ingest():
-         content, _ = await crawl_site(request.url)
-         if content: await add_content_to_store(content, {"source": request.url})
-    asyncio.create_task(run_ingest()) # Quick local async if arq task isn't defined yet
-    return {"status": "success", "message": f"Ingestion started for {request.url}"}
+    # Enqueue the job instead of running it in the API process
+    # to avoid concurrent SQLite/Chroma locking issues between API and Worker.
+    await req.app.state.arq_pool.enqueue_job('ingest_url_task', url=request.url, max_pages=1)
+    return {"status": "success", "message": f"Ingestion queued for {request.url}"}
 
 
 @app.post("/crawl/deep")
@@ -209,26 +202,17 @@ async def deep_crawl_endpoint(request: CrawlRequest, req: Request):
 
 @app.post("/crawl/batch")
 async def crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
-    """Light crawl for multiple URLs. URLs are processed concurrently."""
+    """Light crawl for multiple URLs. URLs are processed concurrently by the worker."""
     valid = [u for u in request.urls if u.startswith("http")]
     if not valid:
         raise HTTPException(status_code=400, detail="No valid URLs provided (must start with http/https)")
 
-    from ingest import add_content_to_store
-    from crawler import crawl_site
+    for url in valid:
+        await req.app.state.arq_pool.enqueue_job('ingest_url_task', url=url, max_pages=1)
 
-    async def ingest_one(url: str):
-        try:
-            content, _ = await crawl_site(url)
-            if content:
-                await add_content_to_store(content, {"source": url})
-        except Exception as e:
-            print(f"Batch crawl error for {url}: {e}", flush=True)
-
-    asyncio.create_task(asyncio.gather(*[ingest_one(u) for u in valid]))
     return {
         "status": "success",
-        "message": f"Ingestion started for {len(valid)} URL(s)",
+        "message": f"Ingestion queued for {len(valid)} URL(s)",
         "urls": valid,
     }
 

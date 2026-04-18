@@ -95,5 +95,6 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(REDIS_URL)
     # Increase timeout for heavy deep crawls (3600 = 1 hour)
     job_timeout = 3600 
-    # Max concurrent jobs per worker process to avoid OOM on 8GB EC2
-    max_jobs = 5
+    # Max concurrent jobs per worker process to avoid OOM on 8GB/16GB EC2
+    # Reduced to 3 to leave overhead for Playwright and Torch
+    max_jobs = 3

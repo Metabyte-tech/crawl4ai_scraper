@@ -12,7 +12,8 @@ def fast_query(query: str, category: str = None, threshold: float = 2.0, preferr
     If preferred_source is provided, it boosts results from that source (lower score).
     """
     import time
-    max_retries = 3
+    import random
+    max_retries = 5
     where_filter = {}
     if category:
         where_filter["category"] = category
@@ -20,6 +21,7 @@ def fast_query(query: str, category: str = None, threshold: float = 2.0, preferr
     if not where_filter:
         where_filter = None
 
+    results_with_scores = []
     for attempt in range(max_retries):
         try:
             # Use similarity_search_with_score to get distances
@@ -30,11 +32,18 @@ def fast_query(query: str, category: str = None, threshold: float = 2.0, preferr
             )
             break
         except Exception as e:
-            if "Error finding id" in str(e) and attempt < max_retries - 1:
-                print(f"⚠️ ChromaDB transient error, retrying... ({attempt+1}/{max_retries})", flush=True)
-                time.sleep(1) # Wait for potential lock to release
+            # Check if it's a transient locking/concurrency error
+            err_msg = str(e).lower()
+            transient_errors = ["error finding id", "database is locked", "timeout", "connection"]
+            
+            if any(msg in err_msg for msg in transient_errors) and attempt < max_retries - 1:
+                # Exponential backoff: 0.5s, 1s, 2s, 4s... with a bit of jitter
+                wait_time = (2 ** attempt) * 0.5 + (random.random() * 0.1)
+                print(f"⚠️ ChromaDB transient error ({err_msg}), retrying in {wait_time:.2f}s... ({attempt+1}/{max_retries})", flush=True)
+                time.sleep(wait_time)
                 continue
             else:
+                print(f"❌ ChromaDB fatal error after {attempt+1} attempts: {e}", flush=True)
                 raise e
 
     relevant_results = []

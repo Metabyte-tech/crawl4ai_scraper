@@ -136,6 +136,18 @@ class ProductExtractor:
             if best_match:
                 data["price"] = best_match
 
+        # 5. Rating/Review Aggressive Hunt
+        if not data.get("rating_avg"):
+            # Look for "X out of 5 stars" or "Rating: X"
+            text = soup.get_text(separator=" ", strip=True)
+            r_match = re.search(r'(\d+\.?\d*)\s*out of 5', text, re.IGNORECASE) or \
+                      re.search(r'Rating:\s*(\d+\.?\d*)', text, re.IGNORECASE)
+            if r_match:
+                data["rating_avg"] = r_match.group(1)
+
+        # 6. Source URL Enforcement
+        data["source_url"] = url
+
         return {k: v for k, v in data.items() if v is not None}
 
 product_extractor = ProductExtractor()

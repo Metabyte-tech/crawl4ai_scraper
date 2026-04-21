@@ -139,31 +139,37 @@ class KimiService:
                 prices.append(rp.strip())
 
         if prices:
-            valid_prices = []
+            valid_choices = []
             for p in prices:
+                # Standardize to avoid "₹ 3,999" vs "₹3,999"
+                p_clean = p.replace(" ", "").replace(",", "")
+                valid_choices.append((p, self._parse_price(p_clean)))
+                    
+            # Heuristic: Filter out outliers and original prices
+            # 1. Skip prices with 'was', 'original' context
+            final_candidates = []
+            for p, val in valid_choices:
                 is_original = False
                 for m in re.finditer(re.escape(p), str(snippet)):
-                    ctx = str(snippet)[max(0, m.start() - 25):m.start()].lower()
-                    if any(w in ctx for w in ["was", "original", "list", "save"]):
+                    ctx = str(snippet)[max(0, m.start() - 30):m.start()].lower()
+                    if any(w in ctx for w in ["was", "original", "list", "save", "regular", "previous"]):
                         is_original = True
                 if not is_original:
-                    valid_prices.append(p)
-                    
-            choices = valid_prices if valid_prices else prices
+                    final_candidates.append((p, val))
             
-            # Heuristic: Filter out obvious concatenations (e.g., $2399 vs $23.99)
-            parsed_choices = [(c, self._parse_price(c)) for c in choices]
-            vals = [p[1] for p in parsed_choices]
-            final_choices = []
-            for c, v in parsed_choices:
-                if v / 100.0 in vals or v / 10.0 in vals:
-                    continue
-                final_choices.append((c, v))
+            if not final_candidates:
+                final_candidates = valid_choices
 
-            if not final_choices:
-                final_choices = parsed_choices
-
-            return min(final_choices, key=lambda x: x[1])[0]
+            # Return the most plausible price:
+            # 1. Favor prices that look like "real" selling prices (not $1.99 if there's a $799)
+            if len(final_candidates) > 1:
+                # Sort by value descending to find "Primary" price, but avoid outliers
+                final_candidates.sort(key=lambda x: x[1], reverse=True)
+                # If the highest price is > 10x the next one, it might be MSRP. 
+                # For now, let's just return the HIGHEST to avoid picking "1-year warranty $48" over "$1,20,000"
+                return final_candidates[0][0]
+            elif final_candidates:
+                return final_candidates[0][0]
             
         return "Check Site"
 
@@ -465,9 +471,32 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         raw_img = img_el.get("src") if img_el else None
                         img_url = re.sub(r'\._[^/]*\.', '.', raw_img) if (raw_img and "m.media-amazon.com" in raw_img) else raw_img
                         
-                        products.append({
+                        # NEW: Robust Amazon Price Extraction
+                        if not price_str or price_str == "Check Site":
+                            # Try finding price in decimals
+                            p_off = item.select_one('.a-offscreen')
+                            if p_off:
+                                price_str = p_off.get_text(strip=True)
+                            else:
+                                # AGGRESSIVE HUNT: Look for any currency symbol in the item's HTML
+                                itxt = item.get_text(separator=" ", strip=True)
+                                p_any = self._extract_price_from_snippet(itxt)
+                                if p_any != "Check Site":
+                                    price_str = p_any
+                                else:
+                                    # NUCLEAR OPTION: Regex directly on raw HTML for the first currency match
+                                    html_str = str(item)
+                                    m_nuke = re.search(r'(₹|Rs\.?)\s*([\d,]+)', html_str)
+                                    if m_nuke:
+                                        price_str = f"₹{m_nuke.group(2)}"
+
+                        # Skip bogus small prices for expensive categories (like Laptops)
+                        if price_str and "laptop" in (query + name.get_text()).lower():
+                            p_val = self._parse_price(price_str)
+                            if p_val < 500: # Laptops aren't under ₹500
+                                price_str = "Check Site"
                             "name": name.get_text(strip=True),
-                            "price": self._extract_price_from_snippet(price_str) if price_str else "Check Site",
+                            "price": price_str if price_str else "Check Site",
                             "rating_avg": rating_val,
                             "rating_count": reviews_count,
                             "image_url": img_url,
@@ -522,11 +551,28 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         raw_img = img.get("src") if img else None
                         img_url = re.sub(r's-l\d+', 's-l500', raw_img) if (raw_img and "s-l" in raw_img) else raw_img
 
+                        # NEW: Enhanced eBay Extraction (Ratings/Reviews)
+                        rating_val = None
+                        reviews_count = None
+                        
+                        # eBay sometimes shows rating in a span with 'aria-label' or 'st-stars'
+                        stars_el = item.find(class_=re.compile(r'star|rating'))
+                        if stars_el and stars_el.get('aria-label'):
+                            m = re.search(r'(\d+\.?\d*)\s*out of 5', stars_el.get('aria-label'))
+                            if m: rating_val = float(m.group(1))
+                        
+                        # Review count often follows the stars
+                        reviews_el = item.find(class_=re.compile(r'reviews|total-ratings'))
+                        if reviews_el:
+                            m = re.search(r'([\d,]+)', reviews_el.get_text())
+                            if m: reviews_count = m.group(1)
+
                         if found_price != "Check Site":
                             products.append({
                                 "name": name_text[:70],
                                 "price": found_price,
-                                "rating_avg": None,
+                                "rating_avg": rating_val,
+                                "rating_count": reviews_count,
                                 "image_url": img_url,
                                 "url": link.get("href") if link else url,
                                 "source_url": link.get("href") if link else url,
@@ -573,10 +619,25 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         if len(name) < 10: continue
                         
                         p_url = urljoin("https://www.flipkart.com", link_el.get('href', '')) if link_el else url
+                        
+                        # NEW: Enhanced Flipkart Extraction (Ratings/Reviews)
+                        rating_el = item.select_one('div._3LWZlK') or item.select_one('span._2_R_o9')
+                        rating_val = None
+                        if rating_el:
+                            try: rating_val = float(rating_el.get_text(strip=True).replace('★', ''))
+                            except: pass
+                            
+                        reviews_el = item.select_one('span._2_R_o9') or item.select_one('span._2_R_o9')
+                        reviews_count = None
+                        if reviews_el:
+                            m = re.search(r'([\d,]+)', reviews_el.get_text())
+                            if m: reviews_count = m.group(1)
+
                         products.append({
                             "name": name,
                             "price": self._extract_price_from_snippet(price_el.get_text(strip=True)),
-                            "rating_avg": None,
+                            "rating_avg": rating_val,
+                            "rating_count": reviews_count,
                             "image_url": img_el.get("src") if img_el else None,
                             "url": p_url,
                             "source_url": p_url,
@@ -625,10 +686,33 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         
                         p_url = urljoin("https://www.walmart.com", link_el.get('href', '')) if link_el else url
                         
+                        # NEW: Enhanced Walmart Extraction
+                        rating_el = item.select_one('[data-testid="rating-number"]') or item.select_one('.w_V_o')
+                        rating_val = None
+                        reviews_count = None
+                        if rating_el:
+                            txt = rating_el.get_text(strip=True)
+                            m = re.search(r'(\d+\.?\d*)', txt)
+                            if m: rating_val = float(m.group(1))
+                            m_rev = re.search(r'\((\d+)\)', txt)
+                            if m_rev: reviews_count = m_rev.group(1)
+
+                        if not price_text or price_text == "Check Site":
+                            # AGGRESSIVE HUNT for Walmart
+                            p_any = self._extract_price_from_snippet(item.get_text())
+                            if p_any != "Check Site":
+                                price_text = p_any
+                            else:
+                                # NUCLEAR OPTION for Walmart ($)
+                                m_nuke = re.search(r'\$\s*([\d,]+\.?\d*)', str(item))
+                                if m_nuke:
+                                    price_text = f"${m_nuke.group(1)}"
+
                         products.append({
                             "name": name,
                             "price": price_text,
-                            "rating_avg": None,
+                            "rating_avg": rating_val,
+                            "rating_count": reviews_count,
                             "image_url": img_el.get("src") if img_el else None,
                             "url": p_url,
                             "source_url": p_url,
@@ -680,7 +764,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 asyncio.gather(
                     amazon_task, ebay_task, flipkart_task, walmart_task, ddg_task, images_task
                 ),
-                timeout=12.0
+                timeout=7.5 # Reduced from 12s for snappier UI
             )
             bing_images = bing_res.get("results", []) if bing_res else []
         except asyncio.TimeoutError:
@@ -748,10 +832,12 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         if not flipkart_products: fallback_tasks.append(fetch_domain_fallback("Flipkart", "flipkart.com"))
         if not walmart_products: fallback_tasks.append(fetch_domain_fallback("Walmart", "walmart.com"))
 
-        if fallback_tasks:
+        # Skip fallback if we already have plenty of results to keep it "fastable"
+        total_found = len(amazon_products) + len(ebay_products) + len(flipkart_products) + len(walmart_products)
+        if fallback_tasks and total_found < 10:
             try:
                 # Fallback search also gets a strict timeout
-                fallback_results = await asyncio.wait_for(asyncio.gather(*fallback_tasks), timeout=8.0)
+                fallback_results = await asyncio.wait_for(asyncio.gather(*fallback_tasks), timeout=5.0)
                 # Merge fallbacks into products lists
                 for fb_list in fallback_results:
                     if not fb_list: continue
@@ -1016,13 +1102,13 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             f"Focus on finding specific technical specs, prices, and ratings.\n\n"
             f"Return a JSON list of objects with these exact fields:\n"
             f"- name: Concise, descriptive product name (include model/size if found)\n"
-            f"- price: The numerical price with currency (e.g., $19.99). Look for strings near 'Add to cart', 'MSRP', total, or large bold numbers. Prioritize sale prices. If completely absent, return null.\n"
+            f"- price: The numerical price with currency (e.g., $19.99). MANDATORY: If a price exists anywhere in the text (near 'price', 'now', 'Rs.', symbols), you MUST extract it. Check headers, sidebars, and main content. If absolutely zero price symbols exist, ONLY then return null.\n"
             f"- brand: Brand name\n"
             f"- rating_avg: Numerical average rating (e.g., 4.5) - float or null\n"
             f"- rating_count: total number of customer reviews (e.g., 1250) - integer or null\n"
             f"- offers: Short summary of discounts or free shipping\n"
             f"- source: Store name or platform\n"
-            f"- image_url: Direct link to the primary product image found in the text or metadata snippets.\n"
+            f"- image_url: Direct link to the primary product image. Look for 'large', 'high-res', or 'original' images.\n"
             f"- url: Original product URL\n"
             f"- moq: Minimum Order Quantity (e.g., '100 units' or '1 pc')\n"
             f"- details: A HIGHLY DETAILED summary of features, materials, and specifications.\n"

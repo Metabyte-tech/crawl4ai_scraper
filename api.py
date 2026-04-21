@@ -20,6 +20,7 @@ from arq import create_pool
 from arq.connections import RedisSettings
 from urllib.parse import urlparse
 from admin_service import admin_service
+from db_service import db_service
 
 last_crawled_domain = None
 
@@ -120,6 +121,10 @@ async def startup():
         # Test connection
         await app.state.arq_pool.set('api_health_check', 'ok')
         print("🚀 ARQ Redis Pool initialized and verified", flush=True)
+        
+        # Initialize PostgreSQL
+        await db_service.init_db()
+        print("💾 PostgreSQL History DB initialized", flush=True)
     except Exception as e:
         print(f"❌ ARQ Redis Pool failed to initialize: {e}", flush=True)
         import traceback
@@ -268,9 +273,24 @@ async def get_admin_batch_status(batch_id: str):
 
 @app.delete("/admin/crawl/batch/{batch_id}")
 async def delete_admin_batch(batch_id: str):
-    """Deletes a specific crawl batch and its URL tracking data."""
     await admin_service.delete_batch(batch_id)
-    return {"status": "success", "message": f"Batch {batch_id} deleted"}
+    return {"status": "deleted", "batch_id": batch_id}
+
+# ── History endpoints (Permanent storage) ────────────────────────────────────
+
+@app.get("/admin/crawl-history")
+async def list_crawl_history(limit: int = 20):
+    """Returns a list of historical crawl batches from PostgreSQL."""
+    batches = await db_service.list_batches(limit)
+    return {"batches": batches}
+
+@app.get("/admin/crawl-history/{batch_id}")
+async def get_crawl_history_detail(batch_id: str):
+    """Returns full detail for a historical batch from PostgreSQL."""
+    detail = await db_service.get_batch_detail(batch_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Historical batch not found")
+    return detail
 
 
 @app.post("/clear")

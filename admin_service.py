@@ -4,6 +4,7 @@ import uuid
 import os
 import redis.asyncio as redis
 from typing import List, Optional, Dict
+from db_service import db_service
 
 class AdminService:
     def __init__(self):
@@ -38,6 +39,11 @@ class AdminService:
         # Add to recent batches list (ZSET by timestamp)
         await r.zadd("admin:crawl_batches", {batch_id: time.time()})
         
+        # Persist to PostgreSQL
+        await db_service.upsert_batch(batch_id, metadata)
+        for url in urls:
+            await db_service.upsert_url_result(batch_id, url, "queued")
+        
         return batch_id
 
     async def update_url_status(self, batch_id: str, url: str, status: str):
@@ -47,9 +53,17 @@ class AdminService:
         
         # Check if batch is finished
         url_statuses = await r.hgetall(f"admin:crawl_batch:{batch_id}:urls")
-        if all(s not in ["queued", "running"] for s in url_statuses.values()):
+        is_finished = all(s not in ["queued", "running"] for s in url_statuses.values())
+        
+        if is_finished:
             await r.hset(f"admin:crawl_batch:{batch_id}", "status", "finished")
             await r.hset(f"admin:crawl_batch:{batch_id}", "end_time", time.time())
+            
+        # Persist to PostgreSQL
+        await db_service.upsert_url_result(batch_id, url, status)
+        if is_finished:
+            meta = await r.hgetall(f"admin:crawl_batch:{batch_id}")
+            await db_service.upsert_batch(batch_id, meta)
 
     async def get_batch_status(self, batch_id: str) -> Dict:
         """Retrieves the full status and URL details of a batch."""
@@ -102,5 +116,8 @@ class AdminService:
         await r.delete(f"admin:crawl_batch:{batch_id}")
         await r.delete(f"admin:crawl_batch:{batch_id}:urls")
         await r.zrem("admin:crawl_batches", batch_id)
+        
+        # Also delete from PostgreSQL
+        await db_service.delete_batch(batch_id)
 
 admin_service = AdminService()

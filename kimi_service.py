@@ -62,7 +62,7 @@ class KimiService:
     def __init__(self):
         self.api_key = os.getenv("MOONSHOT_API_KEY")
         self.client = AsyncAnthropic(api_key=self.api_key)
-        self.model = "claude-3-haiku-20240307"
+        self.model = "claude-haiku-4-5-20251001"
         self.semaphore = asyncio.Semaphore(6) # Global limit for parallel Playwright browsers
         self.base_retail_domains = [
             "amazon.com", "amazon.in", "flipkart.com", "ebay.com", "walmart.com"

@@ -495,6 +495,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                             p_val = self._parse_price(price_str)
                             if p_val < 500: # Laptops aren't under ₹500
                                 price_str = "Check Site"
+                        products.append({
                             "name": name.get_text(strip=True),
                             "price": price_str if price_str else "Check Site",
                             "rating_avg": rating_val,

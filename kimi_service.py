@@ -759,23 +759,41 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         images_task = self.search_images(query)
         
         print("DEBUG: Launching parallel scrapers...", flush=True)
-        try:
-            # We run images_task in parallel to backfill any missing retailer images
-            amazon_products, ebay_products, flipkart_products, walmart_products, ddg_results, bing_res = await asyncio.wait_for(
-                asyncio.gather(
-                    amazon_task, ebay_task, flipkart_task, walmart_task, ddg_task, images_task
-                ),
-                timeout=7.5 # Reduced from 12s for snappier UI
-            )
-            bing_images = bing_res.get("results", []) if bing_res else []
-        except asyncio.TimeoutError:
-            print("WARNING: Fast path scrapers timed out! Returning partial/empty results to maintain low latency.", flush=True)
-            amazon_products, ebay_products, flipkart_products, walmart_products, ddg_results = [], [], [], [], []
-            bing_images = []
-        except Exception as e:
-            print(f"ERROR: Fast path gather failed: {e}", flush=True)
-            amazon_products, ebay_products, flipkart_products, walmart_products, ddg_results = [], [], [], [], []
-            bing_images = []
+        print("DEBUG: Launching parallel scrapers...", flush=True)
+        
+        # 1. Create named tasks for easy mapping
+        task_map = {
+            "amazon": asyncio.create_task(self.search_amazon_products(query, limit=8)),
+            "ebay": asyncio.create_task(self.search_ebay_products(query, limit=8)),
+            "flipkart": asyncio.create_task(self.search_flipkart_products(query, limit=8)),
+            "walmart": asyncio.create_task(self.search_walmart_products(query, limit=8)),
+            "ddg": asyncio.create_task(self.search_sources(query, limit=8)),
+            "images": asyncio.create_task(self.search_images(query))
+        }
+        
+        # 2. Wait for what we can get within 12s
+        done, pending = await asyncio.wait(task_map.values(), timeout=12.0)
+        
+        # Cancel pending to avoid waste
+        for task in pending:
+            task.cancel()
+            
+        # 3. Extract results safely
+        def get_res(key, default=[]):
+            t = task_map.get(key)
+            if t in done and not t.cancelled():
+                try: return t.result()
+                except Exception as e: 
+                    print(f"ERROR: {key} scraper failed: {e}", flush=True)
+            return default
+
+        amazon_products = get_res("amazon")
+        ebay_products = get_res("ebay")
+        flipkart_products = get_res("flipkart")
+        walmart_products = get_res("walmart")
+        ddg_results = get_res("ddg")
+        bing_res = get_res("images", {})
+        bing_images = bing_res.get("results", []) if isinstance(bing_res, dict) else []
         
         # --- CLIENT REQUIREMENT: All Scraped Websites ---
         # If any native scraper failed (0 results), trigger a targeted site-specific search

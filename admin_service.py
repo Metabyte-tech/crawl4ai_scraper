@@ -62,11 +62,25 @@ class AdminService:
             await r.hset(f"admin:crawl_batch:{batch_id}", "status", "finished")
             await r.hset(f"admin:crawl_batch:{batch_id}", "end_time", time.time())
             
-        # Persist to PostgreSQL
-        await db_service.upsert_url_result(batch_id, url, status)
-        if is_finished:
-            meta = await r.hgetall(f"admin:crawl_batch:{batch_id}")
-            await db_service.upsert_batch(batch_id, meta)
+        # Persist to PostgreSQL - with self-healing for missing batch rows
+        try:
+            await db_service.upsert_url_result(batch_id, url, status)
+            if is_finished:
+                meta = await r.hgetall(f"admin:crawl_batch:{batch_id}")
+                await db_service.upsert_batch(batch_id, meta)
+        except Exception as e:
+            # If batch is missing (FK violation), try to recreate it from Redis
+            if "foreign key constraint" in str(e).lower() or "crawl_url_results_batch_id_fkey" in str(e):
+                logger.warning(f"Batch {batch_id} missing in DB. Recreating from Redis...")
+                meta = await r.hgetall(f"admin:crawl_batch:{batch_id}")
+                if meta:
+                    await db_service.upsert_batch(batch_id, meta)
+                    # Retry the URL result update
+                    await db_service.upsert_url_result(batch_id, url, status)
+                else:
+                    logger.error(f"Could not recover batch {batch_id}: metadata missing in Redis")
+            else:
+                logger.error(f"Failed to persist URL status for {url} in batch {batch_id}: {e}")
 
     async def get_batch_status(self, batch_id: str) -> Dict:
         """Retrieves the full status and URL details of a batch."""

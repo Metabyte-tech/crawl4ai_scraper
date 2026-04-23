@@ -3,6 +3,9 @@ import asyncio
 import asyncpg
 import json
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import List, Optional, Dict
 from dotenv import load_dotenv
 
@@ -16,8 +19,36 @@ class DBService:
 
     async def get_pool(self):
         if not self.pool:
-            self.pool = await asyncpg.create_pool(DATABASE_URL)
+            if not DATABASE_URL:
+                raise RuntimeError("DATABASE_URL is not set in environment")
+            try:
+                # Auto-enable SSL for cloud databases (Neon, Supabase, RDS, etc.)
+                ssl_ctx = None
+                if "sslmode=require" in DATABASE_URL or "neon.tech" in DATABASE_URL or "supabase" in DATABASE_URL or "rds.amazonaws.com" in DATABASE_URL:
+                    import ssl
+                    ssl_ctx = ssl.create_default_context()
+                    ssl_ctx.check_hostname = False
+                    ssl_ctx.verify_mode = ssl.CERT_NONE
+
+                # Strip sslmode from URL since asyncpg handles it via ssl param
+                clean_url = DATABASE_URL.replace("?sslmode=require", "").replace("&sslmode=require", "")
+
+                self.pool = await asyncpg.create_pool(
+                    clean_url,
+                    min_size=1,
+                    max_size=10,
+                    ssl=ssl_ctx
+                )
+                logger.info("PostgreSQL connection pool created successfully")
+            except Exception as e:
+                logger.error(f"Failed to connect to PostgreSQL: {e}")
+                raise RuntimeError(f"Database connection failed: {e}") from e
         return self.pool
+
+    async def close_pool(self):
+        if self.pool:
+            await self.pool.close()
+            self.pool = None
 
     async def init_db(self):
         """Initializes the database tables if they don't exist."""
@@ -106,9 +137,12 @@ class DBService:
 
     async def delete_batch(self, batch_id: str):
         """Deletes a batch and its associated URL results from PostgreSQL."""
-        pool = await self.get_pool()
-        async with pool.acquire() as conn:
-            # Note: crawl_url_results has ON DELETE CASCADE on batch_id
-            await conn.execute("DELETE FROM crawl_batches WHERE batch_id = $1", batch_id)
+        try:
+            pool = await self.get_pool()
+            async with pool.acquire() as conn:
+                # Note: crawl_url_results has ON DELETE CASCADE on batch_id
+                await conn.execute("DELETE FROM crawl_batches WHERE batch_id = $1", batch_id)
+        except Exception as e:
+            logger.warning(f"Could not delete batch {batch_id} from PostgreSQL: {e}")
 
 db_service = DBService()

@@ -2,9 +2,12 @@ import json
 import time
 import uuid
 import os
+import logging
 import redis.asyncio as redis
 from typing import List, Optional, Dict
 from db_service import db_service
+
+logger = logging.getLogger(__name__)
 
 class AdminService:
     def __init__(self):
@@ -117,7 +120,10 @@ class AdminService:
         await r.delete(f"admin:crawl_batch:{batch_id}:urls")
         await r.zrem("admin:crawl_batches", batch_id)
         
-        # Also delete from PostgreSQL
-        await db_service.delete_batch(batch_id)
+        # Also delete from PostgreSQL (non-fatal if DB is unreachable)
+        try:
+            await db_service.delete_batch(batch_id)
+        except Exception as e:
+            logger.warning(f"PostgreSQL delete skipped for batch {batch_id}: {e}")
 
 admin_service = AdminService()

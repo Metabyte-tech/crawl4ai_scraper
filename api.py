@@ -38,16 +38,14 @@ def update_last_domain(url):
 def format_response(res):
     if isinstance(res, str):
         return res
-    if isinstance(res, dict) and res.get("type") == "images":
-        results = res.get("results", [])
-        return f"\n\n<product_grid>{json.dumps(results)}</product_grid>\n\n"
-    if isinstance(res, list):
-        if not res:
-            return "No products found."
-        return "\n\n".join([
-            f"🛍️ {p.get('name', 'Product')} - {p.get('price', '')}\n🔗 {p.get('url', p.get('source_url', ''))}"
-            for p in res if isinstance(p, dict)
-        ])
+    if isinstance(res, dict):
+        if res.get("type") == "images":
+            results = res.get("results", [])
+            return f"\n\n<product_grid>{json.dumps(results)}</product_grid>\n\n"
+        # If it looks like a single product, wrap it in a grid list
+        if any(k in res for k in ["name", "price", "title", "url"]):
+            return f"\n\n<product_grid>{json.dumps([res])}</product_grid>\n\n"
+        return json.dumps(res, indent=2)
     return str(res)
 
 
@@ -230,7 +228,7 @@ async def deep_crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
         raise HTTPException(status_code=400, detail="No valid URLs provided")
 
     for url in valid:
-        await req.app.state.arq_pool.enqueue_job('ingest_url_task', url=url, max_pages=10)
+        await req.app.state.arq_pool.enqueue_job('ingest_url_task', url=url, max_pages=100)
 
     return {"status": "success", "message": f"Deep ingestion queued for {len(valid)} URL(s)", "urls": valid}
 
@@ -447,7 +445,11 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
 
         elif intent == "vehicle":
             v_res = await kimi_service.get_vehicle_data(query)
-            bot_response = format_response(v_res)
+            if isinstance(v_res, dict):
+                live_products = [v_res]
+                bot_response = ""
+            else:
+                bot_response = v_res
 
         elif intent == "agent_task":
             template_id = body.get("template_id", "")
@@ -549,7 +551,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
             )
 
         # Build final response
-        if live_products and intent in ("shopping", "images", "global_search", "supplier_sourcing", "agent_task"):
+        if live_products and intent in ("shopping", "images", "global_search", "supplier_sourcing", "agent_task", "vehicle"):
             ordered = sorted(
                 live_products,
                 key=lambda p: 0 if (p.get("image_url") or p.get("s3_image_url")) else 1
@@ -613,17 +615,10 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
             grid = f"<product_grid>{json.dumps(final_items)}</product_grid>"
             
             # Format text response and append the product grid
-            has_template = bool(body.get("template_id"))
-            
-            if not has_template:
-                # No template selected -> return response in images only
-                final = grid
+            if bot_response:
+                final = f"{bot_response}\n\n{grid}"
             else:
-                # Template selected -> strictly follow template output format + grid
-                if bot_response:
-                    final = f"{bot_response}\n\n{grid}"
-                else:
-                    final = grid
+                final = grid
                 
             print(f"📡 Grid: {len(items)} products", flush=True)
         else:

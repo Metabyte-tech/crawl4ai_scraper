@@ -113,7 +113,7 @@ class KimiService:
         Unified robust price extraction from DuckDuckGo/Bing snippets and scrapers.
         Handles multi-currency, merged text (e.g. NOW$2399current price), and store patterns.
         """
-        if not snippet: return "Check Site"
+        if not snippet: return "Request Price"
         
         prices = set()
         # Find formatted prices globally
@@ -171,7 +171,7 @@ class KimiService:
             elif final_candidates:
                 return final_candidates[0][0]
             
-        return "Check Site"
+        return "Request Price"
 
 
     @staticmethod
@@ -472,7 +472,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         img_url = re.sub(r'\._[^/]*\.', '.', raw_img) if (raw_img and "m.media-amazon.com" in raw_img) else raw_img
                         
                         # NEW: Robust Amazon Price Extraction
-                        if not price_str or price_str == "Check Site":
+                        if not price_str or price_str == "Request Price":
                             # Try finding price in decimals
                             p_off = item.select_one('.a-offscreen')
                             if p_off:
@@ -481,7 +481,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                                 # AGGRESSIVE HUNT: Look for any currency symbol in the item's HTML
                                 itxt = item.get_text(separator=" ", strip=True)
                                 p_any = self._extract_price_from_snippet(itxt)
-                                if p_any != "Check Site":
+                                if p_any != "Request Price":
                                     price_str = p_any
                                 else:
                                     # NUCLEAR OPTION: Regex directly on raw HTML for the first currency match
@@ -494,10 +494,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         if price_str and "laptop" in (query + name.get_text()).lower():
                             p_val = self._parse_price(price_str)
                             if p_val < 500: # Laptops aren't under ₹500
-                                price_str = "Check Site"
+                                price_str = "Request Price"
                         products.append({
                             "name": name.get_text(strip=True),
-                            "price": price_str if price_str else "Check Site",
+                            "price": price_str if price_str else "Request Price",
                             "rating_avg": rating_val,
                             "rating_count": reviews_count,
                             "image_url": img_url,
@@ -568,7 +568,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                             m = re.search(r'([\d,]+)', reviews_el.get_text())
                             if m: reviews_count = m.group(1)
 
-                        if found_price != "Check Site":
+                        if found_price != "Request Price":
                             products.append({
                                 "name": name_text[:70],
                                 "price": found_price,
@@ -698,10 +698,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                             m_rev = re.search(r'\((\d+)\)', txt)
                             if m_rev: reviews_count = m_rev.group(1)
 
-                        if not price_text or price_text == "Check Site":
+                        if not price_text or price_text == "Request Price":
                             # AGGRESSIVE HUNT for Walmart
                             p_any = self._extract_price_from_snippet(item.get_text())
-                            if p_any != "Check Site":
+                            if p_any != "Request Price":
                                 price_text = p_any
                             else:
                                 # NUCLEAR OPTION for Walmart ($)
@@ -829,7 +829,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 if not data: continue
                 
                 # Use extracted data (JSON-LD/Meta) or reasonable defaults
-                found_price = data.get("price") or "Check Site"
+                found_price = data.get("price") or "Request Price"
                 found_title = data.get("description") or f"{query} from {domain_name}"
                 if len(found_title) > 80: found_title = found_title[:77] + "..."
                 
@@ -1604,7 +1604,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     "image_url": image_url,
                     "s3_image_url": image_url, 
                     "name": product.get("name"),
-                    "price": str(product.get("price") or "Check Site"),
+                    "price": str(product.get("price") or "Request Price"),
                     "brand": product.get("brand") or "Product",
                     "rating_avg": str(product.get("rating_avg") or ""),
                     "rating_count": str(product.get("rating_count") or ""),

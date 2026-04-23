@@ -6,7 +6,7 @@ from ingest import add_multiple_contents_to_store
 
 class RetailCrawler:
     def __init__(self):
-        self.max_pages = 50
+        self.max_pages = 100
 
     def _extract_category_info(self, url):
         """

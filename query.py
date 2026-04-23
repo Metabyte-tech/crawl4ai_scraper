@@ -34,15 +34,22 @@ def fast_query(query: str, category: str = None, threshold: float = 2.0, preferr
         except Exception as e:
             # Check if it's a transient locking/concurrency error
             err_msg = str(e).lower()
-            transient_errors = ["error finding id", "database is locked", "timeout", "connection"]
+            transient_messages = ["error finding id", "database is locked", "timeout", "connection"]
             
-            if any(msg in err_msg for msg in transient_errors) and attempt < max_retries - 1:
-                # Exponential backoff: 0.5s, 1s, 2s, 4s... with a bit of jitter
+            # If we hit "error finding id", it might be a corrupt index.
+            # We retry, but also log a hint if it persists.
+            is_transient = any(msg in err_msg for msg in transient_messages)
+            
+            if is_transient and attempt < max_retries - 1:
+                # Exponential backoff
                 wait_time = (2 ** attempt) * 0.5 + (random.random() * 0.1)
-                print(f"⚠️ ChromaDB transient error ({err_msg}), retrying in {wait_time:.2f}s... ({attempt+1}/{max_retries})", flush=True)
+                print(f"⚠️ ChromaDB transient/index error ({err_msg}), retrying in {wait_time:.2f}s... ({attempt+1}/{max_retries})", flush=True)
                 time.sleep(wait_time)
                 continue
             else:
+                if "error finding id" in err_msg:
+                    print("❌ FATAL: ChromaDB index appears corrupted (error finding id).", flush=True)
+                    print("💡 TIP: Try clearing ./chroma_db directory or call clear_vector_store().", flush=True)
                 print(f"❌ ChromaDB fatal error after {attempt+1} attempts: {e}", flush=True)
                 raise e
 

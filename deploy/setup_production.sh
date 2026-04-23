@@ -24,6 +24,8 @@ User=$CURRENT_USER
 Group=$CURRENT_USER
 WorkingDirectory=$PROJECT_DIR
 EnvironmentFile=$PROJECT_DIR/.env
+Environment=OMP_NUM_THREADS=1
+Environment=MKL_NUM_THREADS=1
 ExecStart=$PROJECT_DIR/venv_new/bin/python3 api.py
 Restart=always
 RestartSec=5
@@ -43,6 +45,8 @@ User=$CURRENT_USER
 Group=$CURRENT_USER
 WorkingDirectory=$PROJECT_DIR
 EnvironmentFile=$PROJECT_DIR/.env
+Environment=OMP_NUM_THREADS=1
+Environment=MKL_NUM_THREADS=1
 ExecStart=$PROJECT_DIR/venv_new/bin/arq worker.WorkerSettings
 Restart=always
 RestartSec=5

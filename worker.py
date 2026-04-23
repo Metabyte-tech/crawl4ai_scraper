@@ -1,3 +1,6 @@
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 import asyncio
 from arq import create_pool
 from arq.connections import RedisSettings

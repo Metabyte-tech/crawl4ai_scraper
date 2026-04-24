@@ -35,11 +35,14 @@ def is_port_in_use(port):
 
 if not is_port_in_use(8001):
     print("⚡ Starting ChromaDB HTTP server implicitly on port 8001...", flush=True)
+    chroma_bin = os.path.join(sys.prefix, "bin", "chroma")
+    
+    # We open a log file for chroma server output
+    log_file = open("chroma_server_logs.txt", "a")
     subprocess.Popen(
-        # Notice we use chromadb.cli explicitly to avoid path resolution errors
-        [sys.executable, "-m", "chromadb", "run", "--path", DB_DIR, "--host", "127.0.0.1", "--port", "8001"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        [chroma_bin, "run", "--path", DB_DIR, "--host", "127.0.0.1", "--port", "8001"],
+        stdout=log_file,
+        stderr=subprocess.STDOUT
     )
     # Wait for the server to bind and be ready
     for _ in range(30):

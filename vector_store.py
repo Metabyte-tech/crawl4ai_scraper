@@ -22,12 +22,41 @@ embeddings = HuggingFaceEmbeddings(
 print("Warming up embeddings model...", flush=True)
 embeddings.embed_query("warmup")
 
+# --- Setup Multi-Process Chroma Server ---
+import socket
+import subprocess
+import time
+import sys
+import chromadb
+
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('127.0.0.1', port)) == 0
+
+if not is_port_in_use(8001):
+    print("⚡ Starting ChromaDB HTTP server implicitly on port 8001...", flush=True)
+    subprocess.Popen(
+        # Notice we use chromadb.cli explicitly to avoid path resolution errors
+        [sys.executable, "-m", "chromadb", "run", "--path", DB_DIR, "--host", "127.0.0.1", "--port", "8001"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    # Wait for the server to bind and be ready
+    for _ in range(30):
+        if is_port_in_use(8001):
+            time.sleep(1) # Extra buffer for HTTP startup
+            break
+        time.sleep(0.5)
+
+print("🔗 Connecting to ChromaDB HTTP Client...", flush=True)
+client = chromadb.HttpClient(host="127.0.0.1", port=8001)
+
 vector_store = Chroma(
-    persist_directory=DB_DIR,
+    client=client,
     embedding_function=embeddings,
     collection_name="crawl4ai_collection"
 )
-print("Vector Store Initialized.", flush=True)
+print("Vector Store Initialized. (Client/Server Mode)", flush=True)
 
 def clear_vector_store():
     """

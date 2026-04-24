@@ -52,6 +52,11 @@ async def add_content_to_store(content, metadata):
     all_chunks = []
     for chunk in chunks:
         chunk_metadata = metadata.copy()
+        
+        # Enforce defaults for search visibility
+        if "category" not in chunk_metadata:
+            chunk_metadata["category"] = "retail"
+            
         # Use found image if metadata is missing one
         if not chunk_metadata.get("image_url") and page_image:
             chunk_metadata["image_url"] = page_image
@@ -117,7 +122,8 @@ async def add_multiple_contents_to_store(items: list):
             # 3. Apply metadata for this chunk
             chunk_metadata = {
                 "source": url,
-                "type": "crawl4ai"
+                "type": "crawl4ai",
+                "category": metadata.get("category", "retail") # Enforce search visibility
             }
             chunk_metadata.update(metadata)
             

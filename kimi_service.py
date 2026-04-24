@@ -927,6 +927,20 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         
         # 3. Supplement with DDG results to fill up to num_results
         if ddg_results and len(fast_results) < num_results:
+            print("DEBUG: Executing rapid_extract_price_and_rating for DDG fallback sources...", flush=True)
+            async with aiohttp.ClientSession() as fallback_session:
+                ddg_extract_tasks = []
+                # Only extract up to the needed amount to save resources
+                needed = num_results - len(fast_results)
+                for res in ddg_results[:needed + 5]:
+                    ddg_extract_tasks.append(self.rapid_extract_price_and_rating(fallback_session, res["url"]))
+                ddg_extraction_results = await asyncio.gather(*ddg_extract_tasks, return_exceptions=True)
+                
+                url_to_data = {}
+                for result in ddg_extraction_results:
+                    if isinstance(result, tuple) and len(result) == 2 and result[1]:
+                        url_to_data[result[0]] = result[1]
+                        
             for idx, res in enumerate(ddg_results):
                 if len(fast_results) >= num_results: break
                 url = res["url"]
@@ -937,12 +951,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     continue
                 
                 # --- CRITICAL FIX: Backfill with Bing Image ---
-                # Instead of None, attempt to find a matching image from Bing
                 img_url = None
                 if idx < len(bing_images):
                     img_url = bing_images[idx].get("image_url")
                 
-                # Skip if URL already in fast_results
                 existing_urls = {self._normalize_url(r["url"]) for r in fast_results}
                 if self._normalize_url(url) in existing_urls: continue
                 
@@ -950,6 +962,15 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 
                 # --- ROBUST PRICE EXTRACTION ---
                 price = self._extract_price_from_snippet(snippet, domain, store_name)
+                
+                # IF the snippet failed, try JSON-LD rapid extraction from the parallel batch
+                if price == "Request Price":
+                    rapid_data = url_to_data.get(url)
+                    if rapid_data and rapid_data.get("price"):
+                        price = rapid_data.get("price")
+                        # Format if necessary
+                        if price and not price == "Request Price":
+                            price = self._extract_price_from_snippet(price, domain, store_name)
                 
                 # De-duplication check by URL and Name
                 norm_url = self._normalize_url(url)
@@ -1428,65 +1449,53 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
     async def search_sources(self, query, intent="shopping", limit=10):
         """
-        Real-time lightweight Google Search for products and snippets using curl.
+        Real-time lightweight Search for products and snippets using DuckDuckGo.
+        Provides resilient price snippets when specialized native scrapers miss.
         """
         print(f"DEBUG: Starting real-time search_sources for: {query}", flush=True)
         search_results = []
         try:
             from urllib.parse import quote_plus
-            import subprocess
             
-            final_query = query
-            if "site:" not in query.lower():
-                top_sites = "(site:amazon.in OR site:flipkart.com OR site:walmart.com OR site:ebay.com OR site:bestbuy.com OR site:croma.com)"
-                final_query = f"{query} {top_sites}"
-                
-            search_url = f"https://www.google.com/search?q={quote_plus(final_query)}"
-            user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            # Use raw query to allow DDG's natural e-commerce indexing to flourish
+            search_url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
             
-            # Use curl subprocess as it's proven to work in this environment
-            cmd = [
-                "curl", "-s", "-L",
-                "-H", f"User-Agent: {user_agent}",
-                search_url
-            ]
-            
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await process.communicate()
-            
-            if process.returncode == 0:
-                content = stdout.decode('utf-8', errors='ignore')
-                soup = BeautifulSoup(content, "html.parser")
-                
-                # Google search results are typically in div.g or matching containers
-                for result in (soup.select('div.g') or soup.select('div.tF2Cxc') or soup.select('div.MjjYud')):
-                    title_el = result.select_one('h3')
-                    link_el = result.select_one('a')
-                    snippet_el = result.select_one('div.VwiC3b') or result.select_one('span.aCOp9b') or result.select_one('div.itY3B')
+            async with aiohttp.ClientSession() as session:
+                async with session.get(search_url, headers=headers, timeout=12) as response:
+                    content = await response.text()
+                    soup = BeautifulSoup(content, "html.parser")
                     
-                    if title_el and link_el:
-                        url = link_el.get('href', '')
-                        if not url or any(x in url for x in ["google.com", "google.co.in", "youtube.com"]): continue
+                    # DuckDuckGo HTML results container
+                    for result in soup.find_all('div', class_=re.compile(r'result\s+results_links')):
+                        title_el = result.find('a', class_='result__url') or result.find('a', class_='result__a')
+                        snippet_el = result.find('a', class_='result__snippet')
                         
-                        search_results.append({
-                            "url": url,
-                            "title": title_el.get_text(strip=True),
-                            "snippet": snippet_el.get_text(strip=True) if snippet_el else ""
-                        })
-                    if len(search_results) >= limit: break
-            else:
-                print(f"DEBUG: curl failed with code {process.returncode}: {stderr.decode()}", flush=True)
-                raise Exception("curl search failed")
-            
+                        if title_el:
+                            url = title_el.get('href', '')
+                            # DDG sometimes prefixes outgoing links with /url?q=
+                            if '/url?q=' in url:
+                                import urllib.parse as up
+                                qs = up.parse_qs(up.urlparse(url).query)
+                                url = qs.get("q", [url])[0]
+
+                            if not url or any(x in url for x in ["duckduckgo.com", "youtube.com"]): 
+                                continue
+                            
+                            search_results.append({
+                                "url": url,
+                                "title": title_el.get_text(strip=True),
+                                "snippet": snippet_el.get_text(strip=True) if snippet_el else ""
+                            })
+                        if len(search_results) >= limit: break
+
             if search_results:
-                 print(f"DEBUG: Found {len(search_results)} real search results from Google via curl.", flush=True)
+                 print(f"DEBUG: Found {len(search_results)} real search results from DDG.", flush=True)
                  return search_results
                 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"Real-time search failed: {e}. Falling back to image-source discovery.", flush=True)
 
         # Fallback to images if search crawl fails

@@ -192,8 +192,12 @@ async def _run_recursive_crawl(base_url: str, max_pages: int, browser_config) ->
         async with semaphore:
             try:
                 print(f"Starting crawl of: {url}...", flush=True)
-                content, internal_links = await crawl_site(url, crawler=crawler)
+                content_links = await asyncio.wait_for(crawl_site(url, crawler=crawler), timeout=240)
+                content, internal_links = content_links
                 return url, content, internal_links
+            except asyncio.TimeoutError:
+                print(f"Timeout (240s) crawling {url}", flush=True)
+                return url, None, []
             except Exception as e:
                 print(f"Error crawling {url}: {e}", flush=True)
                 return url, None, []

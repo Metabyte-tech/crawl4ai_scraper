@@ -65,12 +65,16 @@ async def admin_ingest_url_task(ctx, batch_id, url, max_pages):
         
         success = False
         if max_pages <= 1:
-            content, _ = await crawl_site(url)
-            if content and len(content.strip()) > 10:
-                await add_content_to_store(content, {"source": url})
-                success = True
-            else:
-                error_reason = "No content extracted (maybe blocked or invalid URL)"
+            try:
+                content_links = await asyncio.wait_for(crawl_site(url), timeout=240)
+                content, _ = content_links
+                if content and len(content.strip()) > 10:
+                    await add_content_to_store(content, {"source": url})
+                    success = True
+                else:
+                    error_reason = "No content extracted (maybe blocked or invalid URL)"
+            except asyncio.TimeoutError:
+                error_reason = "Timeout (240s) during single page crawl"
         else:
             results = await crawl_site_recursive(url, max_pages=max_pages)
             if results:

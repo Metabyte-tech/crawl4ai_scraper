@@ -249,7 +249,13 @@ async def admin_crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
     
     for url in valid:
         # Enqueue with higher priority if needed, or just same pool
-        await req.app.state.arq_pool.enqueue_job('admin_ingest_url_task', batch_id=batch_id, url=url, max_pages=10)
+        await req.app.state.arq_pool.enqueue_job(
+            'admin_ingest_url_task', 
+            batch_id=batch_id, 
+            url=url, 
+            max_pages=10,
+            _timeout=1200
+        )
 
     return {
         "status": "success", 

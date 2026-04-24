@@ -253,8 +253,7 @@ async def admin_crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
             'admin_ingest_url_task', 
             batch_id=batch_id, 
             url=url, 
-            max_pages=10,
-            _timeout=1200
+            max_pages=10
         )
 
     return {

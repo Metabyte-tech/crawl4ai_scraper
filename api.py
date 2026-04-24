@@ -253,7 +253,7 @@ async def admin_crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
             'admin_ingest_url_task', 
             batch_id=batch_id, 
             url=url, 
-            max_pages=10
+            max_pages=100
         )
 
     return {
@@ -525,7 +525,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     "source": meta.get("store_source") or "Cached",
                     "rating_avg": meta.get("rating_avg"),
                     "rating_count": meta.get("rating_count"),
-                    "details": meta.get("details"),
+                    "details": meta.get("details") or meta.get("description"),
                     "reviews": meta.get("reviews")
                 })
 

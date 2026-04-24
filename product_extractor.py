@@ -20,7 +20,8 @@ class ProductExtractor:
             "price": None,
             "rating_avg": None,
             "brand": None,
-            "description": None
+            "description": None,
+            "reviews": []
         }
 
         # 1. Title/Name
@@ -56,6 +57,24 @@ class ProductExtractor:
                     # Name (Often better than Title)
                     if item.get("@type") == "Product" and item.get("name"):
                         data["name"] = item.get("name")
+                        
+                    # Description
+                    if item.get("description"):
+                        doc_desc = item.get("description")
+                        if isinstance(doc_desc, str) and len(doc_desc) > len(data["description"] or ""):
+                            data["description"] = doc_desc
+                            
+                    # Reviews
+                    reviews_data = item.get("review") or item.get("reviews")
+                    if reviews_data:
+                        if not isinstance(reviews_data, list): reviews_data = [reviews_data]
+                        for r in reviews_data:
+                            if isinstance(r, dict):
+                                author = r.get("author", {}).get("name", "User") if isinstance(r.get("author"), dict) else "User"
+                                body = r.get("reviewBody") or r.get("text")
+                                rev_rating = r.get("reviewRating", {}).get("ratingValue") if isinstance(r.get("reviewRating"), dict) else None
+                                if body:
+                                    data["reviews"].append({"user": author, "comment": body[:150], "rating": rev_rating})
 
                     # Offers
                     offers = item.get("offers")
@@ -107,6 +126,10 @@ class ProductExtractor:
         if not data["name"]:
             meta_n = soup.find("meta", property="og:title") or soup.find("meta", attrs={"name": "title"})
             if meta_n: data["name"] = meta_n.get("content")
+            
+        if not data["description"]:
+            meta_d = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
+            if meta_d and meta_d.get("content"): data["description"] = meta_d.get("content")[:500]
 
         # 4. Regex Fallback for Price (If still missing)
         if not data["price"]:
@@ -147,6 +170,12 @@ class ProductExtractor:
 
         # 6. Source URL Enforcement
         data["source_url"] = url
+
+        # 7. Safe Serialization for ChromaDB (Requires flat structures)
+        if data["reviews"]:
+            data["reviews"] = json.dumps(data["reviews"])
+        else:
+            data["reviews"] = None
 
         return {k: v for k, v in data.items() if v is not None}
 

@@ -488,22 +488,19 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 bot_response = await report_task
 
         elif intent == "shopping":
-            # Execute RAG and Live Search in parallel
+            # Execute RAG first to prioritize Local DB
             # We run fast_query directly (not in to_thread) to avoid Segfaults in Torch/ONNX
-            # while parallel async scrapers are running.
-            print(f"⚡ Launching Parallel RAG and Live Search for '{query}'...", flush=True)
+            print(f"⚡ Checking Local Database first for '{query}'...", flush=True)
             
             try:
-                rag_results = fast_query(query, category="retail", threshold=0.7, k=40)
+                rag_results = fast_query(query, category="retail", threshold=0.7, k=50)
             except Exception as e:
                 print(f"RAG search error (skipping): {e}", flush=True)
                 rag_results = []
                 
-            live_results = await kimi_service.get_fast_bing_data(query)
-            
             # Process RAG results
             cached_products = []
-            seen_names = set()  # Use name+price for dedup, not URL (Amazon shares the same search URL for all results)
+            seen_names = set()  # Use name+price for dedup
             for doc, score in rag_results:
                 meta = doc.metadata
                 img = meta.get("s3_image_url") or meta.get("image_url")
@@ -528,18 +525,31 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     "details": meta.get("details") or meta.get("description"),
                     "reviews": meta.get("reviews")
                 })
+                
+                # We cap DB results at 20 products for UI performance
+                if len(cached_products) >= 20:
+                    break
 
-            # Process Live results - also deduplicate by name
+            live_results = []
             new_live_products = []
-            for p in live_results:
-                name = (p.get("name") or p.get("title", "")).strip().lower()
-                if name and name not in seen_names:
-                    new_live_products.append(p)
-                    seen_names.add(name)
+            
+            # If Local DB yields no valid items, fallback to Kimi Scraping 
+            if len(cached_products) == 0:
+                print(f"⚠️ Not enough local products ({len(cached_products)} == 0). Falling back to Kimi...", flush=True)
+                live_results = await kimi_service.get_fast_bing_data(query)
+                
+                # Process Live results - also deduplicate by name
+                for p in live_results:
+                    name = (p.get("name") or p.get("title", "")).strip().lower()
+                    if name and name not in seen_names:
+                        new_live_products.append(p)
+                        seen_names.add(name)
+            else:
+                print(f"⚡ Local DB has {len(cached_products)} products. Skipping Kimi live search.", flush=True)
 
             # Combine: Prefer RAG (high quality) then Live
             live_products = cached_products + new_live_products
-            print(f"🚀 Parallel completion: {len(cached_products)} cached, {len(new_live_products)} new live products.", flush=True)
+            print(f"🚀 Retrieval completion: {len(cached_products)} cached, {len(new_live_products)} new live products.", flush=True)
 
             # Background enrichment - OFFLOAD TO REDIS WORKER
             if live_products:

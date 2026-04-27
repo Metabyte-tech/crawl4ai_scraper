@@ -500,45 +500,71 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 
             # Process RAG results
             cached_products = []
-            seen_names = set()  # Use name+price for dedup
+            seen_urls = set()  # Dedup by URL so chunks from the same page collapse into exactly one product
+            seen_names = set()
+            
             for doc, score in rag_results:
                 meta = doc.metadata
                 img = meta.get("s3_image_url") or meta.get("image_url")
                 if not img or not str(img).startswith("http"):
                     continue
                 url = meta.get("source") or meta.get("source_url")
-                
                 original_name = str(meta.get("name") or "Product").strip()
-                name_lower = original_name.lower()
-                chunk_snippet = (doc.page_content or "").strip().splitlines()[0][:60].strip()
                 
-                is_generic = '|' in original_name or '-' in original_name or len(original_name) <= 10
-                is_product_match = any(word in chunk_snippet.lower() for word in ['toy', 'kit', 'game', 'box', 'set', 'puzzle'])
+                is_generic = '|' in original_name or len(original_name) <= 15 or "toys" in original_name.lower().split()
+                extracted_sub_products = False
                 
-                if (is_generic or is_product_match) and len(chunk_snippet) > 5:
-                    display_name = f"{chunk_snippet}..."
-                    dedup_key = f"{name_lower}_{chunk_snippet.lower()}"
-                else:
-                    display_name = original_name
-                    dedup_key = name_lower
+                if is_generic and doc.page_content:
+                    import re
+                    links = re.findall(r'\[([^\]]{5,100})\]\((https?://[^\s\)]+)\)', doc.page_content)
+                    
+                    for link_text, link_url in links:
+                        lt_lower = link_text.lower()
+                        if any(x in lt_lower for x in ['home', 'contact', 'about', 'login', 'cart', 'checkout', 'privacy', 'policy', 'terms', 'subscribe', 'search']):
+                            continue
+                            
+                        norm_sub_url = kimi_service._normalize_url(link_url)
+                        if norm_sub_url in seen_urls: continue
+                        seen_urls.add(norm_sub_url)
+                        
+                        price = kimi_service._extract_price_from_snippet(doc.page_content)
+                        seen_names.add(link_text.strip().lower())
+                        
+                        cached_products.append({
+                            "name": link_text.strip(),
+                            "price": price,
+                            "source_url": link_url,
+                            "image_url": img,
+                            "brand": meta.get("brand") or original_name[:15],
+                            "source": meta.get("store_source") or "Cached",
+                            "rating_avg": meta.get("rating_avg"),
+                            "rating_count": meta.get("rating_count"),
+                            "details": f"From {original_name}",
+                            "reviews": meta.get("reviews")
+                        })
+                        extracted_sub_products = True
                 
-                if dedup_key in seen_names: continue
-                seen_names.add(dedup_key)
-                
-                # Keep real URL but deduplicate gracefully
-                cached_products.append({
-                    "name": display_name,
-                    "price": meta.get("price"),
-                    "source_url": url,
-                    "image_url": img,
-                    "brand": meta.get("brand"),
-                    "source": meta.get("store_source") or "Cached",
-                    "rating_avg": meta.get("rating_avg"),
-                    "rating_count": meta.get("rating_count"),
-                    "details": meta.get("details") or meta.get("description"),
-                    "reviews": meta.get("reviews")
-                })
-                
+                if not extracted_sub_products:
+                    norm_url = kimi_service._normalize_url(url)
+                    if norm_url in seen_urls: 
+                        continue
+                    seen_urls.add(norm_url)
+                    
+                    seen_names.add(original_name.lower())
+                    
+                    cached_products.append({
+                        "name": original_name,
+                        "price": meta.get("price"),
+                        "source_url": url,
+                        "image_url": img,
+                        "brand": meta.get("brand"),
+                        "source": meta.get("store_source") or "Cached",
+                        "rating_avg": meta.get("rating_avg"),
+                        "rating_count": meta.get("rating_count"),
+                        "details": meta.get("details") or meta.get("description"),
+                        "reviews": meta.get("reviews")
+                    })
+                    
                 # We cap DB results at 20 products for UI performance
                 if len(cached_products) >= 20:
                     break
@@ -546,23 +572,33 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
             live_results = []
             new_live_products = []
             
-            # If Local DB yields fewer than 10 valid items, fallback to Kimi Scraping 
-            if len(cached_products) < 10:
-                print(f"⚠️ Not enough local products ({len(cached_products)} < 10). Falling back to Kimi...", flush=True)
+            # Fill up to 20 products. Prioritize Local DB, then Gap-fill with Kimi.
+            if len(cached_products) < 20:
+                needed = 20 - len(cached_products)
+                print(f"⚠️ DB has {len(cached_products)} items. gap-filling with {needed} Kimi results...", flush=True)
+                
                 live_results = await kimi_service.get_fast_bing_data(query)
                 
-                # Process Live results - also deduplicate by name
+                # Process Live results - skip anything already seen in DB or by name
+                count = 0
                 for p in live_results:
+                    if count >= needed: break
+                    
                     name = (p.get("name") or p.get("title", "")).strip().lower()
-                    if name and name not in seen_names:
+                    url = p.get("source_url") or p.get("url") or p.get("source")
+                    norm_url = kimi_service._normalize_url(url) if url else None
+                    
+                    if (name and name not in seen_names) and (norm_url not in seen_urls):
                         new_live_products.append(p)
                         seen_names.add(name)
+                        if norm_url: seen_urls.add(norm_url)
+                        count += 1
             else:
-                print(f"⚡ Local DB has {len(cached_products)} products. Skipping Kimi live search.", flush=True)
+                print(f"⚡ Local DB has a full set of {len(cached_products)} products. Skipping Kimi.", flush=True)
 
-            # Combine: Prefer RAG (high quality) then Live
+            # Combine: DB (Priority) + Kimi (Gap Fill)
             live_products = cached_products + new_live_products
-            print(f"🚀 Retrieval completion: {len(cached_products)} cached, {len(new_live_products)} new live products.", flush=True)
+            print(f"🚀 FINAL CAROUSEL: {len(cached_products)} DB + {len(new_live_products)} Kimi = {len(live_products)} total.", flush=True)
 
             # Background enrichment - OFFLOAD TO REDIS WORKER
             if live_products:
@@ -583,10 +619,10 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
 
         # Build final response
         if live_products and intent in ("shopping", "images", "global_search", "supplier_sourcing", "agent_task", "vehicle"):
-            ordered = sorted(
-                live_products,
-                key=lambda p: 0 if (p.get("image_url") or p.get("s3_image_url")) else 1
-            )
+            # STRICT DB PRIORITY: Since we add DB results to live_products first, 
+            # we simply use the original order to ensure they appear first in the UI.
+            ordered = live_products
+            
             # Build product grid - prefer images but allow placeholder for products without
             INVALID_IMG_STRS = {"not found", "null", "none", "n/a", "undefined"}
             items = []
@@ -630,16 +666,16 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     "is_verified": bool(p.get("is_verified") or False),
                 })
             
-            # FINAL DE-DUPLICATION (By robust name only to allow multiple products from same site)
+            # FINAL DE-DUPLICATION
             final_items = []
-            seen_names = set()
+            seen_srcs = set()
             for item in items:
-                n = item["name"].lower().strip()
-                # Skip duplicate specific items, but allow multiple varied items from same URL (category pages)
-                if n in seen_names:
+                u = kimi_service._normalize_url(item["source_url"])
+                # We strictly enforce one card per unique URL so the same product is never repeated
+                if u in seen_srcs:
                     continue
                 final_items.append(item)
-                seen_names.add(n)
+                seen_srcs.add(u)
             
             grid = f"<product_grid>{json.dumps(final_items)}</product_grid>"
             

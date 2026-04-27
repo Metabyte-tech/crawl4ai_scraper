@@ -508,13 +508,26 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     continue
                 url = meta.get("source") or meta.get("source_url")
                 
-                # Deduplicate by product name
-                name = meta.get("name", "").strip().lower()
-                if name in seen_names: continue
-                seen_names.add(name)
+                original_name = str(meta.get("name") or "Product").strip()
+                name_lower = original_name.lower()
+                chunk_snippet = (doc.page_content or "").strip().splitlines()[0][:60].strip()
                 
+                is_generic = '|' in original_name or '-' in original_name or len(original_name) <= 10
+                is_product_match = any(word in chunk_snippet.lower() for word in ['toy', 'kit', 'game', 'box', 'set', 'puzzle'])
+                
+                if (is_generic or is_product_match) and len(chunk_snippet) > 5:
+                    display_name = f"{chunk_snippet}..."
+                    dedup_key = f"{name_lower}_{chunk_snippet.lower()}"
+                else:
+                    display_name = original_name
+                    dedup_key = name_lower
+                
+                if dedup_key in seen_names: continue
+                seen_names.add(dedup_key)
+                
+                # Keep real URL but deduplicate gracefully
                 cached_products.append({
-                    "name": meta.get("name"),
+                    "name": display_name,
                     "price": meta.get("price"),
                     "source_url": url,
                     "image_url": img,
@@ -533,9 +546,9 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
             live_results = []
             new_live_products = []
             
-            # If Local DB yields no valid items, fallback to Kimi Scraping 
-            if len(cached_products) == 0:
-                print(f"⚠️ Not enough local products ({len(cached_products)} == 0). Falling back to Kimi...", flush=True)
+            # If Local DB yields fewer than 10 valid items, fallback to Kimi Scraping 
+            if len(cached_products) < 10:
+                print(f"⚠️ Not enough local products ({len(cached_products)} < 10). Falling back to Kimi...", flush=True)
                 live_results = await kimi_service.get_fast_bing_data(query)
                 
                 # Process Live results - also deduplicate by name
@@ -617,18 +630,16 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     "is_verified": bool(p.get("is_verified") or False),
                 })
             
-            # FINAL DE-DUPLICATION (By name and URL)
+            # FINAL DE-DUPLICATION (By robust name only to allow multiple products from same site)
             final_items = []
             seen_names = set()
-            seen_srcs = set()
             for item in items:
                 n = item["name"].lower().strip()
-                u = kimi_service._normalize_url(item["source_url"])
-                if n in seen_names or u in seen_srcs:
+                # Skip duplicate specific items, but allow multiple varied items from same URL (category pages)
+                if n in seen_names:
                     continue
                 final_items.append(item)
                 seen_names.add(n)
-                seen_srcs.add(u)
             
             grid = f"<product_grid>{json.dumps(final_items)}</product_grid>"
             

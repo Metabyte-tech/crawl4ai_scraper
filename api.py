@@ -488,21 +488,87 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 bot_response = await report_task
 
         elif intent == "shopping":
-            # Execute RAG first to prioritize Local DB
-            # We run fast_query directly (not in to_thread) to avoid Segfaults in Torch/ONNX
-            print(f"⚡ Checking Local Database first for '{query}'...", flush=True)
-            
+            # ── Step 1: Query DB first (max recall) ──────────────────────────────
             try:
-                rag_results = fast_query(query, category="retail", threshold=0.7, k=50)
+                rag_results = fast_query(query, threshold=2.0, k=100)
             except Exception as e:
-                print(f"RAG search error (skipping): {e}", flush=True)
+                print(f"RAG search error: {e}", flush=True)
                 rag_results = []
-                
-            # Process RAG results
+
+            # ── Relevance filter ──────────────────────────────────────────────────
+            import re as _re
+
+            _stop = {
+                'the','and','for','with','are','this','that','from','have','has',
+                'its','not','of','in','on','at','by','be','a','an','to','do',
+                'is','it','me','my','we','us','or','so','if','as','up','go',
+            }
+
+            # Extract meaningful keywords — allow 2-char terms so 'rc' counts
+            _raw_kw = [w for w in _re.split(r'\W+', query.lower()) if len(w) >= 2 and w not in _stop]
+
+            # Simple plural/singular normalisation: strip trailing 's' for matching
+            def _stem(w: str) -> str:
+                return w.rstrip('s') if len(w) > 3 else w
+
+            _query_keywords = list(dict.fromkeys(_raw_kw))  # deduplicated, preserves order
+
+            def _word_match(keyword: str, text: str) -> bool:
+                """True if the keyword (or its stem) appears as a whole word in text."""
+                kw = _re.escape(keyword)
+                st = _re.escape(_stem(keyword))
+                pattern = rf'\b({kw}|{st})\b'
+                return bool(_re.search(pattern, text))
+
+            def _score(text: str) -> int:
+                t = text.lower()
+                return sum(1 for kw in _query_keywords if _word_match(kw, t))
+
+            def _is_relevant(haystack: str) -> bool:
+                if not _query_keywords:
+                    return True
+                n = len(_query_keywords)
+                # For 1–2 keyword queries, ALL must match (no slack)
+                # For 3+ keyword queries, require ceil(67%) to match
+                if n <= 2:
+                    required = n
+                else:
+                    required = max(2, -(-n * 2 // 3))  # ceiling division of 2/3
+                return _score(haystack) >= required
+
+            def _candidate_relevant(name: str, details: str = "") -> bool:
+                if not name:
+                    return False
+                # Try kimi_service's own validator first
+                try:
+                    if kimi_service._validate_product_relevance(name.strip(), query)[0]:
+                        return True
+                except Exception:
+                    pass
+                return _is_relevant(f"{name} {details}")
+
+            if _query_keywords:
+                _filtered = [
+                    (_doc, _sc) for _doc, _sc in rag_results
+                    if _is_relevant(
+                        f"{_doc.metadata.get('name','')} "
+                        f"{_doc.metadata.get('title','')}"
+                    )
+                ]
+                # Fall back to page_content match if name/title filter removes everything
+                if not _filtered:
+                    _filtered = [
+                        (_doc, _sc) for _doc, _sc in rag_results
+                        if _is_relevant(_doc.page_content[:500])
+                    ]
+                if _filtered:
+                    rag_results = _filtered
+
+            # Process RAG results — collapse chunks from the same URL into one product
             cached_products = []
-            seen_urls = set()  # Dedup by URL so chunks from the same page collapse into exactly one product
+            seen_urls = set()
             seen_names = set()
-            
+
             for doc, score in rag_results:
                 meta = doc.metadata
                 img = meta.get("s3_image_url") or meta.get("image_url")
@@ -510,26 +576,25 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     continue
                 url = meta.get("source") or meta.get("source_url")
                 original_name = str(meta.get("name") or "Product").strip()
-                
+
                 is_generic = '|' in original_name or len(original_name) <= 15 or "toys" in original_name.lower().split()
                 extracted_sub_products = False
-                
+
                 if is_generic and doc.page_content:
                     import re
                     links = re.findall(r'\[([^\]]{5,100})\]\((https?://[^\s\)]+)\)', doc.page_content)
-                    
                     for link_text, link_url in links:
                         lt_lower = link_text.lower()
                         if any(x in lt_lower for x in ['home', 'contact', 'about', 'login', 'cart', 'checkout', 'privacy', 'policy', 'terms', 'subscribe', 'search']):
                             continue
-                            
+                        if not _candidate_relevant(link_text, doc.page_content):
+                            continue
                         norm_sub_url = kimi_service._normalize_url(link_url)
-                        if norm_sub_url in seen_urls: continue
+                        if norm_sub_url in seen_urls:
+                            continue
                         seen_urls.add(norm_sub_url)
-                        
                         price = kimi_service._extract_price_from_snippet(doc.page_content)
                         seen_names.add(link_text.strip().lower())
-                        
                         cached_products.append({
                             "name": link_text.strip(),
                             "price": price,
@@ -543,15 +608,15 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                             "reviews": meta.get("reviews")
                         })
                         extracted_sub_products = True
-                
+
                 if not extracted_sub_products:
+                    if not _candidate_relevant(original_name, doc.page_content):
+                        continue
                     norm_url = kimi_service._normalize_url(url)
-                    if norm_url in seen_urls: 
+                    if norm_url in seen_urls:
                         continue
                     seen_urls.add(norm_url)
-                    
                     seen_names.add(original_name.lower())
-                    
                     cached_products.append({
                         "name": original_name,
                         "price": meta.get("price"),
@@ -564,41 +629,45 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                         "details": meta.get("details") or meta.get("description"),
                         "reviews": meta.get("reviews")
                     })
-                    
-                # We cap DB results at 20 products for UI performance
+
                 if len(cached_products) >= 20:
                     break
 
-            live_results = []
+            # ── Step 2: Gap-fill with Kimi for whatever DB is missing (max 20 total) ──
             new_live_products = []
-            
-            # Fill up to 20 products. Prioritize Local DB, then Gap-fill with Kimi.
+
             if len(cached_products) < 20:
                 needed = 20 - len(cached_products)
-                print(f"⚠️ DB has {len(cached_products)} items. gap-filling with {needed} Kimi results...", flush=True)
-                
+                print(f"⚡ DB:{len(cached_products)} → gap-filling {needed} from Kimi", flush=True)
                 live_results = await kimi_service.get_fast_bing_data(query)
-                
-                # Process Live results - skip anything already seen in DB or by name
                 count = 0
                 for p in live_results:
-                    if count >= needed: break
-                    
-                    name = (p.get("name") or p.get("title", "")).strip().lower()
+                    if count >= needed:
+                        break
+                    name = (p.get("name") or p.get("title", "")).strip()
+                    name_lower = name.lower()
                     url = p.get("source_url") or p.get("url") or p.get("source")
                     norm_url = kimi_service._normalize_url(url) if url else None
-                    
-                    if (name and name not in seen_names) and (norm_url not in seen_urls):
-                        new_live_products.append(p)
-                        seen_names.add(name)
-                        if norm_url: seen_urls.add(norm_url)
-                        count += 1
-            else:
-                print(f"⚡ Local DB has a full set of {len(cached_products)} products. Skipping Kimi.", flush=True)
 
-            # Combine: DB (Priority) + Kimi (Gap Fill)
+                    # Skip if already seen
+                    if name_lower in seen_names or norm_url in seen_urls:
+                        continue
+
+                    # Skip if Kimi result is irrelevant to the query
+                    if not _candidate_relevant(name, str(p.get('details',''))):
+                        continue
+
+                    new_live_products.append(p)
+                    seen_names.add(name_lower)
+                    if norm_url:
+                        seen_urls.add(norm_url)
+                    count += 1
+            else:
+                print(f"⚡ DB full ({len(cached_products)} items) — skipping Kimi", flush=True)
+
+            # ── Step 3: Combine ───────────────────────────────────────────────────
             live_products = cached_products + new_live_products
-            print(f"🚀 FINAL CAROUSEL: {len(cached_products)} DB + {len(new_live_products)} Kimi = {len(live_products)} total.", flush=True)
+            print(f"🚀 {len(cached_products)} DB + {len(new_live_products)} Kimi = {len(live_products)} total", flush=True)
 
             # Background enrichment - OFFLOAD TO REDIS WORKER
             if live_products:

@@ -202,7 +202,7 @@ async def _run_recursive_crawl(base_url: str, max_pages: int, browser_config) ->
                 print(f"Error crawling {url}: {e}", flush=True)
                 return url, None, []
 
-    MAX_CRAWL_TIME = 600
+    MAX_CRAWL_TIME = 7200  # 2 hours
     start_time = time.time()
 
     try:
@@ -255,7 +255,7 @@ async def _run_recursive_crawl(base_url: str, max_pages: int, browser_config) ->
     return all_content
 
 
-async def crawl_site_recursive(base_url: str, max_pages: int = 100):
+async def crawl_site_recursive(base_url: str, max_pages: int = 100000):
     """
     Concurrent recursive crawl starting from base_url up to max_pages.
     Tries remote browser first (if BROWSERLESS_URL is set), then falls back

@@ -162,8 +162,8 @@ async def add_multiple_contents_to_store(items: list):
         gc.collect()
         
         if unique_chunks:
-            # reduced batch size for stability with single-threaded embeddings on EC2
-            batch_size = 50 
+            # increased batch size for insertion throughput on large recursive websites
+            batch_size = 500 
             total_unique = len(unique_chunks)
             print(f"DEBUG: Starting ingestion of {total_unique} chunks in batches of {batch_size}...", flush=True)
             

@@ -387,22 +387,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         except Exception as e:
             print(f"Image search error: {e}", flush=True)
 
-        # Final fallback to working placeholder
+        # Final fallback: return empty results instead of dummy data
         return {
             "type": "images",
             "query": clean_query,
-            "results": [
-                {
-                    "name": f"{clean_query} 1",
-                    "image_url": f"https://placehold.co/800x600?text={clean_query.replace(' ', '+')}+1",
-                    "source_url": f"https://www.bing.com/images/search?q={clean_query.replace(' ', '+')}"
-                },
-                {
-                    "name": f"{clean_query} 2",
-                    "image_url": f"https://placehold.co/800x600?text={clean_query.replace(' ', '+')}+2",
-                    "source_url": f"https://www.bing.com/images/search?q={clean_query.replace(' ', '+')}"
-                }
-            ]
+            "results": []
         }
 
     async def search_amazon_products(self, query, limit=10):
@@ -732,6 +721,85 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         import datetime
         return datetime.datetime.now().strftime("%Y-%m-%d")
 
+    def _validate_product_relevance(self, product_name: str, query: str, min_score: float = 0.3) -> tuple:
+        """
+        Validate if a product matches the query with semantic understanding.
+        Returns (is_relevant, relevance_score)
+        
+        Prevents issues like "slider" appearing for "kids play ten"
+        """
+        if not product_name or not query:
+            return False, 0.0
+        
+        # Normalize inputs
+        p_lower = str(product_name).lower().strip()
+        q_lower = query.lower().strip()
+        
+        # Stop words that don't indicate relevance
+        stop_words = {
+            'the', 'a', 'an', 'and', 'or', 'for', 'with', 'in', 'on', 'at', 'from', 'to',
+            'of', 'as', 'by', 'is', 'are', 'be', 'being', 'been', 'have', 'has', 'had',
+            'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must',
+            'can', 'new', 'pack', 'set', 'lot', 'combo', 'best', 'premium', 'sale', 'buy'
+        }
+        
+        # Extract meaningful words (length >= 3 to avoid single letters)
+        query_words = [w for w in re.findall(r'\b\w+\b', q_lower) if len(w) >= 3 and w not in stop_words]
+        product_words = [w for w in re.findall(r'\b\w+\b', p_lower) if len(w) >= 3 and w not in stop_words]
+        
+        if not query_words:
+            return False, 0.0
+
+        # Exact phrase match allows singular/plural variants to pass immediately
+        phrase_variants = {q_lower}
+        words = q_lower.split()
+        if len(words) == 2:
+            if words[1].endswith('s'):
+                phrase_variants.add(f"{words[0]} {words[1][:-1]}")
+            else:
+                phrase_variants.add(f"{words[0]} {words[1]}s")
+        if any(variant in p_lower for variant in phrase_variants):
+            return True, 1.0
+
+        # Calculate how many query words appear in product name
+        matching_words = sum(1 for qw in query_words if any(qw in pw or pw in qw for pw in product_words))
+        relevance_score = matching_words / len(query_words) if query_words else 0.0
+
+        # For multi-word queries (3+ words), require higher relevance
+        if len(query_words) >= 3:
+            required_score = 0.5  # Need at least 50% of words to match
+        elif len(query_words) == 2:
+            required_score = 0.5  # Need both or one of two
+        else:
+            required_score = 0.3  # Single word is more lenient
+
+        if len(query_words) == 2 and matching_words == 1:
+            generic_words = {
+                'wooden', 'plastic', 'metal', 'small', 'large', 'mini', 'kids', 'baby',
+                'outdoor', 'indoor', 'home', 'garden', 'decorative', 'antique', 'vintage',
+                'children', 'toy', 'set', 'pack'
+            }
+            specific_matches = [qw for qw in query_words if qw not in generic_words]
+            if specific_matches and not any(s in p_lower for s in specific_matches):
+                return False, 0.0
+
+        is_relevant = relevance_score >= required_score
+        
+        # Additional check: if the product name contains words that contradict the query
+        contradiction_keywords = {
+            'slider': ['kids play ten', 'toys', 'games', 'puzzle'],
+            'frame': ['phone', 'laptop', 'tablet', 'electronics'],
+            'stand': ['shirt', 'clothes', 'apparel', 'shoes'],
+        }
+        
+        for bad_word, queries in contradiction_keywords.items():
+            if bad_word in p_lower and any(q in q_lower for q in queries):
+                is_relevant = False
+                relevance_score = 0.0
+                break
+        
+        return is_relevant, relevance_score
+
     async def _archive_results(self, results, query, category="retail"):
         """Archive search results to S3 for history and audit."""
         from s3_service import s3_service
@@ -872,10 +940,28 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
 
         print(f"DEBUG: Final sources — Amazon: {len(amazon_products)}, eBay: {len(ebay_products)}, Flipkart: {len(flipkart_products)}, Walmart: {len(walmart_products)}", flush=True)
         
+        # 2. FILTER products by relevance BEFORE interleaving
+        # This prevents "slider" from appearing with "kids play ten"
+        def filter_by_relevance(products_list):
+            filtered = []
+            for p in products_list:
+                is_relevant, score = self._validate_product_relevance(p.get("name", ""), query)
+                if is_relevant:
+                    filtered.append(p)
+            return filtered
+        
+        # Apply strict relevance filtering to all sources
+        amazon_products = filter_by_relevance(amazon_products)
+        ebay_products = filter_by_relevance(ebay_products)
+        flipkart_products = filter_by_relevance(flipkart_products)
+        walmart_products = filter_by_relevance(walmart_products)
+        
+        print(f"DEBUG: After relevance filtering — Amazon: {len(amazon_products)}, eBay: {len(ebay_products)}, Flipkart: {len(flipkart_products)}, Walmart: {len(walmart_products)}", flush=True)
+        
         # 2. Build fast_results: Interleave all sources
         fast_results = []
         all_live_products = []
-        max_len = max(len(amazon_products), len(ebay_products), len(flipkart_products), len(walmart_products))
+        max_len = max([len(amazon_products), len(ebay_products), len(flipkart_products), len(walmart_products)], default=0)
         for i in range(max_len):
             if i < len(amazon_products): all_live_products.append(amazon_products[i])
             if i < len(ebay_products): all_live_products.append(ebay_products[i])
@@ -892,14 +978,39 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             # Sort by parsed numeric price. 'Check Site'/inf items go to the back.
             all_live_products.sort(key=lambda x: self._parse_price(x.get("price")))
         else:
-            # Default: Rank by keyword relevance to avoid "Mixed results" (e.g. shoes in shirts query)
+            # Default: IMPROVED keyword relevance scoring with stricter filtering
             query_words = set(re.findall(r'\b\w+\b', query.lower()))
-            def relevance_score(p):
-                name_words = set(re.findall(r'\b\w+\b', (p.get("name") or "").lower()))
-                return len(query_words.intersection(name_words))
+            stop_words = {'the','and','for','with','are','this','that','from','have','has','its','not','of','in','on','at'}
+            query_words -= stop_words
             
-            all_live_products.sort(key=relevance_score, reverse=True)
-            print(f"DEBUG: Re-ranked {len(all_live_products)} products by keyword relevance.", flush=True)
+            def improved_relevance_score(p):
+                name_lower = (p.get("name") or "").lower()
+                name_words = set(re.findall(r'\b\w+\b', name_lower))
+                
+                # Calculate exact word matches
+                exact_matches = len(query_words.intersection(name_words))
+                
+                # Penalize if product contains contradictory words
+                contradictions = {'slider', 'frame', 'stand'} & name_words
+                if contradictions and any(q in query.lower() for q in ['kids', 'toy', 'game', 'puzzle']):
+                    return -999  # Heavily penalize contradictions
+                
+                # Bonus for brand match or exact phrase match
+                if query.lower() in name_lower:
+                    return len(query_words) * 2  # Double score for exact match
+                
+                # Bonus if product starts with query keywords
+                if name_lower.startswith(tuple(query_words)):
+                    exact_matches += 1
+                
+                return exact_matches
+            
+            all_live_products.sort(key=improved_relevance_score, reverse=True)
+            
+            # CRITICAL FIX: Remove products with negative/zero relevance
+            all_live_products = [p for p in all_live_products if improved_relevance_score(p) > 0]
+            
+            print(f"DEBUG: Re-ranked and filtered to {len(all_live_products)} products by keyword relevance.", flush=True)
 
         for idx, product in enumerate(all_live_products[:num_results]):
             # --- CRITICAL FIX: Prioritize Native Image ---
@@ -977,6 +1088,12 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 if any(self._normalize_url(p.get("url")) == norm_url for p in fast_results):
                     continue
                 if any(p.get("name") == res.get("title") for p in fast_results):
+                    continue
+                
+                # CRITICAL: Validate relevance of DDG result before adding
+                is_relevant, relevance_score = self._validate_product_relevance(res.get("title", ""), query)
+                if not is_relevant:
+                    print(f"DEBUG: Skipping DDG result '{res.get('title')}' - low relevance ({relevance_score:.2f})", flush=True)
                     continue
 
                 fast_results.append({
@@ -1294,12 +1411,15 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
 
             # Keyword relevance filter: ensure returned docs actually match the subject
             subject_keywords = set(search_query.lower().split())
-            stop_words = {"for", "a", "an", "the", "of", "in", "to", "and", "with", "on", "at", "from"}
-            subject_keywords -= stop_words
+            stop_words = {"for", "a", "an", "the", "of", "in", "to", "and", "with", "on", "at", "from", "by"}
+            subject_keywords = {w for w in subject_keywords if len(w) >= 3 and w not in stop_words}
 
             for doc, score in all_docs:
-                doc_text = (doc.page_content + " " + str(doc.metadata.get("name", ""))).lower()
-                if any(kw in doc_text for kw in subject_keywords):
+                # Validate product relevance
+                product_name = doc.metadata.get("name", "")
+                is_relevant, rel_score = self._validate_product_relevance(product_name, search_query)
+                
+                if is_relevant:
                     context_docs.append((doc, score))
 
             print(f"RAG: {len(all_docs)} raw → {len(context_docs)} relevant for '{search_query}'", flush=True)

@@ -152,7 +152,7 @@ class AssetProcessor:
         
         return processed_products
         
-    async def process_raw_content(self, content, category="uncategorized", subcategory="general"):
+    async def process_raw_content(self, content, base_url=None, category="uncategorized", subcategory="general"):
         """
         Scans raw markdown for images, uploads them to S3, and returns cleaned content and first S3 image.
         """

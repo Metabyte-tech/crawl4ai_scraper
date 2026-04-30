@@ -99,13 +99,8 @@ class WorkerSettings:
     Arq worker configuration.
     """
     functions = [cache_products_task, deep_crawl_task, ingest_url_task, admin_ingest_url_task]
-    # Increase timeout and retries to prevent connection failures under load
-    redis_settings = RedisSettings.from_dsn(
-        REDIS_URL,
-        conn_timeout=120,
-        conn_retries=10,
-        conn_retry_delay=5
-    )
+    # Initialize Redis settings (relying on REDIS_URL and default arq settings to prevent kwarg errors)
+    redis_settings = RedisSettings.from_dsn(REDIS_URL)
     # Increase timeout for heavy deep crawls (3600 = 1 hour)
     job_timeout = 3600 
     # Max concurrent jobs per worker process to avoid OOM on 8GB/16GB EC2

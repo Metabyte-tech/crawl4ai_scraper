@@ -93,7 +93,8 @@ async def crawl_site(url: str, crawler=None):
     )
 
     if crawler is not None:
-        return await _do_crawl(crawler, url, run_config)
+        import uuid
+        return await _do_crawl(crawler, url, run_config, session_id=str(uuid.uuid4()))
 
     # First attempt: Try primary config (might be remote)
     browser_config = get_browser_config()
@@ -127,16 +128,20 @@ async def crawl_site(url: str, crawler=None):
     
     return None, []
 
-async def _do_crawl(crawler, url, run_config):
+async def _do_crawl(crawler, url, run_config, session_id=None):
     try:
-        result = await crawler.arun(url=url, config=run_config)
+        kwargs = {"url": url, "config": run_config}
+        if session_id:
+            kwargs["session_id"] = session_id
+            
+        result = await crawler.arun(**kwargs)
         if result.success:
             # Return HTML for better structured extraction by LLM
             content = result.html
             if not content or len(content.strip()) < 500:
                 print(f"HTML content short, retrying with explicit wait for {url}")
                 run_config.wait_for = "js:() => document.body.innerText.length > 500"
-                result = await crawler.arun(url=url, config=run_config)
+                result = await crawler.arun(**kwargs)
                 content = result.html
             print(f"Successfully crawled: {url}", flush=True)
             return content, result.links
@@ -175,7 +180,8 @@ async def crawl_site_fast(url: str, crawler=None):
         except Exception as e:
             return None, []
     else:
-        return await _do_crawl(crawler, url, run_config)
+        import uuid
+        return await _do_crawl(crawler, url, run_config, session_id=str(uuid.uuid4()))
 
 async def _run_recursive_crawl(base_url: str, max_pages: int, browser_config) -> list:
     """

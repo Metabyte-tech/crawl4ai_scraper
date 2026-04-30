@@ -104,6 +104,22 @@ class AssetProcessor:
                     processed_products.append(product)
                     continue
 
+                # Validate hostname - skip malformed/relative URLs that slipped through
+                # e.g., https://pub/images/... or https://./something.png
+                try:
+                    from urllib.parse import urlparse as _urlparse
+                    _parsed = _urlparse(image_url)
+                    _host = _parsed.netloc or ""
+                    # A valid hostname must contain a dot and be longer than 3 chars total
+                    _is_valid_host = "." in _host and len(_host) > 3
+                except Exception:
+                    _is_valid_host = False
+
+                if not _is_valid_host:
+                    print(f"SKIP: Malformed/relative URL has invalid hostname: {image_url}")
+                    processed_products.append(product)
+                    continue
+
                 if image_url.startswith("http") and is_image and not is_logolike:
                     try:
                         print(f"INFO: Attempting to download image: {image_url}")

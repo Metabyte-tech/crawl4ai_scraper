@@ -68,10 +68,10 @@ async def crawl_site(url: str, crawler=None):
         // Fast scroll down
         window.scrollTo(0, document.body.scrollHeight / 2);
         swapImages();
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         window.scrollTo(0, document.body.scrollHeight);
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 300));
         swapImages(); 
     })();
     """
@@ -86,8 +86,8 @@ async def crawl_site(url: str, crawler=None):
         word_count_threshold=10,
         wait_for="body",
         simulate_user=True,
-        page_timeout=90000,
-        wait_for_timeout=60000,
+        page_timeout=45000,
+        wait_for_timeout=30000,
         js_code=js_scroll,
         markdown_generator=md_generator
     )
@@ -191,8 +191,8 @@ async def _run_recursive_crawl(base_url: str, max_pages: int, browser_config) ->
     crawled_urls = set()
     all_content = []
 
-    # 5 concurrent fetches — safe on m6a.xlarge (16GB RAM)
-    semaphore = asyncio.Semaphore(5)
+    # 10 concurrent fetches — safe on instances with 16GB RAM for faster crawling
+    semaphore = asyncio.Semaphore(10)
 
     async def crawl_with_semaphore(url, crawler):
         async with semaphore:

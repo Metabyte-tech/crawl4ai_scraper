@@ -342,23 +342,35 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     if response.status == 200:
                         html_content = await response.text()
                     
-                    # Extract both thumbnail URL (turl) and page URL (purl)
-                    # Bing encodes JSON in data-m attribute - we want TURL (Bing Proxy) not MURL (Source blockable CDN)
-                    # Use flexible independent extraction as order can vary
-                    turls = re.findall(r'turl&quot;:&quot;(https?://.*?)&quot;', html_content)
-                    purls = re.findall(r'purl&quot;:&quot;(https?://.*?)&quot;', html_content)
+                    # Bing encodes JSON in data-m attribute - we extract the whole JSON block to elegantly get url and title
+                    results_data = re.findall(r'm="({.*?})"', html_content)
                     
                     blocks = []
-                    for t, p in zip(turls, purls):
-                        # Decode HTML entities like &amp; in URLs
-                        t = t.replace("&amp;", "&")
-                        p = p.replace("&amp;", "&")
-                        blocks.append((t, p))
+                    import html
+                    for m_str in results_data:
+                        try:
+                            m_json = m_str.replace('&quot;', '"').replace('&amp;', '&')
+                            data = json.loads(m_json)
+                            if 'turl' in data and 'purl' in data:
+                                raw_t = html.unescape(data.get('t', '')).strip()
+                                # Clean up bad titles like 100_7384.JPG
+                                if not raw_t or any(raw_t.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.img', 'image']) or len(raw_t) <= 3:
+                                    # Fallback to domain name
+                                    try:
+                                        from urllib.parse import urlparse
+                                        domain = urlparse(data['purl']).netloc.replace('www.', '').split('.')[0].capitalize()
+                                        raw_t = f"{clean_query.title()} at {domain}"
+                                    except:
+                                        raw_t = clean_query.title()
+                                        
+                                blocks.append((data['turl'], data['purl'], raw_t))
+                        except:
+                            pass
 
                     # Deduplicate and filter
                     real_results = []
                     seen = set()
-                    for img_url, pg_url in blocks:
+                    for img_url, pg_url, raw_title in blocks:
                         if img_url.startswith("//"): img_url = "https:" + img_url
                         if pg_url.startswith("//"): pg_url = "https:" + pg_url
                         
@@ -369,7 +381,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         seen.add(img_url)
                         
                         real_results.append({
-                            "name": f"{clean_query} {len(real_results) + 1}",
+                            "name": raw_title,
                             "image_url": img_url,
                             "source_url": pg_url
                         })
@@ -1192,7 +1204,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         if results:
             # Process images (asynchronous call)
             # Pass source/date for categorized folders
-            results = await asset_processor.process_product_images(results, category="retail", subcategory="deep_crawl", source="deep_crawl", scrape_date=date_str)
+            results = asset_processor.process_product_images(results, category="retail", subcategory="deep_crawl")
             for p in results:
                 if p.get("s3_image_url"):
                     p["image_url"] = p["s3_image_url"] 
@@ -1698,12 +1710,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
             # 1. PROCESS IMAGES FOR S3 (In the background!)
             date_str = self._get_scrape_date()
-            products = await asset_processor.process_product_images(
+            products = asset_processor.process_product_images(
                 products, 
                 category="retail", 
-                subcategory="fast_carousel", 
-                source="fast_carousel", 
-                scrape_date=date_str
+                subcategory="fast_carousel"
             )
 
             print(f"📦 [BACKGROUND] Processing {len(products)} products after S3 enrichment...", flush=True)

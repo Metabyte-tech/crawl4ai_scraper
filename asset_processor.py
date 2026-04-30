@@ -55,8 +55,17 @@ class AssetProcessor:
                 if "original_image_url" not in product:
                     product["original_image_url"] = image_url
                 
-                # Normalize the URL before processing
-                image_url = kimi_service._normalize_url(image_url)
+                # Try to use product's source URL to resolve relative images
+                source_url = product.get("source_url") or product.get("url")
+                if image_url.startswith("/") and source_url:
+                    from urllib.parse import urljoin
+                    image_url = urljoin(source_url, image_url)
+                elif not image_url.startswith("http") and source_url:
+                    # Could be something like "assets/img.jpg"
+                    from urllib.parse import urljoin
+                    image_url = urljoin(source_url, image_url)
+                else:
+                    image_url = kimi_service._normalize_url(image_url)
                 
                 # 1. AWS/Amazon Thumbnail Cleaning - Aggressive Recovery
                 if "m.media-amazon.com" in image_url and "._" in image_url:
@@ -100,7 +109,27 @@ class AssetProcessor:
                         print(f"INFO: Attempting to download image: {image_url}")
                         # Use rotating stealth headers for each request
                         headers = self._get_headers(image_url)
-                        response = self.client.get(image_url, timeout=10.0, headers=headers)
+                        response = None
+                        max_retries = 2
+                        for attempt in range(max_retries + 1):
+                            try:
+                                if attempt > 0:
+                                    # Fresh client on retry - avoids stale keep-alive connections
+                                    import time as _time
+                                    _time.sleep(0.5 * attempt)
+                                    with httpx.Client(follow_redirects=True, http2=False) as retry_client:
+                                        response = retry_client.get(image_url, timeout=12.0, headers=self._get_headers(image_url))
+                                else:
+                                    response = self.client.get(image_url, timeout=10.0, headers=headers)
+                                break  # Success
+                            except Exception as req_e:
+                                if attempt < max_retries:
+                                    print(f"WARNING: Image download attempt {attempt+1} failed for {image_url}: {req_e}. Retrying...")
+                                else:
+                                    print(f"WARNING: Image download failed after {max_retries+1} attempts for {image_url}: {req_e}. Skipping.")
+                                    processed_products.append(product)
+                        if response is None:
+                            continue
                         
                         # SIZE FILTER: Skip images under 1KB (likely tiny invisible pixels)
                         content_len = len(response.content)
@@ -174,8 +203,11 @@ class AssetProcessor:
                 continue
                 
             try:
+                from urllib.parse import urljoin
+                full_url = urljoin(base_url, url) if base_url else url
+                
                 # Prepare a mini-product for existing logic
-                mini_products = [{"image_url": url}]
+                mini_products = [{"image_url": full_url}]
                 processed = self.process_product_images(mini_products, category, subcategory)
                 if processed and processed[0].get("s3_image_url"):
                     s3_url = processed[0]["s3_image_url"]

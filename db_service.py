@@ -86,8 +86,11 @@ class DBService:
                     end_time = EXCLUDED.end_time,
                     total_urls = EXCLUDED.total_urls,
                     status = EXCLUDED.status
-            """, batch_id, metadata.get('start_time'), metadata.get('end_time'), 
-                 metadata.get('total_urls'), metadata.get('status'))
+            """, batch_id, 
+                 float(metadata['start_time']) if metadata.get('start_time') else None,
+                 float(metadata['end_time']) if metadata.get('end_time') else None,
+                 int(metadata['total_urls']) if metadata.get('total_urls') else None,
+                 metadata.get('status'))
 
     async def upsert_url_result(self, batch_id: str, url: str, status: str):
         """Inserts or updates a URL status within a batch."""

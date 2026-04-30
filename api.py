@@ -577,7 +577,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 url = meta.get("source") or meta.get("source_url")
                 original_name = str(meta.get("name") or "Product").strip()
 
-                is_generic = '|' in original_name or len(original_name) <= 15 or "toys" in original_name.lower().split()
+                is_generic = '|' in original_name or len(original_name) <= 20 or "toys" in original_name.lower().split() or "wholesale" in original_name.lower() or "dropship" in original_name.lower()
                 extracted_sub_products = False
 
                 if is_generic and doc.page_content:

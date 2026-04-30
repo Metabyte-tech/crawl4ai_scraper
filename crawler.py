@@ -192,7 +192,8 @@ async def _run_recursive_crawl(base_url: str, max_pages: int, browser_config) ->
     all_content = []
 
     # 10 concurrent fetches — safe on instances with 16GB RAM for faster crawling
-    semaphore = asyncio.Semaphore(10)
+    # Increase semaphore limit to process more sub-pages concurrently (beware of RAM usage)
+    semaphore = asyncio.Semaphore(20)
 
     async def crawl_with_semaphore(url, crawler):
         async with semaphore:

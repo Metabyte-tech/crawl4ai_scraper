@@ -115,7 +115,7 @@ class AdminService:
         }
         return metadata
 
-    async def list_recent_batches(self, limit: int = 10) -> List[Dict]:
+    async def list_recent_batches(self, limit: int = 50) -> List[Dict]:
         """Lists recent batch IDs and their high-level status."""
         r = await self.get_redis()
         batch_ids = await r.zrevrange("admin:crawl_batches", 0, limit - 1)

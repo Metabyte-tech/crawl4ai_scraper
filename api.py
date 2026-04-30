@@ -265,14 +265,20 @@ async def admin_crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
 
 @app.get("/admin/crawl/batches")
 async def list_admin_batches():
-    """Returns a list of recent admin crawl batches."""
-    batches = await admin_service.list_recent_batches()
+    """Returns a list of recent admin crawl batches directly from PostgreSQL."""
+    batches = await db_service.list_batches(limit=50)
+    for b in batches:
+        b['start_time'] = str(b['start_time'])
+        b['end_time'] = str(b['end_time']) if b.get('end_time') else None
     return {"batches": batches}
 
 @app.get("/admin/crawl/batch/{batch_id}")
 async def get_admin_batch_status(batch_id: str):
-    """Returns the detailed status of a specific crawl batch."""
-    status = await admin_service.get_batch_status(batch_id)
+    """Returns the detailed status of a specific crawl batch from PostgreSQL."""
+    status = await db_service.get_batch_detail(batch_id)
+    if not status:
+        # Fallback to Redis if somehow PostgreSQL fails immediately after creating
+        status = await admin_service.get_batch_status(batch_id)
     if not status:
         raise HTTPException(status_code=404, detail="Batch not found")
     return status

@@ -99,10 +99,17 @@ class WorkerSettings:
     Arq worker configuration.
     """
     functions = [cache_products_task, deep_crawl_task, ingest_url_task, admin_ingest_url_task]
-    # Initialize Redis settings (relying on REDIS_URL and default arq settings to prevent kwarg errors)
-    redis_settings = RedisSettings.from_dsn(REDIS_URL)
-    # Increase timeout for heavy deep crawls (3600 = 1 hour)
-    job_timeout = 3600 
+    # Initialize Redis settings explicitly to allow injecting connection timeouts
+    # The default 1-sec timeout is too aggressive for heavy concurrent crawls
+    redis_settings = RedisSettings(
+        host="localhost",
+        port=6379,
+        conn_timeout=10,
+        conn_retries=5,
+        conn_retry_delay=1
+    )
+    # Increase timeout for heavy deep crawls (14400 = 4 hours)
+    job_timeout = 14400 
     # Max concurrent jobs per worker process to avoid OOM on 8GB/16GB EC2
     # Reduced to 3 to leave overhead for Playwright and Torch
-    max_jobs = 3
+    max_jobs = 8

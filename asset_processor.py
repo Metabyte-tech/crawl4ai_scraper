@@ -98,6 +98,10 @@ class AssetProcessor:
                 # Check cache before doing any network requests
                 cached_s3 = image_cache.get_s3_url(image_url)
                 if cached_s3:
+                    if cached_s3 == "SKIP":
+                        print(f"INFO: IMAGE CACHE HIT (Negative Cache). Ignoring skipped image: {image_url}")
+                        processed_products.append(product)
+                        continue
                     print(f"INFO: IMAGE CACHE HIT. Skipping download for {image_url}")
                     product["s3_image_url"] = cached_s3
                     product["original_image_url"] = image_url
@@ -151,6 +155,7 @@ class AssetProcessor:
                         content_len = len(response.content)
                         if response.status_code == 200 and content_len < 1000:
                             print(f"SKIP: Image too small ({content_len} bytes), likely a logo or icon: {image_url}")
+                            image_cache.save_s3_url(image_url, "SKIP")
                             continue
                         print(f"INFO: Image download status: {response.status_code} ({content_len} bytes)")
                         
@@ -186,6 +191,7 @@ class AssetProcessor:
                                 print(f"WARNING: S3 upload failed for {image_url}")
                         else:
                             print(f"WARNING: All download attempts failed for {image_url}")
+                            image_cache.save_s3_url(image_url, "SKIP")
                     except httpx.ConnectError as e:
                         print(f"ERROR: DNS/Connection failure for {image_url}: {e}")
                     except Exception as e:

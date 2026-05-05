@@ -108,8 +108,8 @@ class WorkerSettings:
         conn_retries=5,
         conn_retry_delay=1
     )
-    # Increase timeout for heavy deep crawls (14400 = 4 hours)
-    job_timeout = 14400 
+    # Increase timeout to 24 hours (86400s) for massive chunk ingestions
+    job_timeout = 86400
     # Max concurrent jobs per worker process to avoid OOM on 8GB/16GB EC2
     # Reduced to 3 to leave overhead for Playwright and Torch
     max_jobs = 8

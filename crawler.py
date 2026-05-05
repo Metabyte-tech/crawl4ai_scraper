@@ -86,8 +86,8 @@ async def crawl_site(url: str, crawler=None):
         word_count_threshold=10,
         wait_for="body",
         simulate_user=True,
-        page_timeout=45000,
-        wait_for_timeout=30000,
+        page_timeout=90000,
+        wait_for_timeout=60000,
         js_code=js_scroll,
         markdown_generator=md_generator
     )

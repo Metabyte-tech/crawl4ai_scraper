@@ -167,10 +167,16 @@ async def add_multiple_contents_to_store(items: list):
             total_unique = len(unique_chunks)
             print(f"DEBUG: Starting ingestion of {total_unique} chunks in batches of {batch_size}...", flush=True)
             
+            resume_batch = int(os.getenv("RESUME_START_BATCH", "1"))
+            
             for i in range(0, total_unique, batch_size):
                 batch = unique_chunks[i : i + batch_size]
                 batch_num = i // batch_size + 1
                 total_batches = (total_unique - 1) // batch_size + 1
+                
+                if batch_num < resume_batch:
+                    print(f"DEBUG: Skipping batch {batch_num}/{total_batches} (resume from {resume_batch})...", flush=True)
+                    continue
                 
                 print(f"DEBUG: Processing batch {batch_num}/{total_batches} ({len(batch)} chunks)...", flush=True)
                 

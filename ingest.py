@@ -162,39 +162,43 @@ async def add_multiple_contents_to_store(items: list):
         gc.collect()
         
         if unique_chunks:
-            # increased batch size for insertion throughput on large recursive websites
-            batch_size = 500 
+            # Use upsert with deterministic IDs so re-runs skip already-stored chunks
+            batch_size = 500
             total_unique = len(unique_chunks)
-            print(f"DEBUG: Starting ingestion of {total_unique} chunks in batches of {batch_size}...", flush=True)
-            
-            resume_batch = int(os.getenv("RESUME_START_BATCH", "1"))
-            
+            print(f"DEBUG: Starting idempotent ingestion of {total_unique} unique chunks in batches of {batch_size}...", flush=True)
+
             for i in range(0, total_unique, batch_size):
                 batch = unique_chunks[i : i + batch_size]
                 batch_num = i // batch_size + 1
                 total_batches = (total_unique - 1) // batch_size + 1
-                
-                if batch_num < resume_batch:
-                    print(f"DEBUG: Skipping batch {batch_num}/{total_batches} (resume from {resume_batch})...", flush=True)
-                    continue
-                
+
+                # Build deterministic IDs from content hash so Chroma skips duplicates on re-run
+                batch_ids = []
+                for doc in batch:
+                    norm_text = " ".join(doc.page_content.split())
+                    batch_ids.append(hashlib.md5(norm_text.encode("utf-8")).hexdigest())
+
                 print(f"DEBUG: Processing batch {batch_num}/{total_batches} ({len(batch)} chunks)...", flush=True)
-                
+
                 import time
                 start_t = time.time()
-                
+
                 # Move lock INSIDE the loop so we don't block the entire event loop for an hour
                 async with write_lock:
-                    # Use dedicated single-threaded executor for the heavy model call
                     loop = asyncio.get_running_loop()
-                    await loop.run_in_executor(embedding_executor, vector_store.add_documents, batch)
-                
+                    # Pass explicit ids so Chroma upserts rather than blindly inserts
+                    await loop.run_in_executor(
+                        embedding_executor,
+                        lambda b=batch, ids=batch_ids: vector_store.add_documents(b, ids=ids)
+                    )
+
                 elapsed = time.time() - start_t
                 print(f"Added batch {batch_num} of {len(batch)} chunks in {elapsed:.2f}s. Total: {min(i + batch_size, total_unique)}/{total_unique}", flush=True)
-                
-                # IMPORTANT: Yield to the event loop to allow heartbeat logs to be sent and other tasks to run
+
+                # Yield to the event loop to allow heartbeat logs and other tasks to run
                 await asyncio.sleep(0.1)
-                
+
             # Final cleanup for this task
             del unique_chunks
             gc.collect()
+

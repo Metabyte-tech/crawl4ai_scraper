@@ -24,40 +24,6 @@ If missing → null.
 """
 
 class KimiService:
-    async def generate_execution_plan(self, query, template_id=None):
-        """
-        Breaks down a complex business request into a series of actionable steps.
-        Matches the 'Agent task' UI seen in Accio.com.
-        """
-        system_prompt = (
-            "You are an expert AI business architect. Your task is to break down a "
-            "complex e-commerce request into a logical, multi-step execution plan. "
-            "Provide exactly 3-5 sub-tasks that are clear, actionable, and cover research, "
-            "analysis, and synthesis. Return a JSON list of strings."
-        )
-        
-        user_prompt = f"Request: {query}\nTemplate ID: {template_id or 'general'}\n\nGenerate the execution plan."
-        
-        try:
-            # Correctly use _call_with_retry instead of non-existent sem_call_llm
-            response = await self._call_with_retry(
-                lambda: self.client.messages.create(
-                    model=self.model,
-                    max_tokens=1000,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": user_prompt}],
-                )
-            )
-            if not response: return ["Analyze request", "Gather data from web", "Generate final report"]
-            text = response.content[0].text
-            # Extract list from response if LLM adds preamble
-            match = re.search(r'\[.*\]', text, re.DOTALL)
-            if match:
-                return json.loads(match.group(0))
-            return ["Analyze request", "Gather data from web", "Generate final report"]
-        except Exception as e:
-            print(f"Error generating plan: {e}", flush=True)
-            return [f"Plan Error: {str(e)}"]
 
     def __init__(self):
         self.api_key = os.getenv("MOONSHOT_API_KEY")
@@ -222,15 +188,6 @@ class KimiService:
         q = query.lower()
         words = set(re.findall(r'\b\w+\b', q))  # Use word boundaries for exact word matching
         
-        # 🤖 Agent Task / Template execution detection
-        # Templates usually start with specific "Professional" verbs or keywords
-        agent_keywords = [
-            "commercial feasibility", "market segment", "qualified suppliers", 
-            "viral hits", "marketing strategy", "business architect", "report for"
-        ]
-        # Agent keywords can be multi-word phrases, so use substring match for them
-        if any(x in q for x in agent_keywords):
-            return "agent_task"
 
         # 🧸 Shopping / Products (Check this BEFORE vehicle to catch "car toys")
         shopping_keywords_exact = {
@@ -1323,159 +1280,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             print(f"Extraction error: {e}", flush=True)
             return []
 
-    def _get_category_prompt(self, template_id):
-        base_prompt = (
-            "You are an Elite AI Business Agent. Your goal is to provide a highly "
-            "professional, data-driven Commercial Report. Use Markdown formatting.\n\n"
-            "CRITICAL FORMATTING RULES:\n"
-            "1. CITATIONS: Use inline citations [1], [2] etc. whenever you reference specific data from the provided MARKET CONTEXT.\n"
-            "2. CHECKLISTS: Use emoji-checklists (e.g., ✅, 📋) for actionable execution steps or requirements.\n"
-            "3. VISUALS: Use tables and carousels where instructed to make the report scannable.\n\n"
-        )
-        
-        # Determine category from templates.json
-        category_id = "product_research" # default
-        import json
-        try:
-            with open("templates.json", "r") as f:
-                data = json.load(f)
-                for cat in data.get("categories", []):
-                    for t in cat.get("templates", []):
-                        if t.get("id") == template_id:
-                            category_id = cat.get("id")
-                            break
-        except Exception as e:
-            print(f"Error loading templates category: {e}", flush=True)
 
-        if category_id == "business_analysis":
-            return base_prompt + (
-                "REPORT STRUCTURE:\n"
-                "1. Market Analysis (Sales growth, market size)\n"
-                "2. Scenario Breakdown (Financial modeling)\n"
-                "3. Strategic Recommendations\n\n"
-                "CRITICAL INSTRUCTIONS:\n"
-                "Use heavily formatted Markdown TABLES with at least 4 columns to compare financials and scenarios. "
-                "Include 'Summary Scorecards' using bold markdown numbers at the top.\n"
-                "If MARKET CONTEXT is provided, base your data strictly on it."
-            )
-        elif category_id == "product_design":
-            return base_prompt + (
-                "REPORT STRUCTURE:\n"
-                "1. Concept Visuals (Image Grids)\n"
-                "2. Design Iterations\n"
-                "3. Material Suggestions\n\n"
-                "CRITICAL INSTRUCTIONS:\n"
-                "For 'Concept Visuals', present 3 specific product design ideas. "
-                "For each concept, MUST include a dynamically generated image using exactly: "
-                "![Concept Name](https://image.pollinations.ai/prompt/hyper-realistic%20product%20photo%20of%20[detailed-description]?width=800&height=400&nologo=true) "
-                "(replace [detailed-description] with URL-encoded design specs). Below each, add bullet points."
-            )
-        elif category_id == "supplier_sourcing":
-            return base_prompt + (
-                "REPORT STRUCTURE:\n"
-                "1. Sourcing List (Visual Product Grid)\n"
-                "2. Comparison Chart\n"
-                "3. Manufacturer Audit\n\n"
-                "CRITICAL INSTRUCTIONS:\n"
-                "AT THE VERY TOP, you MUST output a `<product_grid>` tag combining the MARKET CONTEXT into exactly this JSON format: "
-                "[{\"name\": \"...\", \"price\": \"...\", \"brand\": \"...\", \"image_url\": \"...\", \"source_url\": \"...\", \"details\": \"...\", \"moq\": \"...\", \"supplier_years\": \"...\", \"location\": \"...\", \"is_verified\": true}]. "
-                "For 'is_verified', set to true if the source is a known reliable platform. "
-                "Then below it, write a massive Markdown Spec Comparison Table mapping requirements side-by-side using citations [1][2]."
-            )
-        elif category_id == "go_to_market":
-            return base_prompt + (
-                "REPORT STRUCTURE:\n"
-                "1. Product Title & Positioning\n"
-                "2. A+ Content Copy / Ad Copy\n"
-                "3. Listing Variations\n\n"
-                "CRITICAL INSTRUCTIONS:\n"
-                "Provide text blocks formatted for copy-pasting (Markdown Code blocks). "
-                "Use pollinations AI markdown image syntax to produce 'Image Galleries' showing lifestyle vs detail shots: "
-                "![Lifestyle Shot](https://image.pollinations.ai/prompt/lifestyle%20shot%20of%20[product]?width=800&height=400&nologo=true)."
-            )
-        else:
-            # product_research and default
-            return base_prompt + (
-                "REPORT STRUCTURE:\n"
-                "1. Top Selling Trends\n"
-                "2. Success Factors\n"
-                "3. Gap Analysis & Innovation Concepts\n\n"
-                "CRITICAL INSTRUCTIONS:\n"
-                "For 'Gap Analysis', present 2-3 specific product innovation ideas. "
-                "For each, MUST include an inline image using this EXACT markdown format: "
-                "![Concept Name](https://image.pollinations.ai/prompt/hyper-realistic%20product%20photo%20of%20[detailed-description]?width=800&height=400&nologo=true). "
-                "Below the image, list 'Key Features' in bullet points. Use Bar Chart ascii simulations or Tables for trends."
-            )
-
-    async def generate_agent_report(self, query, template_id=None, subject=None):
-        """
-        Generates a professional, structured business report for an Agent Task.
-        Dynamically adjusts formatting to match Accio category standards.
-        """
-        search_query = subject if subject else query
-
-        # 1. Try local database first (strict relevance check)
-        context_docs = []
-        try:
-            from query import fast_query
-            # Use tighter threshold (0.9) to avoid unrelated items
-            all_docs = fast_query(search_query, category="retail", threshold=0.9, k=10)
-
-            # Keyword relevance filter: ensure returned docs actually match the subject
-            subject_keywords = set(search_query.lower().split())
-            stop_words = {"for", "a", "an", "the", "of", "in", "to", "and", "with", "on", "at", "from", "by"}
-            subject_keywords = {w for w in subject_keywords if len(w) >= 3 and w not in stop_words}
-
-            for doc, score in all_docs:
-                # Validate product relevance
-                product_name = doc.metadata.get("name", "")
-                is_relevant, rel_score = self._validate_product_relevance(product_name, search_query)
-                
-                if is_relevant:
-                    context_docs.append((doc, score))
-
-            print(f"RAG: {len(all_docs)} raw → {len(context_docs)} relevant for '{search_query}'", flush=True)
-        except Exception as e:
-            print(f"RAG search failed for report: {e}", flush=True)
-
-        # 2. If local DB has no relevant data, handle gracefully
-        if not context_docs:
-            print(f"No relevant local data for '{search_query}'. Using empty context.", flush=True)
-            context_text = "MARKET CONTEXT FROM LOCAL DATABASE:\n[NO LOCAL DATA WAS FOUND FOR THIS PRODUCT. GENERATE THE REPORT BASED ON YOUR OWN KNOWLEDGE BUT MENTION THAT LOCAL SUPPLIER DATA IS UNAVAILABLE.]\n"
-        else:
-            # Build context from local DB results
-            context_text = "MARKET CONTEXT FROM LOCAL DATABASE:\n"
-            for doc, score in context_docs:
-                meta = doc.metadata
-                img = meta.get('image_url') or meta.get('s3_image_url') or "https://via.placeholder.com/150"
-                moq = meta.get('moq', 'N/A')
-                loc = meta.get('location', 'N/A')
-                yrs = meta.get('supplier_years', 'N/A')
-                context_text += (
-                    f"- {meta.get('name')} | Price: {meta.get('price')} | Brand: {meta.get('brand')} | "
-                    f"MoQ: {moq} | Location: {loc} | Yrs: {yrs} | "
-                    f"Image URL: {img} | URL: {meta.get('url') or meta.get('source_url')}\n"
-                )
-
-        system_prompt = self._get_category_prompt(template_id)
-        user_prompt = f"{context_text}\n\nTemplate ID: {template_id or 'General Analysis'}\n\nTask: {query}"
-
-        try:
-            print(f"DEBUG: Generating Agent Report for {template_id}", flush=True)
-            response = await self._call_with_retry(
-                lambda: self.client.messages.create(
-                    model=self.model,
-                    max_tokens=2000,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": user_prompt}],
-                )
-            )
-            return response.content[0].text if response else "Failed to generate report."
-        except Exception as e:
-            print(f"Error generating agent report: {e}", flush=True)
-            import traceback
-            traceback.print_exc()
-            return f"BACKEND_ERROR: {str(e)}"
 
     async def rapid_extract_price_and_rating(self, session, url):
         """

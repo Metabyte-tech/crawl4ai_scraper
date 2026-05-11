@@ -399,27 +399,7 @@ async def get_categories():
     return JSONResponse(content={"categories": result})
 
 
-@app.get("/api/templates")
-async def get_templates():
-    """Returns the library of expert templates and categories."""
-    template_path = "templates.json"
-    if os.path.exists(template_path):
-        with open(template_path, "r") as f:
-            return json.load(f)
-    return {"categories": []}
 
-@app.post("/api/plan")
-async def generate_plan(request: Request):
-    """Generates a multi-step execution plan for a business query."""
-    data = await request.json()
-    query = data.get("query")
-    template_id = data.get("template_id")
-    
-    if not query:
-        raise HTTPException(status_code=400, detail="Query is required")
-        
-    plan = await kimi_service.generate_execution_plan(query, template_id)
-    return {"plan": plan}
 
 
 @app.post("/api/chat")
@@ -442,8 +422,6 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
         print(f"🔥 Query: {query}", flush=True)
 
         intent = kimi_service.detect_intent(query)
-        if body.get("template_id"):
-            intent = "agent_task"
             
         print(f"🧠 Intent: {intent}", flush=True)
 
@@ -464,34 +442,6 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 bot_response = ""
             else:
                 bot_response = v_res
-
-        elif intent == "agent_task":
-            template_id = body.get("template_id", "")
-            subject = body.get("subject") or query
-            
-            # Start report generation
-            report_task = kimi_service.generate_agent_report(
-                query=query, 
-                template_id=template_id,
-                subject=subject
-            )
-            
-            products_task = None
-            # If template implies tangible physical products, design, or sourcing, fetch images/products concurrently
-            if any(x in template_id for x in ["design", "source", "product", "inclusive", "appeal", "trend", "validate", "search", "find", "bestseller", "investigate"]):
-                if "supplier" in template_id or "source" in template_id or "search" in template_id or "bestseller" in template_id:
-                    products_task = kimi_service.get_fast_bing_data(subject)
-                else:
-                    products_task = kimi_service.search_images(subject)
-            
-            if products_task:
-                bot_response, prod_res = await asyncio.gather(report_task, products_task)
-                if isinstance(prod_res, dict) and "results" in prod_res:
-                    live_products = prod_res["results"]
-                elif isinstance(prod_res, list):
-                    live_products = prod_res
-            else:
-                bot_response = await report_task
 
         elif intent == "shopping":
             # ── Step 1: Query DB first (max recall) ──────────────────────────────
@@ -693,7 +643,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
             )
 
         # Build final response
-        if live_products and intent in ("shopping", "images", "global_search", "supplier_sourcing", "agent_task", "vehicle"):
+        if live_products and intent in ("shopping", "images", "global_search", "supplier_sourcing", "vehicle"):
             # STRICT DB PRIORITY: Since we add DB results to live_products first, 
             # we simply use the original order to ensure they appear first in the UI.
             ordered = live_products

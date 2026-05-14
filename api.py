@@ -475,6 +475,13 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
 
         intent = kimi_service.detect_intent(query)
             
+        # ── Contextual RAG Step ────────────────────────────────────────────────
+        # If the user asks something like "under $100" after "kids shoes", 
+        # we expand it to "kids shoes under $100".
+        if intent == "shopping" and messages_list:
+            query = await kimi_service.rewrite_query_contextual(query, messages_list)
+            query_lower = query.lower()
+
         print(f"🧠 Intent: {intent}", flush=True)
 
         live_products = []
@@ -496,30 +503,61 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 bot_response = v_res
 
         elif intent == "shopping":
-            # ── Step 1: Query DB first (max recall) ──────────────────────────────
+            import re as _re
+
+            # 1. Extract Price Constraint and Clean Query
+            _max_price = float('inf')
+            _rag_query = query.strip()
+            
+            # Enhanced price extraction supporting decimals and various formats
+            _price_match = _re.search(r'(?i)(?:under|below|less than|budget of|within|max|maximum)\s*(?:[\$₹\u20b9£€]|rs\.?|inr)?\s*([\d,]+\.?\d*)', query_lower)
+            if _price_match:
+                try:
+                    _max_price = float(_price_match.group(1).replace(',', ''))
+                    print(f"💰 [RAG] Detected price limit: {_max_price}", flush=True)
+                    # Clean the query for the vector store
+                    # Use case-insensitive replace by using re.sub
+                    pattern_to_remove = _re.escape(_price_match.group(0))
+                    _rag_query = _re.sub(pattern_to_remove, "", query, flags=_re.IGNORECASE).strip()
+                    if not _rag_query and messages:
+                        # Fallback to previous context if only a price was sent
+                        for m in reversed(messages):
+                            if m.get("role") == "user":
+                                _rag_query = m.get("content", "").strip()
+                                break
+                except:
+                    pass
+
+            # ── Step 2: Query DB with cleaned query (max recall) ──────────────────────────────
             try:
-                rag_results = fast_query(query, threshold=2.0, k=100)
+                # Use a default if we still have no keywords
+                final_search_query = _rag_query or "products"
+                rag_results = fast_query(final_search_query, threshold=2.0, k=100)
+                print(f"DEBUG: fast_query returned {len(rag_results)} results for query: '{final_search_query}'", flush=True)
             except Exception as e:
                 print(f"RAG search error: {e}", flush=True)
                 rag_results = []
 
-            # ── Relevance filter ──────────────────────────────────────────────────
-            import re as _re
+            # ── Relevance filter (Improved with Price Logic) ────────────────────────
 
             _stop = {
                 'the','and','for','with','are','this','that','from','have','has',
                 'its','not','of','in','on','at','by','be','a','an','to','do',
                 'is','it','me','my','we','us','or','so','if','as','up','go',
+                'under', 'below', 'price', 'budget', 'cost', 'than', 'less', 'more',
+                'max', 'maximum', 'min', 'minimum', 'within', 'rs', 'inr', 'usd'
             }
 
-            # Extract meaningful keywords — allow 2-char terms so 'rc' counts
-            _raw_kw = [w for w in _re.split(r'\W+', query.lower()) if len(w) >= 2 and w not in _stop]
+            # Extract meaningful keywords — exclude price words
+            # Use _rag_query instead of original query to avoid matching "rs" from the price constraint
+            _raw_kw = [w for w in _re.split(r'\W+', _rag_query.lower()) if len(w) >= 2 and w not in _stop and not w.isdigit()]
 
             # Simple plural/singular normalisation: strip trailing 's' for matching
             def _stem(w: str) -> str:
                 return w.rstrip('s') if len(w) > 3 else w
 
             _query_keywords = list(dict.fromkeys(_raw_kw))  # deduplicated, preserves order
+            print(f"🔍 [RAG] Filtering keywords: {_query_keywords}", flush=True)
 
             def _word_match(keyword: str, text: str) -> bool:
                 """True if the keyword (or its stem) appears as a whole word in text."""
@@ -532,45 +570,51 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                 t = text.lower()
                 return sum(1 for kw in _query_keywords if _word_match(kw, t))
 
-            def _is_relevant(haystack: str) -> bool:
+            def _is_price_ok(price_str: str) -> bool:
+                if _max_price == float('inf'):
+                    return True
+                val = kimi_service._parse_price(price_str)
+                if val == float('inf'): 
+                    # If budget is set, and it says "Request Price", we keep it.
+                    # But if it's just blank, we might want to exclude it if we want strict mode.
+                    return True 
+                
+                is_ok = val <= _max_price
+                if not is_ok:
+                    print(f"DEBUG: Price Filter REJECTED: {price_str} ({val}) > {_max_price}", flush=True)
+                return is_ok
+
+            def _is_relevant(doc_meta: dict, content: str = "") -> bool:
+                name = str(doc_meta.get('name') or doc_meta.get('title') or "").lower()
+                price = str(doc_meta.get('price') or "")
+                
+                # Check price first
+                if not _is_price_ok(price):
+                    return False
+                
                 if not _query_keywords:
                     return True
+                
+                haystack = f"{name} {content.lower()}"
                 n = len(_query_keywords)
+                
+                # Semantic boost: if query is "shoes" and title has "boots", it should match
+                # (Future improvement: use word embeddings for this part)
+                
                 # For 1–2 keyword queries, ALL must match (no slack)
                 # For 3+ keyword queries, require ceil(67%) to match
                 if n <= 2:
                     required = n
                 else:
                     required = max(2, -(-n * 2 // 3))  # ceiling division of 2/3
+                
                 return _score(haystack) >= required
 
-            def _candidate_relevant(name: str, details: str = "") -> bool:
-                if not name:
-                    return False
-                # Try kimi_service's own validator first
-                try:
-                    if kimi_service._validate_product_relevance(name.strip(), query)[0]:
-                        return True
-                except Exception:
-                    pass
-                return _is_relevant(f"{name} {details}")
-
-            if _query_keywords:
-                _filtered = [
+            if _query_keywords or _max_price != float('inf'):
+                rag_results = [
                     (_doc, _sc) for _doc, _sc in rag_results
-                    if _is_relevant(
-                        f"{_doc.metadata.get('name','')} "
-                        f"{_doc.metadata.get('title','')}"
-                    )
+                    if _is_relevant(_doc.metadata, _doc.page_content[:500])
                 ]
-                # Fall back to page_content match if name/title filter removes everything
-                if not _filtered:
-                    _filtered = [
-                        (_doc, _sc) for _doc, _sc in rag_results
-                        if _is_relevant(_doc.page_content[:500])
-                    ]
-                if _filtered:
-                    rag_results = _filtered
 
             # Process RAG results — collapse chunks from the same URL into one product
             cached_products = []
@@ -595,7 +639,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                         lt_lower = link_text.lower()
                         if any(x in lt_lower for x in ['home', 'contact', 'about', 'login', 'cart', 'checkout', 'privacy', 'policy', 'terms', 'subscribe', 'search']):
                             continue
-                        if not _candidate_relevant(link_text, doc.page_content):
+                        if _query_keywords and _score(link_text) < 1:
                             continue
                         norm_sub_url = kimi_service._normalize_url(link_url)
                         if norm_sub_url in seen_urls:
@@ -618,7 +662,7 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                         extracted_sub_products = True
 
                 if not extracted_sub_products:
-                    if not _candidate_relevant(original_name, doc.page_content):
+                    if not _is_relevant({"name": original_name}, doc.page_content):
                         continue
                     norm_url = kimi_service._normalize_url(url)
                     if norm_url in seen_urls:
@@ -661,8 +705,8 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     if name_lower in seen_names or norm_url in seen_urls:
                         continue
 
-                    # Skip if Kimi result is irrelevant to the query
-                    if not _candidate_relevant(name, str(p.get('details',''))):
+                    # Skip if Kimi result is irrelevant to the query (including price check)
+                    if not _is_relevant(p, str(p.get('details',''))):
                         continue
 
                     new_live_products.append(p)
@@ -679,8 +723,12 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
 
             # Background enrichment - OFFLOAD TO REDIS WORKER
             if live_products:
-                await req.app.state.arq_pool.enqueue_job('cache_products_task', products=live_products, query=query)
-                await req.app.state.arq_pool.enqueue_job('deep_crawl_task', query=query, fast_products=live_products)
+                try:
+                    if hasattr(req.app.state, 'arq_pool'):
+                        await req.app.state.arq_pool.enqueue_job('cache_products_task', products=live_products, query=query)
+                        await req.app.state.arq_pool.enqueue_job('deep_crawl_task', query=query, fast_products=live_products)
+                except Exception as e:
+                    print(f"Warning: Failed to enqueue background cache job: {e}", flush=True)
 
             # For simple shopping with no template: skip the LLM completely for speed
             # The carousel already shows everything the user needs
@@ -726,11 +774,21 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     except:
                         pass
 
+                def _guess_category(name, current_cat):
+                    if current_cat and current_cat != "fashion": return current_cat
+                    n = name.lower()
+                    if any(w in n for w in ["tent", "mat", "camp", "outdoor", "sport", "yoga", "gym"]): return "sports-outdoors"
+                    if any(w in n for w in ["phone", "laptop", "tech", "gadget", "earbud", "usb"]): return "electronics"
+                    if any(w in n for w in ["toy", "doll", "kid", "baby", "toddler"]): return "baby-kids"
+                    if any(w in n for w in ["home", "kitchen", "cook", "furniture"]): return "home-kitchen"
+                    return current_cat or "fashion"
+
                 items.append({
                     "name": p.get("name") or p.get("title") or "Product",
                     "brand": p.get("brand") or p.get("source") or "Store",
                     "price": kimi_service._extract_price_from_snippet(p.get("price")),
                     "image_url": img,
+                    "category": _guess_category(p.get("name") or p.get("title") or "", p.get("category")),
                     "source_url": p.get("source_url") or p.get("url") or p.get("source"),
                     "source": p.get("source") or "Search",
                     "rating_avg": p.get("rating_avg") or p.get("rating") or "",

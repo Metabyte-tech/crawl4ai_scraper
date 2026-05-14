@@ -66,15 +66,15 @@ def clear_vector_store():
     Clears the chroma collection by deleting all documents.
     """
     try:
-        # Get all IDs
-        collection_data = vector_store.get()
+        # Get all IDs (without limit)
+        collection_data = vector_store.get(limit=100000)
         ids = collection_data.get("ids", [])
         if ids:
-            # SQLite limit is typically 999 or 32766 variables. We chunk the deletions.
+            print(f"🗑️ Deleting {len(ids)} documents...", flush=True)
             chunk_size = 500
             for i in range(0, len(ids), chunk_size):
-                vector_store.delete(ids[i:i + chunk_size])
-            print(f"Vector store cleared. Deleted {len(ids)} documents in chunks.", flush=True)
+                vector_store.delete(ids=ids[i:i + chunk_size])
+            print(f"✅ Vector store cleared.", flush=True)
         else:
             print("Vector store is already empty.", flush=True)
     except Exception as e:

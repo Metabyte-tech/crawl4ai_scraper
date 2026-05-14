@@ -58,19 +58,34 @@ class KimiService:
         }
 
     def _parse_price(self, price_str):
-        if not price_str or "Check" in str(price_str) or "Verifying" in str(price_str):
+        if not price_str or any(w in str(price_str) for w in ["Check", "Verifying", "Request"]):
             return float('inf')
         try:
-            m = re.search(r'[$₹£€Rs]\s*([\d,]+\.?\d*)', str(price_str), re.IGNORECASE)
-            if m:
-                clean = m.group(1).replace(',', '')
-            else:
-                clean = re.sub(r'[^\d.]', '', str(price_str).replace(',', ''))
+            # Standardize: remove whitespace and commas
+            s = str(price_str).replace(',', '').replace(' ', '').replace('Rs.', 'Rs').replace('rs.', 'rs')
             
+            # Extract number - handle currencies better (using unicode for Rupee \u20b9)
+            m = re.search(r'(?:[$₹\u20b9£€]|rs|inr|usd|gbp|eur)\s*([\d,]+\.?\d*)', s, re.IGNORECASE)
+            if m:
+                clean = m.group(1)
+            else:
+                clean = re.sub(r'[^\d.]', '', s)
+            
+            if not clean or not any(c.isdigit() for c in clean):
+                return float('inf')
+                
             if clean.count('.') > 1:
                 parts = clean.split('.')
                 clean = parts[0] + "." + parts[1][:2]
-            return float(clean) if clean and any(c.isdigit() for c in clean) else float('inf')
+            
+            val = float(clean)
+            
+            # Heuristic: if price is > 1000 and has no dot, assume cents
+            if "." not in clean and val >= 500:
+                if val / 100.0 < 500:
+                    val = val / 100.0
+                    
+            return val
         except:
             return float('inf')
 
@@ -81,7 +96,8 @@ class KimiService:
         """
         if not snippet: return "Request Price"
         
-        prices = set()
+        prices = []
+        seen = set()
         # Find formatted prices globally
         matches = re.finditer(r'(?i)([$₹£€]|rs\.?|inr|usd|gbp|eur)\s*([\d,]+\.?\d*)', str(snippet))
         
@@ -94,9 +110,10 @@ class KimiService:
                 if num.endswith('.') and num.count('.') == 1:
                     num = num[:-1]
                 if any(c.isdigit() for c in num):
-                    prices.add(f"{sym}{num}")
-
-        prices = list(prices)
+                    p_str = f"{sym}{num}"
+                    if p_str not in seen:
+                        seen.add(p_str)
+                        prices.append(p_str)
 
         if not prices:
             # Fallback ISO or reverse
@@ -126,18 +143,69 @@ class KimiService:
             if not final_candidates:
                 final_candidates = valid_choices
 
-            # Return the most plausible price:
-            # 1. Favor prices that look like "real" selling prices (not $1.99 if there's a $799)
-            if len(final_candidates) > 1:
-                # Sort by value descending to find "Primary" price, but avoid outliers
-                final_candidates.sort(key=lambda x: x[1], reverse=True)
-                # If the highest price is > 10x the next one, it might be MSRP. 
-                # For now, let's just return the HIGHEST to avoid picking "1-year warranty $48" over "$1,20,000"
-                return final_candidates[0][0]
-            elif final_candidates:
-                return final_candidates[0][0]
+            # Return the FIRST plausible price found in the text, preserving natural order
+            if final_candidates:
+                val = final_candidates[0][1]
+                if val == float('inf'): return "Request Price"
+                
+                # Format with 2 decimal places and original symbol if possible
+                orig = final_candidates[0][0]
+                symbol = "$"
+                for s in "$₹£€₹":
+                    if s in orig:
+                        symbol = s
+                        break
+                
+                return f"{symbol}{val:,.2f}"
             
         return "Request Price"
+
+
+    async def rewrite_query_contextual(self, query, history):
+        """
+        Rewrites a short/contextual query (e.g. "under $100") into a standalone
+        search query (e.g. "kids shoes under $100") based on conversation history.
+        """
+        if not history or len(history) < 1:
+            return query
+            
+        context = ""
+        # Look at last 3 turns
+        for msg in history[-3:]:
+            role = "User" if msg.get("role") == "user" else "Assistant"
+            content = msg.get("content") or ""
+            # Strip bulky grid tags to save tokens
+            content = re.sub(r"<product_grid>.*?</product_grid>", "[Product Grid]", content, flags=re.DOTALL)
+            context += f"{role}: {content}\n"
+            
+        prompt = f"""Conversation History:
+{context}
+
+Latest Message: {query}
+
+Standalone Query:"""
+        
+        system = "Rewrite the latest message into a standalone search query that preserves context. Return ONLY the search query text."
+        
+        try:
+            print(f"🔄 [RAG] Contextualizing query: {query}", flush=True)
+            response = await self._call_with_retry(
+                lambda: self.client.messages.create(
+                    model=self.model,
+                    max_tokens=100,
+                    system=system,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+            )
+            if response:
+                rewritten = response.content[0].text.strip().strip('"').strip("'")
+                # Safety check: if LLM returns an empty string or just the same query, use original
+                if rewritten and len(rewritten) > 2:
+                    return rewritten
+        except Exception as e:
+            print(f"DEBUG: Contextualization failed: {e}", flush=True)
+            
+        return query
 
 
     @staticmethod
@@ -874,30 +942,31 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 })
             return fallback_items
 
-        fallback_tasks = []
-        if not amazon_products: fallback_tasks.append(fetch_domain_fallback("Amazon India", "amazon.in"))
-        if not ebay_products: fallback_tasks.append(fetch_domain_fallback("eBay", "ebay.com"))
-        if not flipkart_products: fallback_tasks.append(fetch_domain_fallback("Flipkart", "flipkart.com"))
-        if not walmart_products: fallback_tasks.append(fetch_domain_fallback("Walmart", "walmart.com"))
-
         # Skip fallback if we already have plenty of results to keep it "fastable"
         total_found = len(amazon_products) + len(ebay_products) + len(flipkart_products) + len(walmart_products)
-        if fallback_tasks and total_found < 10:
-            try:
-                # Fallback search also gets a strict timeout
-                fallback_results = await asyncio.wait_for(asyncio.gather(*fallback_tasks), timeout=5.0)
-                # Merge fallbacks into products lists
-                for fb_list in fallback_results:
-                    if not fb_list: continue
-                    domain = fb_list[0]["source"]
-                    if domain == "Amazon India": amazon_products = fb_list
-                    elif domain == "eBay": ebay_products = fb_list
-                    elif domain == "Flipkart": flipkart_products = fb_list
-                    elif domain == "Walmart": walmart_products = fb_list
-            except asyncio.TimeoutError:
-                print("WARNING: Fallback search timed out! Proceeding with current partial results.", flush=True)
-            except Exception as e:
-                print(f"ERROR: Fallback gather failed: {e}", flush=True)
+        if total_found < 10:
+            fallback_tasks = []
+            if not amazon_products: fallback_tasks.append(fetch_domain_fallback("Amazon India", "amazon.in"))
+            if not ebay_products: fallback_tasks.append(fetch_domain_fallback("eBay", "ebay.com"))
+            if not flipkart_products: fallback_tasks.append(fetch_domain_fallback("Flipkart", "flipkart.com"))
+            if not walmart_products: fallback_tasks.append(fetch_domain_fallback("Walmart", "walmart.com"))
+            
+            if fallback_tasks:
+                try:
+                    # Fallback search also gets a strict timeout
+                    fallback_results = await asyncio.wait_for(asyncio.gather(*fallback_tasks), timeout=5.0)
+                    # Merge fallbacks into products lists
+                    for fb_list in fallback_results:
+                        if not fb_list: continue
+                        domain = fb_list[0]["source"]
+                        if domain == "Amazon India": amazon_products = fb_list
+                        elif domain == "eBay": ebay_products = fb_list
+                        elif domain == "Flipkart": flipkart_products = fb_list
+                        elif domain == "Walmart": walmart_products = fb_list
+                except asyncio.TimeoutError:
+                    print("WARNING: Native Recovery fallback search timed out! Proceeding with current results.", flush=True)
+                except Exception as e:
+                    print(f"ERROR: Fallback gather failed: {e}", flush=True)
 
         print(f"DEBUG: Final sources — Amazon: {len(amazon_products)}, eBay: {len(ebay_products)}, Flipkart: {len(flipkart_products)}, Walmart: {len(walmart_products)}", flush=True)
         

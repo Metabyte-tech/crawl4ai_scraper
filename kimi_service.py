@@ -226,7 +226,8 @@ class KimiService:
             "tool", "beauty", "care", "health", "product", "item", "unit", "set",
             "chair", "desk", "lamp", "lighting", "find",
             "certificat", "customizable", "logo", "hires",
-            "nursery", "baby", "clothes", "clothing", "gown", "cheap", "affordable"
+            "nursery", "baby", "clothes", "clothing", "gown", "cheap", "affordable",
+            "diaper", "stroller", "pacifier", "crib", "stuffed animal", "lego", "mattel"
         }
         
         if "new hires" in q or "under $" in q or "under ₹" in q or any(x in words for x in shopping_keywords):
@@ -787,16 +788,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         Enforces a strict global timeout for responsiveness.
         """
         # 1. Run all native scrapers in parallel with a strict 12s timeout
-        amazon_task = self.search_amazon_products(query, limit=8)
-        ebay_task = self.search_ebay_products(query, limit=8)
-        flipkart_task = self.search_flipkart_products(query, limit=8)
-        walmart_task = self.search_walmart_products(query, limit=8)
-        ddg_task = self.search_sources(query, limit=8)
-        
-        images_task = self.search_images(query)
-        
-        print("DEBUG: Launching parallel scrapers...", flush=True)
-        print("DEBUG: Launching parallel scrapers...", flush=True)
+        print(f"DEBUG: Launching parallel scrapers for: {query}", flush=True)
         
         # 1. Create named tasks for easy mapping
         task_map = {
@@ -954,32 +946,52 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
             def improved_relevance_score(p):
                 name_lower = (p.get("name") or "").lower()
+                snippet_lower = (p.get("details") or p.get("description") or "").lower()
                 name_words = set(re.findall(r'\b\w+\b', name_lower))
                 
-                # Calculate exact word matches
-                exact_matches = len(query_words.intersection(name_words))
+                # Base matches
+                matches = len(query_words.intersection(name_words))
                 
-                # Penalize if product contains contradictory words
-                contradictions = {'slider', 'frame', 'stand'} & name_words
-                if contradictions and any(q in query.lower() for q in ['kids', 'toy', 'game', 'puzzle']):
-                    return -999  # Heavily penalize contradictions
+                # RECOVERY: If name is short, check snippet for query words
+                if matches == 0:
+                    snippet_words = set(re.findall(r'\b\w+\b', snippet_lower))
+                    matches = len(query_words.intersection(snippet_words)) * 0.5
                 
-                # Bonus for brand match or exact phrase match
+                # Penalize non-retail entertainment & architectural media
+                # This explicitly blocks "House Plans", "Trek Guides", and "Stock Wallpapers"
+                lethal_terms = {
+                    'plan', 'house', 'blueprint', 'design', 'elevation', 'layout', 'map',
+                    'trek', 'guide', 'wallpaper', 'teaser', 'movie', 'film', 'trailer', 'cast',
+                    'portrait', 'stock', 'shutterstock'
+                }
+                
+                # Check for absolute lethal terms in title
+                if lethal_terms & name_words:
+                    # Allow 'design' if specifically paired with a product (like 'designer watch')
+                    if not any(w in name_words for w in ["designer", "custom", "branded"]):
+                        return -100
+                    
+                # Targeted block for architectural sites
+                if any(x in name_lower for x in ["floor plan", "home plan", "house design", "stock photo"]):
+                    return -100
+                
+                # RETAIL BOOST: If it has a price or currency symbol, it's highly relevant
+                price_str = str(p.get("price") or "").lower()
+                if any(c in price_str for c in ["$", "£", "€", "₹", "rs", "usd"]):
+                    matches += 2
+                
+                # CATEGORY MATCH: If the search query is actually in the title
                 if query.lower() in name_lower:
-                    return len(query_words) * 2  # Double score for exact match
-                
-                # Bonus if product starts with query keywords
-                if name_lower.startswith(tuple(query_words)):
-                    exact_matches += 1
-                
-                return exact_matches
+                    matches += 5
+                    
+                return matches
             
             all_live_products.sort(key=improved_relevance_score, reverse=True)
             
-            # CRITICAL FIX: Remove products with negative/zero relevance
-            all_live_products = [p for p in all_live_products if improved_relevance_score(p) > 0]
+            # HOME-PAGE POLICY: We want populated categories. Filter out only the absolute worst (-999) items.
+            all_live_products = [p for p in all_live_products if improved_relevance_score(p) > -5]
             
-            print(f"DEBUG: Re-ranked and filtered to {len(all_live_products)} products by keyword relevance.", flush=True)
+            print(f"DEBUG: Re-ranked and filtered to {len(all_live_products)} products for seeding.", flush=True)
 
         for idx, product in enumerate(all_live_products[:num_results]):
             # --- CRITICAL FIX: Prioritize Native Image ---
@@ -1499,7 +1511,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     print(f"LLM error: {e}. Retrying...", flush=True)
                     await asyncio.sleep(1)
 
-    async def cache_and_store_products(self, products, query):
+    async def cache_and_store_products(self, products, query, category_tag=None):
         """
         Background task to ingest live product data into the local vector store.
         Includes S3 image processing and archival.
@@ -1507,18 +1519,18 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         if not products:
             return
 
-        print(f"\n🚀 [BACKGROUND] Starting caching and S3 enrichment for: {query}", flush=True)
+        tag_str = category_tag or "retail"
+        print(f"\n🚀 [BACKGROUND] Starting caching and S3 enrichment for: {query} (Tag: {tag_str})", flush=True)
         
         try:
             from asset_processor import asset_processor
             from ingest import add_multiple_contents_to_store
             
             # 1. PROCESS IMAGES FOR S3 (In the background!)
-            date_str = self._get_scrape_date()
             products = asset_processor.process_product_images(
                 products, 
                 category="retail", 
-                subcategory="fast_carousel"
+                subcategory=tag_str
             )
 
             print(f"📦 [BACKGROUND] Processing {len(products)} products after S3 enrichment...", flush=True)
@@ -1526,7 +1538,6 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             ingest_items = []
             for product in products:
                 # Basic description formatting for RAG
-                # We normalize keys to ensure compatibility with ingest.py
                 source_url = product.get('source_url') or product.get('url') or "unknown"
                 image_url = product.get('image_url')
                 
@@ -1534,7 +1545,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     f"Product: {product.get('name')}\n"
                     f"Brand: {product.get('brand', 'Product')}\n"
                     f"Price: {product.get('price', 'Check Site')}\n"
-                    f"Category: {product.get('category', 'retail')} / {product.get('subcategory', 'general')}\n"
+                    f"Category: {tag_str}\n"
                     f"Details: {product.get('details', 'No details available')}\n"
                     f"Image URL: {image_url}\n"
                     f"Source URL: {source_url}"
@@ -1544,7 +1555,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 metadata = {
                     "source": source_url,
                     "type": "live_cache",
-                    "category": "retail",
+                    "category": tag_str,  # CRITICAL: Strict category tagging
                     "image_url": image_url,
                     "s3_image_url": image_url, 
                     "name": product.get("name"),
@@ -1569,7 +1580,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
             if ingest_items:
                 await add_multiple_contents_to_store(ingest_items)
-                print(f"✅ [BACKGROUND] Successfully cached {len(ingest_items)} products for '{query}'\n", flush=True)
+                print(f"✅ [BACKGROUND] Successfully cached {len(ingest_items)} products for '{query}' (Category: {tag_str})\n", flush=True)
             
         except Exception as e:
             print(f"❌ [BACKGROUND] Error during caching: {e}", flush=True)

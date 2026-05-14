@@ -36,14 +36,14 @@ async def deep_crawl_task(ctx, query, fast_products):
     except Exception as e:
         print(f"--- [WORKER ERROR] deep_crawl_task failed: {e} ---", flush=True)
 
-async def ingest_url_task(ctx, url, max_pages):
+async def ingest_url_task(ctx, url, max_pages, region="Global", currency="USD", category="General"):
     """
     Background task to perform recursive deep crawl for URL ingestion to RAG DB.
     """
-    print(f"--- [WORKER] Starting ingest_url_task for URL: {url} ---", flush=True)
+    print(f"--- [WORKER] Starting ingest_url_task for URL: {url} ({region}) ---", flush=True)
     from api import background_ingest
     try:
-        await background_ingest(url, max_pages)
+        await background_ingest(url, max_pages, region=region, currency=currency, category=category)
         print(f"--- [WORKER] Finished ingest_url_task for URL: {url} ---", flush=True)
     except Exception as e:
         print(f"--- [WORKER ERROR] ingest_url_task failed: {e} ---", flush=True)

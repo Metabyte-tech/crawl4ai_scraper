@@ -72,6 +72,15 @@ class DBService:
                     UNIQUE(batch_id, url)
                 );
                 
+                CREATE TABLE IF NOT EXISTS global_categories (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE,
+                    parent_id INTEGER REFERENCES global_categories(id) ON DELETE CASCADE,
+                    icon_url TEXT,
+                    location_code TEXT DEFAULT 'Global',
+                    slug TEXT UNIQUE
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_crawl_url_results_batch_id ON crawl_url_results(batch_id);
             """)
 
@@ -147,5 +156,12 @@ class DBService:
                 await conn.execute("DELETE FROM crawl_batches WHERE batch_id = $1", batch_id)
         except Exception as e:
             logger.warning(f"Could not delete batch {batch_id} from PostgreSQL: {e}")
+
+    async def get_all_categories(self) -> List[Dict]:
+        """Retrieves all global categories in a hierarchical structure."""
+        pool = await self.get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch("SELECT * FROM global_categories")
+            return [dict(row) for row in rows]
 
 db_service = DBService()

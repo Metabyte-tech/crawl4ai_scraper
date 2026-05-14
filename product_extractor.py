@@ -18,7 +18,11 @@ class ProductExtractor:
         data = {
             "name": None,
             "price": None,
+            "currency": None,
+            "price_numeric": None,
             "rating_avg": None,
+            "rating_count": None,
+            "availability": "In Stock", # Default
             "brand": None,
             "description": None,
             "reviews": []
@@ -46,6 +50,7 @@ class ProductExtractor:
                     rate = item.get("aggregateRating")
                     if isinstance(rate, dict):
                         data["rating_avg"] = rate.get("ratingValue") or rate.get("value")
+                        data["rating_count"] = rate.get("reviewCount") or rate.get("ratingCount")
                     
                     # Brand
                     brand = item.get("brand")
@@ -61,7 +66,7 @@ class ProductExtractor:
                     # Description
                     if item.get("description"):
                         doc_desc = item.get("description")
-                        if isinstance(doc_desc, str) and len(doc_desc) > len(data["description"] or ""):
+                        if isinstance(doc_desc, str) and (not data["description"] or len(doc_desc) > len(data["description"])):
                             data["description"] = doc_desc
                             
                     # Reviews
@@ -84,9 +89,17 @@ class ProductExtractor:
                             price = offers.get("price") or offers.get("lowPrice")
                             curr = offers.get("priceCurrency")
                             if price:
+                                data["price_numeric"] = float(str(price).replace(",", ""))
+                                data["currency"] = curr
                                 data["price"] = f"{symbols.get(curr, '$')}{price}" if curr else str(price)
-                                if data["price"] and not any(s in str(data["price"]) for s in symbols.values()):
-                                    data["price"] = f"${data['price']}"
+                            
+                            # Availability
+                            avail = offers.get("availability")
+                            if avail:
+                                if "OutOfStock" in str(avail):
+                                    data["availability"] = "Out of Stock"
+                                elif "InStock" in str(avail):
+                                    data["availability"] = "In Stock"
             except: pass
 
         # 3. Meta Tags
@@ -98,81 +111,57 @@ class ProductExtractor:
                 ("property", "price")
             ]
             
-            # Find currency first to format price correctly
-            currency_symbol = "$" # Default
+            # Find currency first
+            currency_symbol = "$" 
             currency_meta = soup.find("meta", property="product:price:currency") or \
                             soup.find("meta", property="og:price:currency") or \
                             soup.find("meta", attrs={"name": "currency"})
             if currency_meta and currency_meta.get("content"):
-                curr = currency_meta.get("content").upper()
-                currency_symbol = symbols.get(curr, symbols.get("USD"))
+                data["currency"] = currency_meta.get("content").upper()
+                currency_symbol = symbols.get(data["currency"], symbols.get("USD"))
 
             for attr, val in meta_price:
                 tag = soup.find("meta", {attr: val})
                 if tag and tag.get("content"):
-                    data["price"] = tag.get("content")
-                    if data["price"] and not any(s in str(data["price"]) for s in symbols.values()):
-                        data["price"] = f"{currency_symbol}{data['price']}"
+                    raw_p = tag.get("content")
+                    try:
+                        data["price_numeric"] = float(re.sub(r'[^\d.]', '', raw_p))
+                    except: pass
+                    data["price"] = f"{currency_symbol}{raw_p}"
                     break
 
-        if not data["rating_avg"]:
-            meta_r = soup.find("meta", property="og:rating") or soup.find("meta", attrs={"name": "rating"})
-            if meta_r: data["rating_avg"] = meta_r.get("content")
+        # 4. Meta Availability
+        meta_avail = soup.find("meta", property="product:availability") or \
+                     soup.find("meta", property="og:availability") or \
+                     soup.find("meta", attrs={"name": "availability"})
+        if meta_avail and meta_avail.get("content"):
+            c = meta_avail.get("content").lower()
+            if any(x in c for x in ["instock", "in stock", "available"]):
+                data["availability"] = "In Stock"
+            elif any(x in c for x in ["outofstock", "out of stock", "preorder"]):
+                data["availability"] = "Out of Stock"
 
-        if not data["brand"]:
-            meta_b = soup.find("meta", property="product:brand") or soup.find("meta", attrs={"name": "brand"})
-            if meta_b: data["brand"] = meta_b.get("content")
-
-        if not data["name"]:
-            meta_n = soup.find("meta", property="og:title") or soup.find("meta", attrs={"name": "title"})
-            if meta_n: data["name"] = meta_n.get("content")
-            
-        if not data["description"]:
-            meta_d = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
-            if meta_d and meta_d.get("content"): data["description"] = meta_d.get("content")[:500]
-
-        # 4. Regex Fallback for Price (If still missing)
+        # Regex Fallback for Price (If still missing)
         if not data["price"]:
             text = soup.get_text(separator=" ", strip=True)
-            # Match currency symbols followed by numbers: £499.00, $50, ₹1,200.50
             price_pattern = r'([£$€₹])\s?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)'
-            matches = re.finditer(price_pattern, text)
+            matches = list(re.finditer(price_pattern, text))
             
-            # Heuristic: Find prices near keywords or just take the first prominent one
-            keywords = ["price", "now", "sale", "only", "offer"]
-            best_match = None
-            
-            for match in matches:
-                symbol = match.group(1)
-                amount = match.group(2)
-                full_match = f"{symbol}{amount}"
-                
-                # If we find a price near a keyword, it's likely the right one
-                start, end = match.span()
-                context = text[max(0, start-30):min(len(text), end+30)].lower()
-                if any(kw in context for kw in keywords):
-                    best_match = full_match
-                    break
-                if not best_match:
-                    best_match = full_match
-            
-            if best_match:
-                data["price"] = best_match
-
-        # 5. Rating/Review Aggressive Hunt
-        if not data.get("rating_avg"):
-            # Look for "X out of 5 stars" or "Rating: X"
-            text = soup.get_text(separator=" ", strip=True)
-            r_match = re.search(r'(\d+\.?\d*)\s*out of 5', text, re.IGNORECASE) or \
-                      re.search(r'Rating:\s*(\d+\.?\d*)', text, re.IGNORECASE)
-            if r_match:
-                data["rating_avg"] = r_match.group(1)
+            if matches:
+                # Heuristic: First price near money-related words
+                keywords = ["price", "now", "sale", "only", "offer"]
+                sorted_matches = sorted(matches, key=lambda m: any(kw in text[max(0, m.start()-30):min(len(text), m.end()+30)].lower() for kw in keywords), reverse=True)
+                m = sorted_matches[0]
+                data["currency"] = next((k for k, v in symbols.items() if v == m.group(1)), "USD")
+                data["price"] = f"{m.group(1)}{m.group(2)}"
+                try: data["price_numeric"] = float(m.group(2).replace(",", ""))
+                except: pass
 
         # 6. Source URL Enforcement
         data["source_url"] = url
 
-        # 7. Safe Serialization for ChromaDB (Requires flat structures)
-        if data["reviews"]:
+        # 7. Safe Serialization for ChromaDB
+        if data.get("reviews"):
             data["reviews"] = json.dumps(data["reviews"])
         else:
             data["reviews"] = None

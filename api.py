@@ -83,16 +83,29 @@ def rebuild_carousel_with_map(content, lookup_map):
     return re.sub(r'(<product_carousel>)(.*?)(</product_carousel>)', reconstruct, content, flags=re.DOTALL)
 
 
-async def background_ingest(url: str, max_pages: int = 1):
+async def background_ingest(url: str, max_pages: int = 1, region="Global", currency="USD", category="General"):
     try:
+        metadata = {
+            "source": url, 
+            "region": region, 
+            "currency": currency, 
+            "category": category,
+            "type": "crawl4ai"
+        }
+        
         if max_pages <= 1:
             content, _ = await crawl_site(url)
             if content and len(content.strip()) > 10:
-                await add_content_to_store(content, {"source": url})
+                await add_content_to_store(content, metadata)
                 update_last_domain(url)
         else:
             results = await crawl_site_recursive(url, max_pages=max_pages)
             if results:
+                # Enrich each result with the base metadata
+                for res in results:
+                    res_meta = metadata.copy()
+                    res_meta["source"] = res.get("url", url)
+                    res["metadata"] = res_meta
                 await add_multiple_contents_to_store(results)
     except Exception as e:
         print(f"Background ingest error for {url}: {e}", flush=True)
@@ -161,10 +174,15 @@ app.add_middleware(
 
 class CrawlRequest(BaseModel):
     url: str
-
+    region: Optional[str] = "Global"
+    currency: Optional[str] = "USD"
+    category: Optional[str] = "General"
 
 class CrawlBatchRequest(BaseModel):
     urls: List[str]
+    region: Optional[str] = "Global"
+    currency: Optional[str] = "USD"
+    category: Optional[str] = "General"
 
 
 
@@ -191,7 +209,14 @@ async def crawl_endpoint(request: CrawlRequest, req: Request):
         raise HTTPException(status_code=400, detail="Invalid URL protocol")
     # Enqueue the job instead of running it in the API process
     # to avoid concurrent SQLite/Chroma locking issues between API and Worker.
-    await req.app.state.arq_pool.enqueue_job('ingest_url_task', url=request.url, max_pages=1)
+    await req.app.state.arq_pool.enqueue_job(
+        'ingest_url_task', 
+        url=request.url, 
+        max_pages=1,
+        region=request.region,
+        currency=request.currency,
+        category=request.category
+    )
     return {"status": "success", "message": f"Ingestion queued for {request.url}"}
 
 
@@ -214,7 +239,14 @@ async def crawl_batch_endpoint(request: CrawlBatchRequest, req: Request):
         raise HTTPException(status_code=400, detail="No valid URLs provided (must start with http/https)")
 
     for url in valid:
-        await req.app.state.arq_pool.enqueue_job('ingest_url_task', url=url, max_pages=1)
+        await req.app.state.arq_pool.enqueue_job(
+            'ingest_url_task', 
+            url=url, 
+            max_pages=1,
+            region=request.region,
+            currency=request.currency,
+            category=request.category
+        )
 
     return {
         "status": "success",
@@ -312,91 +344,111 @@ async def clear_endpoint():
 
 @app.get("/api/categories")
 async def get_categories():
-    # Use more specific search terms to avoid vector overlap (e.g. 'toys' matching 'kids shoes')
-    category_queries = {
-        "Toys": "children's toys, games, and play sets",
-        "Clothes": "fashion clothing, apparel, shirts, and pants",
-        "Shoes": "footwear, sneakers, boots, and sandals",
-        "Laptops": "laptops, notebooks, and computing hardware",
-        "Mobiles": "smartphones, mobile phones, and cellular devices"
-    }
-    result = []
-    
-    for display_name, query in category_queries.items():
-        docs_scores = fast_query(query, k=50) # Get enough to filter out items without images
+    """Returns the universal retail category tree instantly from cache/DB."""
+    try:
+        db_categories = await db_service.get_all_categories()
         
-        items = []
-        seen_urls = set()
+        # Build hierarchy
+        top_clusters = [c for c in db_categories if c['parent_id'] is None]
         
-        for doc, score in docs_scores:
-            meta = doc.metadata
-            url = meta.get("url") or meta.get("source_url") or meta.get("source") or ""
+        result = []
+        for cat in top_clusters:
+            display_name = cat['name']
+            slug = cat['slug']
             
-            if url in seen_urls:
-                continue
+            # Subcategories
+            subs = [c['name'] for c in db_categories if c['parent_id'] == cat['id']]
+            query_term = f"{display_name} retail products"
+            
+            # FAST QUERY: Use strict metadata filter to prevent category leakage
+            docs_scores = fast_query(query_term, category=display_name, k=10)
+            
+            items = []
+            seen_urls = set()
+            
+            for doc, score in docs_scores:
+                meta = doc.metadata
+                url = meta.get("url") or meta.get("source_url") or meta.get("source") or ""
+                if url in seen_urls: continue
                 
-            img = meta.get("image_url") or meta.get("s3_image_url") or meta.get("Image URL")
-            if not img or not img.startswith("http"):
-                # Use a beautiful placeholder if image is missing so the list isn't empty
-                img = f"https://placehold.co/600x600?text={display_name}+Item"
-            
-            # Aggressive black-list for Toys to avoid shoes/clothes overlap
-            product_name = (meta.get("name") or meta.get("title") or "").lower()
-            product_content = (doc.page_content or "").lower()
-            
-            if display_name == "Toys":
-                # Use a Whitelist for Toys because generic names like "Product Option 1" bypass blacklists
-                toy_white_list = [
-                    "toy", "game", "play", "puzzle", "doll", "lego", "figure", "hobby", "rc ", 
-                    "remote control", "plush", "stuffed", "car", "vehicle", "racing", "track", 
-                    "wheels", "ride-on", "bike", "nerf", "barbie", "hot wheels", "blocks",
-                    "sorting", "stacking", "activity", "center", "learning", "educational",
-                    "preschool", "toddler", "baby", "robot", "kit", "squishy", "slime",
-                    "math", "science", "steam", "stem", "anatomy", "chemistry", "physics", "experiment"
-                ]
-                is_toy = any(word in product_name for word in toy_white_list) or \
-                         any(word in product_content for word in toy_white_list)
-                
-                # Also block obviously wrong things that might have "play" or "game" in content (like shoes/boots)
-                shoe_black_list = ["shoe", "boot", "sneaker", "nike", "adidas", "puma", "footwear", "sandal", "heel"]
-                if not is_toy or any(word in product_name for word in shoe_black_list):
+                img = meta.get("image_url") or meta.get("s3_image_url")
+                if not img or not img.startswith("http") or "placehold.co" in img:
                     continue
                 
-                # Block generic titles
-                if "product option" in product_name:
-                    continue
-                
-            # Parse reviews if they are stored as JSON string
-            reviews = []
-            if meta.get("reviews"):
-                try:
-                    reviews = json.loads(meta.get("reviews"))
-                except:
-                    pass
-
-            items.append({
-                "name": meta.get("name") or meta.get("title") or "Unnamed Product",
-                "price": kimi_service._extract_price_from_snippet(meta.get("price") or meta.get("Price") or ""),
-                "url": url,
-                "image_url": img,
-                "score": float(score),
-                "brand": meta.get("brand") or "Product",
-                "rating_avg": meta.get("rating_avg") or meta.get("rating") or "",
-                "rating_count": meta.get("rating_count") or "",
-                "reviews": reviews,
-                "details": meta.get("details") or meta.get("description") or ""
+                items.append({
+                    "name": meta.get("name") or meta.get("title") or "Unnamed Product",
+                    "price": meta.get("price") or "$0.00",
+                    "url": url,
+                    "image_url": img,
+                    "brand": meta.get("brand") or "Retail",
+                    "rating_avg": meta.get("rating_avg") or "",
+                    "rating_count": meta.get("rating_count") or ""
+                })
+                seen_urls.add(url)
+                if len(items) >= 5: break
+            
+            result.append({
+                "id": cat['id'],
+                "name": display_name,
+                "slug": slug,
+                "subcategories": subs,
+                "items": items
             })
-            seen_urls.add(url)
             
-            if len(items) >= 5: # Top 5 distinct products per category
-                break
-                
-        result.append({
-            "name": display_name,
-            "items": items
-        })
+        return JSONResponse(content={"categories": result})
+    except Exception as e:
+        print(f"Error in get_categories: {e}")
+        return JSONResponse(content={"categories": [], "error": str(e)}, status_code=500)
+
+async def background_seed_categories():
+    """Proactively populates all categories in parallel with strict tagging."""
+    print("🚀 Starting strict background category seeding...", flush=True)
+    try:
+        db_categories = await db_service.get_all_categories()
+        top_clusters = [c for c in db_categories if c['parent_id'] is None]
         
-    return JSONResponse(content={"categories": result})
+        async def seed_single_category(cat):
+            display_name = cat['name']
+            query_term = f"official retail products for {display_name}"
+            
+            # Check if we already have enough items for THIS category
+            current_docs = fast_query(query_term, category=display_name, k=5)
+            valid_cached = [d for d in current_docs if d[0].metadata.get("image_url") and "placehold" not in d[0].metadata.get("image_url")]
+            
+            if len(valid_cached) < 3:
+                # Use subcategories for surgical precision
+                subs = [c['name'] for c in db_categories if c['parent_id'] == cat['id']]
+                sub_tail = f" {' '.join(subs[:2])}" if subs else ""
+                
+                print(f"🔍 Discovery: Seeding '{display_name}' with precision search...", flush=True)
+                # FORCE RETAIL DOMAINS and subcategory context
+                specific_query = f"{display_name}{sub_tail} official product site:amazon.com OR site:walmart.com"
+                live_products = await kimi_service.get_fast_bing_data(specific_query, num_results=15)
+                
+                if live_products:
+                    # Deduplicate within category
+                    unique_lives = []
+                    seen = set()
+                    for p in live_products:
+                        if p.get("url") not in seen and p.get("image_url"):
+                            unique_lives.append(p)
+                            seen.add(p.get("url"))
+                    
+                    # Store with strict category tag
+                    await kimi_service.cache_and_store_products(unique_lives[:8], query_term, category_tag=display_name)
+                    print(f"✅ Seeding: '{display_name}' populated with premium matches.", flush=True)
+
+        # Run all seeds in parallel
+        await asyncio.gather(*[seed_single_category(cat) for cat in top_clusters])
+        print("🎉 Strict background seeding complete!", flush=True)
+    except Exception as e:
+        print(f"❌ Background seeding failed: {e}", flush=True)
+
+@app.post("/api/categories/seed")
+async def trigger_seed(background_tasks: BackgroundTasks):
+    """Manual trigger for background discovery."""
+    background_tasks.add_task(background_seed_categories)
+    return {"status": "Seeding started in background"}
 
 
 

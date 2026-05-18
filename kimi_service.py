@@ -80,11 +80,10 @@ class KimiService:
             
             val = float(clean)
             
-            # Heuristic: if price is > 1000 and has no dot, assume cents
-            if "." not in clean and val >= 500:
-                if val / 100.0 < 500:
-                    val = val / 100.0
-                    
+            # Heuristic: if price is > 1000 and has no dot, assume cents, ONLY for USD-like prices
+            # We strictly check for $ or USD to ensure INR (e.g. ₹21,998) is never mangled.
+            if val > 100 and '.' not in clean and any(sym in str(price_str).lower() for sym in ['$', 'usd']):
+                val = val / 100.0
             return val
         except:
             return float('inf')
@@ -494,8 +493,28 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         
                         product_url = f"https://www.amazon.in{link_el.get('href', '')}" if link_el else url
                         
+                        # Bypass lazy loading placeholders
+                        def _is_placeholder(u):
+                            if not u: return True
+                            u_str = str(u).lower()
+                            return any(p in u_str for p in ["grey-pixel", "01rrzvo", "spacer", "placeholder", "transparent", "pixel", ".svg"])
+                        
                         # Fix 1: High-res Amazon image
-                        raw_img = img_el.get("src") if img_el else None
+                        raw_img = None
+                        if img_el:
+                            raw_img = img_el.get("data-lazy-src") or img_el.get("data-src")
+                            if not raw_img or _is_placeholder(raw_img):
+                                # Try srcset
+                                srcset = img_el.get("srcset")
+                                if srcset:
+                                    urls = [u.strip().split(' ')[0] for u in srcset.split(',') if u.strip()]
+                                    valid_urls = [u for u in urls if not _is_placeholder(u)]
+                                    if valid_urls:
+                                        raw_img = valid_urls[-1] # Extract highest resolution image
+                            if not raw_img or _is_placeholder(raw_img):
+                                raw_img = img_el.get("src")
+                            if raw_img and _is_placeholder(raw_img):
+                                raw_img = None # Reset to None so it can fall back to Bing images
                         img_url = re.sub(r'\._[^/]*\.', '.', raw_img) if (raw_img and "m.media-amazon.com" in raw_img) else raw_img
                         
                         # NEW: Robust Amazon Price Extraction
@@ -576,7 +595,17 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         link = item.find('a')
                         
                         # eBay image upscaling
-                        raw_img = img.get("src") if img else None
+                        raw_img = None
+                        if img:
+                            raw_img = img.get("data-lazy-src") or img.get("data-src")
+                            def _is_placeholder(u):
+                                if not u: return True
+                                u_str = str(u).lower()
+                                return any(p in u_str for p in ["grey-pixel", "01rrzvo", "spacer", "placeholder", "transparent", "pixel", ".svg", "gif"])
+                            if not raw_img or _is_placeholder(raw_img):
+                                raw_img = img.get("src")
+                            if raw_img and _is_placeholder(raw_img):
+                                raw_img = None
                         img_url = re.sub(r's-l\d+', 's-l500', raw_img) if (raw_img and "s-l" in raw_img) else raw_img
 
                         # NEW: Enhanced eBay Extraction (Ratings/Reviews)
@@ -661,12 +690,21 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                             m = re.search(r'([\d,]+)', reviews_el.get_text())
                             if m: reviews_count = m.group(1)
 
+                        def _get_valid_flipkart_img(el):
+                            if not el: return None
+                            u = el.get("data-lazy-src") or el.get("data-src") or el.get("src")
+                            if not u: return None
+                            u_str = str(u).lower()
+                            if any(p in u_str for p in ["grey-pixel", "01rrzvo", "spacer", "placeholder", "transparent", "pixel", ".svg"]):
+                                return None
+                            return u
+
                         products.append({
                             "name": name,
                             "price": self._extract_price_from_snippet(price_el.get_text(strip=True)),
                             "rating_avg": rating_val,
                             "rating_count": reviews_count,
-                            "image_url": img_el.get("src") if img_el else None,
+                            "image_url": _get_valid_flipkart_img(img_el),
                             "url": p_url,
                             "source_url": p_url,
                             "source": "Flipkart",
@@ -709,6 +747,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         if len(name) < 10 or "skip to" in name.lower(): continue
                         
                         # Extract price text manually and use unified method
+                        if price_el:
+                            for el in price_el.find_all(['sup', 'sub', 'span']):
+                                txt = el.get_text(strip=True)
+                                if len(txt) == 2 and txt.isdigit() and not el.get_text().startswith('.'):
+                                    el.string = f".{txt}"
                         raw_price_text = price_el.get_text(strip=True) if price_el else ""
                         price_text = self._extract_price_from_snippet(raw_price_text, "walmart.com", "Walmart")
                         
@@ -736,12 +779,21 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                                 if m_nuke:
                                     price_text = f"${m_nuke.group(1)}"
 
+                        def _get_valid_walmart_img(el):
+                            if not el: return None
+                            u = el.get("data-lazy-src") or el.get("data-src") or el.get("src")
+                            if not u: return None
+                            u_str = str(u).lower()
+                            if any(p in u_str for p in ["grey-pixel", "01rrzvo", "spacer", "placeholder", "transparent", "pixel", ".svg"]):
+                                return None
+                            return u
+
                         products.append({
                             "name": name,
                             "price": price_text,
                             "rating_avg": rating_val,
                             "rating_count": reviews_count,
-                            "image_url": img_el.get("src") if img_el else None,
+                            "image_url": _get_valid_walmart_img(img_el),
                             "url": p_url,
                             "source_url": p_url,
                             "source": "Walmart",
@@ -970,24 +1022,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
 
         print(f"DEBUG: Final sources — Amazon: {len(amazon_products)}, eBay: {len(ebay_products)}, Flipkart: {len(flipkart_products)}, Walmart: {len(walmart_products)}", flush=True)
         
-        # 2. FILTER products by relevance BEFORE interleaving
-        # This prevents "slider" from appearing with "kids play ten"
-        def filter_by_relevance(products_list):
-            filtered = []
-            for p in products_list:
-                is_relevant, score = self._validate_product_relevance(p.get("name", ""), query)
-                if is_relevant:
-                    filtered.append(p)
-            return filtered
+        # We rely on improved_relevance_score for filtering later.
         
-        # Apply strict relevance filtering to all sources
-        amazon_products = filter_by_relevance(amazon_products)
-        ebay_products = filter_by_relevance(ebay_products)
-        flipkart_products = filter_by_relevance(flipkart_products)
-        walmart_products = filter_by_relevance(walmart_products)
-        
-        print(f"DEBUG: After relevance filtering — Amazon: {len(amazon_products)}, eBay: {len(ebay_products)}, Flipkart: {len(flipkart_products)}, Walmart: {len(walmart_products)}", flush=True)
-        
+
         # 2. Build fast_results: Interleave all sources
         fast_results = []
         all_live_products = []
@@ -1062,6 +1099,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
             print(f"DEBUG: Re-ranked and filtered to {len(all_live_products)} products for seeding.", flush=True)
 
+        def _is_placeholder(u):
+            if not u: return True
+            u_str = str(u).lower()
+            return any(p in u_str for p in ["grey-pixel", "01rrzvo", "spacer", "placeholder", "transparent", "pixel", ".svg"])
+
         for idx, product in enumerate(all_live_products[:num_results]):
             # --- CRITICAL FIX: Prioritize Native Image ---
             # Using index-based Bing image mapping causes product-image mismatches.
@@ -1069,6 +1111,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             # AssetProcessor already handles upscaling Amazon/eBay thumbnails to high-res.
             img_url = product.get("image_url")
             
+            if img_url and _is_placeholder(img_url):
+                img_url = None
+
             # Use Bing image ONLY as a fallback if the product has no image at all
             if not img_url and idx < len(bing_images):
                 img_url = bing_images[idx].get("image_url")

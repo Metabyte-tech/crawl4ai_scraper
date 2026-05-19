@@ -1203,7 +1203,30 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     "details": snippet
                 })
             
-        # 2. Archive the JSON results in the background
+        # 4. ULTIMATE FALLBACK: If all scrapers and DDG fail (e.g., IP blocks on AWS), use Bing Images
+        if not fast_results and bing_images:
+            print("DEBUG: All sources failed (IP blocked?). Injecting Bing Images as ultimate fallback.", flush=True)
+            for img in bing_images[:num_results]:
+                url = img.get("source_url") or ""
+                image_url = img.get("image_url") or ""
+                name = img.get("name") or query.title()
+                
+                # Filter out architectural/wallpaper results
+                lethal_terms = {'plan', 'house', 'blueprint', 'design', 'elevation', 'layout', 'map', 'trek', 'guide', 'wallpaper', 'teaser', 'movie', 'film', 'trailer', 'cast', 'portrait', 'stock', 'shutterstock'}
+                if url and not any(term in name.lower() for term in lethal_terms):
+                    fast_results.append({
+                        "name": name,
+                        "url": url,
+                        "source_url": url,
+                        "image_url": image_url,
+                        "price": "Check Price",
+                        "rating_avg": None,
+                        "brand": "Supplier",
+                        "source": urlparse(url).netloc.replace("www.", "").split('.')[0].capitalize() if url else "Image Search",
+                        "details": f"{name} - Discovered via Image Search"
+                    })
+            
+        # 5. Archive the JSON results in the background
         # Note: Image processing and storage are now handled in the background by api.py task
         asyncio.create_task(self._archive_results(fast_results, query))
         

@@ -1699,4 +1699,45 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         except Exception as e:
             print(f"❌ [BACKGROUND] Error during caching: {e}", flush=True)
 
+kimi_service = KimiService() {product.get('price', 'Check Site')}\n"
+                    f"Category: {tag_str}\n"
+                    f"Details: {product.get('details', 'No details available')}\n"
+                    f"Image URL: {image_url}\n"
+                    f"Source URL: {source_url}"
+                )
+                
+                # Metadata for ChromaDB
+                metadata = {
+                    "source": source_url,
+                    "type": "live_cache",
+                    "category": tag_str,  # CRITICAL: Strict category tagging
+                    "image_url": image_url,
+                    "s3_image_url": image_url, 
+                    "name": product.get("name"),
+                    "price": str(product.get("price") or "Request Price"),
+                    "brand": product.get("brand") or "Product",
+                    "rating_avg": str(product.get("rating_avg") or ""),
+                    "rating_count": str(product.get("rating_count") or ""),
+                    "offers": str(product.get("offers") or ""),
+                    "store_source": product.get("source") or "Search",
+                    "reviews": json.dumps(product.get("reviews") or []),
+                    "moq": str(product.get("moq") or "1 pc"),
+                    "location": str(product.get("location") or "Global"),
+                    "supplier_years": str(product.get("supplier_years") or "Verifying..."),
+                    "details": product.get("details") or ""
+                }
+                
+                ingest_items.append({
+                    "content": description,
+                    "url": source_url,
+                    "metadata": metadata
+                })
+            
+            if ingest_items:
+                await add_multiple_contents_to_store(ingest_items)
+                print(f"✅ [BACKGROUND] Successfully cached {len(ingest_items)} products for '{query}' (Category: {tag_str})\n", flush=True)
+            
+        except Exception as e:
+            print(f"❌ [BACKGROUND] Error during caching: {e}", flush=True)
+
 kimi_service = KimiService()

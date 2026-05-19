@@ -917,8 +917,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             "flipkart": asyncio.create_task(self.search_flipkart_products(query, limit=8)),
             "walmart": asyncio.create_task(self.search_walmart_products(query, limit=8)),
             "ddg": asyncio.create_task(self.search_sources(query, limit=8)),
-            # Use commerce-focused query so Bing returns retailer pages, not stock photos
-            "images": asyncio.create_task(self.search_images(f"buy {query} online"))
+            "images": asyncio.create_task(self.search_images(query))
         }
         
         # 2. Wait for what we can get within 12s
@@ -1152,21 +1151,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 if len(fast_results) >= num_results: break
                 url = res["url"]
                 domain = urlparse(url).netloc.lower()
-                clean_domain = domain.replace("www.", "")
-                store_name = clean_domain.split('.')[0].capitalize()
+                store_name = domain.replace("www.", "").split('.')[0].capitalize()
                 
-                # Skip native scrapers (already handled) and stock photo / non-retail sites
-                NON_RETAIL_DOMAINS = {
-                    'amazon', 'ebay',  # native scrapers
-                    'freepik.com', 'shutterstock.com', 'pixabay.com', 'dreamstime.com',
-                    'istockphoto.com', 'gettyimages.com', 'depositphotos.com',
-                    'alamy.com', 'deviantart.com', 'flickr.com', 'pexels.com',
-                    'unsplash.com', 'stocksnap.io', '123rf.com', 'stock.adobe.com',
-                    'clipart.com', 'canstockphoto.com', 'inspiredpencil.com',
-                    'truebookaddict.com', 'henspark.com', 'stablediffusionweb.com',
-                    'clipset.com', 'pinterest.com', 'imgur.com'
-                }
-                if any(nd in clean_domain for nd in NON_RETAIL_DOMAINS):
+                if any(native in domain for native in ['amazon', 'ebay']):
                     continue
                 
                 # --- CRITICAL FIX: Backfill with Bing Image ---
@@ -1216,50 +1203,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     "details": snippet
                 })
             
-        # 4. ULTIMATE FALLBACK: If all scrapers and DDG fail (e.g., IP blocks on AWS), use Bing Images
-        if not fast_results and bing_images:
-            print("DEBUG: All sources failed (IP blocked?). Injecting Bing Images as ultimate fallback.", flush=True)
-            # Filter by DOMAIN not name — stock photo sites return useless pages
-            STOCK_PHOTO_DOMAINS = {
-                'freepik.com', 'shutterstock.com', 'pixabay.com', 'dreamstime.com',
-                'istockphoto.com', 'gettyimages.com', 'depositphotos.com',
-                'alamy.com', 'stock.adobe.com', 'deviantart.com', 'flickr.com',
-                'pexels.com', 'unsplash.com', 'stocksnap.io', '123rf.com',
-                'clipart.com', 'canstockphoto.com', 'inspiredpencil.com',
-                'truebookaddict.com', 'henspark.com', 'stablediffusionweb.com',
-                'clipset.com', 'netart.commons.gc.cuny.edu'
-            }
-            for img in bing_images[:num_results * 2]:  # Iterate more to skip bad ones
-                url = img.get("source_url") or ""
-                image_url = img.get("image_url") or ""
-                name = img.get("name") or query.title()
-                if not url:
-                    continue
-                try:
-                    domain = urlparse(url).netloc.lower().replace("www.", "")
-                except Exception:
-                    domain = ""
-                # Skip stock photo / non-retail domains
-                if any(stock in domain for stock in STOCK_PHOTO_DOMAINS):
-                    print(f"DEBUG: Ultimate fallback skipping stock photo domain: {domain}", flush=True)
-                    continue
-                store_name = domain.split('.')[0].capitalize() if domain else "Shop"
-                fast_results.append({
-                    "name": name,
-                    "url": url,
-                    "source_url": url,
-                    "image_url": image_url,
-                    "price": "Check Price",
-                    "rating_avg": None,
-                    "brand": store_name,
-                    "source": store_name,
-                    "details": f"{name} - Discovered via Image Search"
-                })
-                if len(fast_results) >= num_results:
-                    break
-            print(f"DEBUG: Ultimate fallback injected {len(fast_results)} products from Bing Images.", flush=True)
-            
-        # 5. Archive the JSON results in the background
+        # 2. Archive the JSON results in the background
         # Note: Image processing and storage are now handled in the background by api.py task
         asyncio.create_task(self._archive_results(fast_results, query))
         

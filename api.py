@@ -489,16 +489,41 @@ def _is_followup(query: str, conv_id: str) -> bool:
     if conv_id not in _session_cache: return False
     
     signals = [
-        "the ones", "those", "among them", "from these", "filter", "sort by", 
-        "only show", "show only", "cheaper", "more expensive", "best rated", 
-        "under", "above", "below", "between", "which one", "which ones", 
-        "any", "brand", "color", "size", "more", "next page", "load more"
+        # Filtering / refinement
+        "the ones", "those", "among them", "from these", "filter", "sort by",
+        "only show", "show only", "cheaper", "more expensive",
+        "under", "above", "below", "between", "which one", "which ones",
+        "any", "brand", "color", "size", "more", "next page", "load more",
+        # Rating / recommendation
+        "best rated", "top rated", "according to rating", "according to the rating",
+        "by rating", "highest rated", "best rating", "best product", "top product",
+        "best one", "recommend", "recommended", "top pick", "top picks",
+        "most popular", "most reviewed", "highest review", "best review",
+        "give me best", "show best", "best among", "rate",
+        # Comparisons within current results
+        "compare", "vs", "versus", "difference between", "which is better",
+        "cheapest", "most affordable", "lowest price",
     ]
     query_lower = query.lower()
     
-    # Keyword match
+    # 1. Explicit keyword signal match
     if any(s in query_lower for s in signals):
         return True
+    
+    # 2. Session-aware heuristic: if a session pool exists with products,
+    #    AND the query contains no NEW product category/topic keyword,
+    #    treat it as a follow-up to prevent context switching.
+    session = _session_cache.get(conv_id, {})
+    if session.get("raw_pool") and session.get("last_topic"):
+        new_topic_indicators = {
+            "search for", "find me", "look for", "i want", "i need", "show me",
+            "buy", "purchase", "laptop", "phone", "shirt", "shoes", "camera",
+            "furniture", "watch", "bag", "book", "toy", "kitchen", "beauty",
+            "mobile", "tablet", "headphone", "tv", "television",
+        }
+        has_new_topic = any(word in query_lower for word in new_topic_indicators)
+        if not has_new_topic:
+            return True
         
     return False
 
@@ -888,45 +913,43 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                         pass
 
                 def _guess_category(name, current_cat):
-                    if current_cat and current_cat != "fashion": return current_cat
-                    n = name.lower()
-                    if any(w in n for w in ["tent", "mat", "camp", "outdoor", "sport", "yoga", "gym"]): return "sports-outdoors"
-                    if any(w in n for w in ["phone", "laptop", "tech", "gadget", "earbud", "usb"]): return "electronics"
-                    if any(w in n for w in ["toy", "doll", "kid", "baby", "toddler"]): return "baby-kids"
-                    if any(w in n for w in ["home", "kitchen", "cook", "furniture"]): return "home-kitchen"
-                    return current_cat or "fashion"
-
-                # Guard against raw arrays or dictionaries from scrapers crashing the React UI
-                if isinstance(img, list) and len(img) > 0:
-                    img = str(img[0])
-                elif img is not None:
-                    img = str(img)
-
-                raw_rating = p.get("rating_avg") or p.get("rating") or ""
-                if isinstance(raw_rating, dict):
-                    raw_rating = raw_rating.get("average") or raw_rating.get("value") or ""
-                raw_rating = str(raw_rating)
-
-                raw_count = p.get("rating_count") or ""
-                if isinstance(raw_count, dict):
-                    raw_count = raw_count.get("count") or ""
-                raw_count = str(raw_count)
+                    if current_cat and current_cat not in ("fashion", "general", ""):
+                        return current_cat
+                    n = (name or "").lower()
+                    if any(w in n for w in ["tent", "mat", "camp", "outdoor", "sport", "yoga", "gym", "cycle", "bike"]):
+                        return "sports-outdoors"
+                    if any(w in n for w in ["phone", "laptop", "tech", "gadget", "earbud", "usb", "cable", "charger",
+                                            "tablet", "computer", "keyboard", "mouse", "speaker", "camera",
+                                            "tv", "television", "printer", "scanner", "remote", "electronic"]):
+                        return "electronics"
+                    if any(w in n for w in ["toy", "doll", "kid", "baby", "toddler", "diaper", "stroller", "infant"]):
+                        return "baby-kids"
+                    if any(w in n for w in ["home", "kitchen", "cook", "furniture", "chair", "table", "lamp",
+                                            "sofa", "pillow", "curtain", "shelf", "decor"]):
+                        return "home-kitchen"
+                    if any(w in n for w in ["skin", "beauty", "cream", "serum", "lotion", "makeup", "lipstick",
+                                            "shampoo", "hair", "face", "nail", "perfume"]):
+                        return "beauty-health"
+                    if any(w in n for w in ["shirt", "shoe", "dress", "jean", "pant", "jacket",
+                                            "tshirt", "t-shirt", "cloth", "wear", "fashion", "bag", "wallet"]):
+                        return "fashion"
+                    return current_cat or "electronics"
 
                 items.append({
-                    "name": str(p.get("name") or p.get("title") or "Product"),
-                    "brand": str(p.get("brand") or p.get("source") or "Store"),
+                    "name": p.get("name") or p.get("title") or "Product",
+                    "brand": p.get("brand") or p.get("source") or "Store",
                     "price": kimi_service._extract_price_from_snippet(p.get("price")),
-                    "image_url": img,
-                    "category": str(_guess_category(p.get("name") or p.get("title") or "", p.get("category"))),
-                    "source_url": str(p.get("source_url") or p.get("url") or p.get("source") or ""),
-                    "source": str(p.get("source") or "Search"),
-                    "rating_avg": raw_rating,
-                    "rating_count": raw_count,
+                    "image_url": img if img else "",
+                    "category": _guess_category(p.get("name") or p.get("title") or "", p.get("category")),
+                    "source_url": p.get("source_url") or p.get("url") or p.get("source"),
+                    "source": p.get("source") or "Search",
+                    "rating_avg": p.get("rating_avg") or p.get("rating") or "",
+                    "rating_count": p.get("rating_count") or "",
                     "reviews": reviews,
-                    "details": str(p.get("details") or p.get("description") or ""),
-                    "moq": str(p.get("moq") or ""),
-                    "location": str(p.get("location") or ""),
-                    "supplier_years": str(p.get("supplier_years") or ""),
+                    "details": p.get("details") or p.get("description") or "",
+                    "moq": p.get("moq") or None,
+                    "location": p.get("location") or None,
+                    "supplier_years": p.get("supplier_years") or None,
                     "is_verified": bool(p.get("is_verified") or False),
                 })
             

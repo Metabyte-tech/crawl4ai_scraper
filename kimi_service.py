@@ -1203,7 +1203,101 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     "details": snippet
                 })
             
-        # 2. Archive the JSON results in the background
+        # 4. ULTIMATE FALLBACK: If all scrapers and DDG fail (e.g., IP blocks on AWS), use Bing Images
+        if not fast_results and bing_images:
+            print("DEBUG: All sources failed (IP blocked?). Injecting Bing Images as ultimate fallback.", flush=True)
+            STOCK_PHOTO_DOMAINS = {
+                'freepik.com', 'shutterstock.com', 'pixabay.com', 'dreamstime.com',
+                'istockphoto.com', 'gettyimages.com', 'depositphotos.com',
+                'alamy.com', 'stock.adobe.com', 'deviantart.com', 'flickr.com',
+                'pexels.com', 'unsplash.com', 'stocksnap.io', '123rf.com',
+                'clipart.com', 'canstockphoto.com', 'inspiredpencil.com',
+                'truebookaddict.com', 'henspark.com', 'stablediffusionweb.com',
+                'clipset.com', 'netart.commons.gc.cuny.edu', 'pinterest.com', 'imgur.com'
+            }
+            for img in bing_images[:num_results * 2]:
+                url = img.get("source_url") or ""
+                image_url = img.get("image_url") or ""
+                name = img.get("name") or query.title()
+                if not url:
+                    continue
+                try:
+                    domain = urlparse(url).netloc.lower().replace("www.", "")
+                except Exception:
+                    domain = ""
+                if any(stock in domain for stock in STOCK_PHOTO_DOMAINS):
+                    print(f"DEBUG: Ultimate fallback skipping stock photo domain: {domain}", flush=True)
+                    continue
+                store_name = domain.split('.')[0].capitalize() if domain else "Shop"
+                fast_results.append({
+                    "name": name,
+                    "url": url,
+                    "source_url": url,
+                    "image_url": image_url,
+                    "price": "Check Price",
+                    "rating_avg": None,
+                    "brand": store_name,
+                    "source": store_name,
+                    "details": f"{name} - Discovered via Image Search"
+                })
+                if len(fast_results) >= num_results:
+                    break
+            print(f"DEBUG: Ultimate fallback injected {len(fast_results)} products from Bing Images.", flush=True)
+
+        # 5. NUCLEAR LAST RESORT: If every fallback produced 0 products (all blocked/filtered),
+        #    generate clickable retailer search-link cards so the UI always shows a grid.
+        if not fast_results:
+            print("DEBUG: NUCLEAR fallback — generating retailer search cards.", flush=True)
+            safe_q = query.replace(" ", "+")
+            fast_results = [
+                {
+                    "name": f"{query.title()} on Amazon India",
+                    "url": f"https://www.amazon.in/s?k={safe_q}",
+                    "source_url": f"https://www.amazon.in/s?k={safe_q}",
+                    "image_url": "",
+                    "price": "Check Price",
+                    "rating_avg": None,
+                    "brand": "Amazon India",
+                    "source": "Amazon India",
+                    "details": f"Click to search for {query} on Amazon India"
+                },
+                {
+                    "name": f"{query.title()} on Flipkart",
+                    "url": f"https://www.flipkart.com/search?q={safe_q}",
+                    "source_url": f"https://www.flipkart.com/search?q={safe_q}",
+                    "image_url": "",
+                    "price": "Check Price",
+                    "rating_avg": None,
+                    "brand": "Flipkart",
+                    "source": "Flipkart",
+                    "details": f"Click to search for {query} on Flipkart"
+                },
+                {
+                    "name": f"{query.title()} on eBay",
+                    "url": f"https://www.ebay.com/sch/i.html?_nkw={safe_q}",
+                    "source_url": f"https://www.ebay.com/sch/i.html?_nkw={safe_q}",
+                    "image_url": "",
+                    "price": "Check Price",
+                    "rating_avg": None,
+                    "brand": "eBay",
+                    "source": "eBay",
+                    "details": f"Click to search for {query} on eBay"
+                },
+                {
+                    "name": f"{query.title()} on Walmart",
+                    "url": f"https://www.walmart.com/search?q={safe_q}",
+                    "source_url": f"https://www.walmart.com/search?q={safe_q}",
+                    "image_url": "",
+                    "price": "Check Price",
+                    "rating_avg": None,
+                    "brand": "Walmart",
+                    "source": "Walmart",
+                    "details": f"Click to search for {query} on Walmart"
+                },
+            ]
+
+        # 6. Archive the JSON results in the background
+
         # Note: Image processing and storage are now handled in the background by api.py task
         asyncio.create_task(self._archive_results(fast_results, query))
         

@@ -896,21 +896,37 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     if any(w in n for w in ["home", "kitchen", "cook", "furniture"]): return "home-kitchen"
                     return current_cat or "fashion"
 
+                # Guard against raw arrays or dictionaries from scrapers crashing the React UI
+                if isinstance(img, list) and len(img) > 0:
+                    img = str(img[0])
+                elif img is not None:
+                    img = str(img)
+
+                raw_rating = p.get("rating_avg") or p.get("rating") or ""
+                if isinstance(raw_rating, dict):
+                    raw_rating = raw_rating.get("average") or raw_rating.get("value") or ""
+                raw_rating = str(raw_rating)
+
+                raw_count = p.get("rating_count") or ""
+                if isinstance(raw_count, dict):
+                    raw_count = raw_count.get("count") or ""
+                raw_count = str(raw_count)
+
                 items.append({
-                    "name": p.get("name") or p.get("title") or "Product",
-                    "brand": p.get("brand") or p.get("source") or "Store",
+                    "name": str(p.get("name") or p.get("title") or "Product"),
+                    "brand": str(p.get("brand") or p.get("source") or "Store"),
                     "price": kimi_service._extract_price_from_snippet(p.get("price")),
                     "image_url": img,
-                    "category": _guess_category(p.get("name") or p.get("title") or "", p.get("category")),
-                    "source_url": p.get("source_url") or p.get("url") or p.get("source"),
-                    "source": p.get("source") or "Search",
-                    "rating_avg": p.get("rating_avg") or p.get("rating") or "",
-                    "rating_count": p.get("rating_count") or "",
+                    "category": str(_guess_category(p.get("name") or p.get("title") or "", p.get("category"))),
+                    "source_url": str(p.get("source_url") or p.get("url") or p.get("source") or ""),
+                    "source": str(p.get("source") or "Search"),
+                    "rating_avg": raw_rating,
+                    "rating_count": raw_count,
                     "reviews": reviews,
-                    "details": p.get("details") or p.get("description") or "",
-                    "moq": p.get("moq") or None,
-                    "location": p.get("location") or None,
-                    "supplier_years": p.get("supplier_years") or None,
+                    "details": str(p.get("details") or p.get("description") or ""),
+                    "moq": str(p.get("moq") or ""),
+                    "location": str(p.get("location") or ""),
+                    "supplier_years": str(p.get("supplier_years") or ""),
                     "is_verified": bool(p.get("is_verified") or False),
                 })
             

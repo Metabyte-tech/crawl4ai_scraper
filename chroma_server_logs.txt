@@ -82,3 +82,26 @@ Getting started guide: https://docs.trychroma.com/docs/overview/getting-started
 
 OpenTelemetry is not enabled because it is missing from the config.
 
+
+
+                [38;5;069m(((((((((    [38;5;203m((((([38;5;220m####
+             [38;5;069m((((((((((((([38;5;203m((((((((([38;5;220m#########
+           [38;5;069m((((((((((((([38;5;203m((((((((((([38;5;220m###########
+         [38;5;069m(((((((((((((([38;5;203m(((((((((((([38;5;220m############
+        [38;5;069m((((((((((((([38;5;203m(((((((((((((([38;5;220m#############
+        [38;5;069m((((((((((((([38;5;203m(((((((((((((([38;5;220m#############
+         [38;5;069m(((((((((((([38;5;203m((((((((((((([38;5;220m##############
+         [38;5;069m(((((((((((([38;5;203m(((((((((((([38;5;220m##############
+           [38;5;069m(((((((((([38;5;203m((((((((((([38;5;220m#############
+             [38;5;069m(((((((([38;5;203m(((((((([38;5;220m##############
+                [38;5;069m((((([38;5;203m((((    [38;5;220m#########[0m
+
+Saving data to: ./chroma_db
+Connect to Chroma at: http://localhost:8001
+Getting started guide: https://docs.trychroma.com/docs/overview/getting-started
+
+☁️ To deploy your DB - try Chroma Cloud!
+- Sign up: https://trychroma.com/signup
+- Copy your data to Cloud: chroma copy --to-cloud --all
+
+OpenTelemetry is not enabled because it is missing from the config.

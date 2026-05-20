@@ -402,6 +402,17 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         if not img_url.startswith("http"): continue
                         # Filter out potential internal/junk URLs
                         if any(x in img_url for x in ["bing.com", "google.com", "gstatic.com", "microsoft.com"]): continue
+                        
+                        # Filter out non-retail stock photography, social, wallpaper and graphic illustration sites
+                        blocked_domains = [
+                            "pngtree", "pngkey", "pngimg", "freepik", "dreamstime", "publicdomainpictures",
+                            "123rf", "istockphoto", "shutterstock", "vectorstock", "vecteezy", "pinterest",
+                            "alamy", "depositphotos", "pixabay", "pexels", "unsplash", "wallpaper", "clipart",
+                            "deviantart", "flickr", "giphy", "tenor", "imgur", "wikipedia", "wikimedia"
+                        ]
+                        if any(d in pg_url.lower() or d in img_url.lower() for d in blocked_domains):
+                            continue
+                            
                         if img_url in seen: continue
                         seen.add(img_url)
                         
@@ -473,6 +484,11 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         
                         if not name: continue
                         
+                        # Filter out Prime Video, Kindle, and Digital services from physical retail search
+                        item_text = item.get_text(strip=True).lower()
+                        if any(x in item_text for x in ["prime video", "to rent", "prime membership"]):
+                            continue
+                        
                         price_str = None
                         if price_w:
                             price_str = f"₹{price_w.get_text(strip=True)}"
@@ -504,10 +520,10 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         if img_el:
                             raw_img = img_el.get("data-lazy-src") or img_el.get("data-src")
                             if not raw_img or _is_placeholder(raw_img):
-                                # Try srcset
+                                # Try srcset, safely extracting URLs ignoring native commas
                                 srcset = img_el.get("srcset")
                                 if srcset:
-                                    urls = [u.strip().split(' ')[0] for u in srcset.split(',') if u.strip()]
+                                    urls = re.findall(r'https?://[^\s]+', srcset)
                                     valid_urls = [u for u in urls if not _is_placeholder(u)]
                                     if valid_urls:
                                         raw_img = valid_urls[-1] # Extract highest resolution image
@@ -515,7 +531,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                                 raw_img = img_el.get("src")
                             if raw_img and _is_placeholder(raw_img):
                                 raw_img = None # Reset to None so it can fall back to Bing images
-                        img_url = re.sub(r'\._[^/]*\.', '.', raw_img) if (raw_img and "m.media-amazon.com" in raw_img) else raw_img
+                        # Use the exact extracted thumbnail image instead of aggressively upscaling, 
+                        # as upscaling often leads to 404 Not Found and triggers unwanted seed image fallbacks.
+                        img_url = raw_img
                         
                         # NEW: Robust Amazon Price Extraction
                         if not price_str or price_str == "Request Price":
@@ -910,14 +928,12 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         # 1. Run all native scrapers in parallel with a strict 12s timeout
         print(f"DEBUG: Launching parallel scrapers for: {query}", flush=True)
         
-        # 1. Create named tasks for easy mapping
+        # 1. Create named tasks — OFFICIAL RETAILERS ONLY, no DuckDuckGo or Bing Images
         task_map = {
-            "amazon": asyncio.create_task(self.search_amazon_products(query, limit=8)),
-            "ebay": asyncio.create_task(self.search_ebay_products(query, limit=8)),
-            "flipkart": asyncio.create_task(self.search_flipkart_products(query, limit=8)),
-            "walmart": asyncio.create_task(self.search_walmart_products(query, limit=8)),
-            "ddg": asyncio.create_task(self.search_sources(query, limit=8)),
-            "images": asyncio.create_task(self.search_images(query))
+            "amazon": asyncio.create_task(self.search_amazon_products(query, limit=15)),
+            "ebay": asyncio.create_task(self.search_ebay_products(query, limit=15)),
+            "flipkart": asyncio.create_task(self.search_flipkart_products(query, limit=15)),
+            "walmart": asyncio.create_task(self.search_walmart_products(query, limit=15)),
         }
         
         # 2. Wait for what we can get within 12s
@@ -940,9 +956,6 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
         ebay_products = get_res("ebay")
         flipkart_products = get_res("flipkart")
         walmart_products = get_res("walmart")
-        ddg_results = get_res("ddg")
-        bing_res = get_res("images", {})
-        bing_images = bing_res.get("results", []) if isinstance(bing_res, dict) else []
         
         # --- CLIENT REQUIREMENT: All Scraped Websites ---
         # If any native scraper failed (0 results), trigger a targeted site-specific search
@@ -1114,9 +1127,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             if img_url and _is_placeholder(img_url):
                 img_url = None
 
-            # Use Bing image ONLY as a fallback if the product has no image at all
-            if not img_url and idx < len(bing_images):
-                img_url = bing_images[idx].get("image_url")
+            # Removed index-based bing_images fallback as it mixes unrelated lifestyle images.
+            # The frontend's ProductImage component now correctly handles empty image URLs 
+            # by gracefully displaying the beautiful category illustration.
             
             fast_results.append({
                 "name": product["name"],
@@ -1131,118 +1144,13 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 "details": f"{product['name']} - {product.get('price', '')} on {product['source']}"
             })
         
-        # 3. Supplement with DDG results to fill up to num_results
-        if ddg_results and len(fast_results) < num_results:
-            print("DEBUG: Executing rapid_extract_price_and_rating for DDG fallback sources...", flush=True)
-            async with aiohttp.ClientSession() as fallback_session:
-                ddg_extract_tasks = []
-                # Only extract up to the needed amount to save resources
-                needed = num_results - len(fast_results)
-                for res in ddg_results[:needed + 5]:
-                    ddg_extract_tasks.append(self.rapid_extract_price_and_rating(fallback_session, res["url"]))
-                ddg_extraction_results = await asyncio.gather(*ddg_extract_tasks, return_exceptions=True)
-                
-                url_to_data = {}
-                for result in ddg_extraction_results:
-                    if isinstance(result, tuple) and len(result) == 2 and result[1]:
-                        url_to_data[result[0]] = result[1]
-                        
-            for idx, res in enumerate(ddg_results):
-                if len(fast_results) >= num_results: break
-                url = res["url"]
-                domain = urlparse(url).netloc.lower()
-                store_name = domain.replace("www.", "").split('.')[0].capitalize()
-                
-                if any(native in domain for native in ['amazon', 'ebay']):
-                    continue
-                
-                # --- CRITICAL FIX: Backfill with Bing Image ---
-                img_url = None
-                if idx < len(bing_images):
-                    img_url = bing_images[idx].get("image_url")
-                
-                existing_urls = {self._normalize_url(r["url"]) for r in fast_results}
-                if self._normalize_url(url) in existing_urls: continue
-                
-                snippet = res.get("snippet", "")
-                
-                # --- ROBUST PRICE EXTRACTION ---
-                price = self._extract_price_from_snippet(snippet, domain, store_name)
-                
-                # IF the snippet failed, try JSON-LD rapid extraction from the parallel batch
-                if price == "Request Price":
-                    rapid_data = url_to_data.get(url)
-                    if rapid_data and rapid_data.get("price"):
-                        price = rapid_data.get("price")
-                        # Format if necessary
-                        if price and not price == "Request Price":
-                            price = self._extract_price_from_snippet(price, domain, store_name)
-                
-                # De-duplication check by URL and Name
-                norm_url = self._normalize_url(url)
-                if any(self._normalize_url(p.get("url")) == norm_url for p in fast_results):
-                    continue
-                if any(p.get("name") == res.get("title") for p in fast_results):
-                    continue
-                
-                # CRITICAL: Validate relevance of DDG result before adding
-                is_relevant, relevance_score = self._validate_product_relevance(res.get("title", ""), query)
-                if not is_relevant:
-                    print(f"DEBUG: Skipping DDG result '{res.get('title')}' - low relevance ({relevance_score:.2f})", flush=True)
-                    continue
-
-                fast_results.append({
-                    "name": res.get("title", f"{query.title()} from {store_name}"),
-                    "url": url,
-                    "source_url": url,
-                    "image_url": img_url,
-                    "price": price,
-                    "rating_avg": None,
-                    "brand": store_name,
-                    "source": store_name,
-                    "details": snippet
-                })
-            
-        # 4. ULTIMATE FALLBACK: If all scrapers and DDG fail (e.g., IP blocks on AWS), use Bing Images
-        if not fast_results and bing_images:
-            print("DEBUG: All sources failed (IP blocked?). Injecting Bing Images as ultimate fallback.", flush=True)
-            STOCK_PHOTO_DOMAINS = {
-                'freepik.com', 'shutterstock.com', 'pixabay.com', 'dreamstime.com',
-                'istockphoto.com', 'gettyimages.com', 'depositphotos.com',
-                'alamy.com', 'stock.adobe.com', 'deviantart.com', 'flickr.com',
-                'pexels.com', 'unsplash.com', 'stocksnap.io', '123rf.com',
-                'clipart.com', 'canstockphoto.com', 'inspiredpencil.com',
-                'truebookaddict.com', 'henspark.com', 'stablediffusionweb.com',
-                'clipset.com', 'netart.commons.gc.cuny.edu', 'pinterest.com', 'imgur.com'
-            }
-            for img in bing_images[:num_results * 2]:
-                url = img.get("source_url") or ""
-                image_url = img.get("image_url") or ""
-                name = img.get("name") or query.title()
-                if not url:
-                    continue
-                try:
-                    domain = urlparse(url).netloc.lower().replace("www.", "")
-                except Exception:
-                    domain = ""
-                if any(stock in domain for stock in STOCK_PHOTO_DOMAINS):
-                    print(f"DEBUG: Ultimate fallback skipping stock photo domain: {domain}", flush=True)
-                    continue
-                store_name = domain.split('.')[0].capitalize() if domain else "Shop"
-                fast_results.append({
-                    "name": name,
-                    "url": url,
-                    "source_url": url,
-                    "image_url": image_url,
-                    "price": "Check Price",
-                    "rating_avg": None,
-                    "brand": store_name,
-                    "source": store_name,
-                    "details": f"{name} - Discovered via Image Search"
-                })
-                if len(fast_results) >= num_results:
-                    break
-            print(f"DEBUG: Ultimate fallback injected {len(fast_results)} products from Bing Images.", flush=True)
+        # Step 3: DDG supplement REMOVED — using only official retailer results.
+        # DuckDuckGo was injecting sports blogs, betting sites and stock photo pages.
+        
+        # 4. ULTIMATE FALLBACK REMOVED
+        # We no longer inject raw Bing Images as fake products when the main scrapers fail.
+        # It is better to return 0 results (and let the UI say 'No results found') 
+        # than to return hallucinated/stock products.
 
         # 5. NUCLEAR LAST RESORT: If every fallback produced 0 products (all blocked/filtered),
         #    generate clickable retailer search-link cards so the UI always shows a grid.
@@ -1519,7 +1427,7 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 html = await response.text()
                 soup = BeautifulSoup(html, 'html.parser')
                 
-                data = {"price": None, "rating": None, "description": None}
+                data = {"price": None, "rating": None, "description": None, "image_url": None}
                 
                 # 1. Structured Data (JSON-LD) - More robust traversal
                 for script in soup.find_all("script", type="application/ld+json"):
@@ -1535,6 +1443,16 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                         for item in items:
                             if not isinstance(item, dict): continue
                             
+                            # Look for Image
+                            img = item.get("image")
+                            if img and not data["image_url"]:
+                                if isinstance(img, list):
+                                    img = img[0]
+                                if isinstance(img, dict):
+                                    data["image_url"] = img.get("url") or img.get("contentUrl")
+                                elif isinstance(img, str):
+                                    data["image_url"] = img
+
                             # Look for AggregateRating
                             rate = item.get("aggregateRating")
                             if isinstance(rate, dict):
@@ -1577,12 +1495,16 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                 if not data["rating"]:
                     meta_r = soup.find("meta", property="og:rating") or soup.find("meta", attrs={"name": "rating"})
                     if meta_r: data["rating"] = meta_r.get("content")
+                    
+                if not data["image_url"]:
+                    meta_img = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "twitter:image"})
+                    if meta_img: data["image_url"] = meta_img.get("content")
                 
                 # 3. Simple description
                 meta_desc = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", property="og:description")
                 if meta_desc: data["description"] = meta_desc.get("content")[:500]
                 
-                print(f"DEBUG: Rapid extracted data for {url}: {data['price']}, {data['rating']}", flush=True)
+                print(f"DEBUG: Rapid extracted data for {url}: {data['price']}, {data['rating']}, IMG: {bool(data['image_url'])}", flush=True)
                 return url, data
         except Exception as e:
             print(f"DEBUG: Error in rapid extract for {url}: {e}", flush=True)
@@ -1636,7 +1558,18 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                                 qs = up.parse_qs(up.urlparse(url).query)
                                 url = qs.get("q", [url])[0]
 
-                            if not url or any(x in url for x in ["duckduckgo.com", "youtube.com"]): 
+                            # Filter out non-retail domains that dilute commercial searches with stock/junk pages
+                            blocked_domains = [
+                                "duckduckgo.com", "youtube.com", "pngtree", "pngkey", "pngimg", "freepik",
+                                "dreamstime", "publicdomainpictures", "123rf", "istockphoto", "shutterstock",
+                                "vectorstock", "vecteezy", "pinterest", "alamy", "depositphotos", "pixabay",
+                                "pexels", "unsplash", "wallpaper", "clipart", "wikipedia", "wikimedia", "flickr",
+                                "news", "betting", "casino", "blog", "review", "forum", "reddit", "quora", "imdb",
+                                "pngall", "pxhere", "stock", "image", "photo", "free"
+                            ]
+                            
+                            title_lower = title_el.get_text(strip=True).lower()
+                            if not url or any(d in url.lower() for d in blocked_domains) or any(w in title_lower for w in ["news", "betting", "review", "png", "free image", "stock"]):
                                 continue
                             
                             search_results.append({
@@ -1655,17 +1588,9 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             traceback.print_exc()
             print(f"Real-time search failed: {e}. Falling back to image-source discovery.", flush=True)
 
-        # Fallback to images if search crawl fails
-        image_results = await self.search_images(query)
-        fallback = []
-        for r in image_results.get("results", []):
-            if r.get("source_url"):
-                fallback.append({
-                    "url": r.get("source_url"),
-                    "title": r.get("name", query),
-                    "snippet": f"Product from {r.get('source_url')}"
-                })
-        return fallback[:limit]
+        # Fallback removed. If DDG search fails or is completely filtered out, 
+        # it is better to return [] than to hallucinate products from Bing Image Search.
+        return []
 
     async def _fetch_page(self, session, url):
         try:

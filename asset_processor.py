@@ -67,15 +67,10 @@ class AssetProcessor:
                 else:
                     image_url = kimi_service._normalize_url(image_url)
                 
-                # 1. AWS/Amazon Thumbnail Cleaning - Aggressive Recovery
-                if "m.media-amazon.com" in image_url and "._" in image_url:
-                    import re
-                    # Remove all thumbnail tags like ._AC_SY200_., ._SX450_., etc.
-                    # Pattern matches everything between ._ and the file extension dot
-                    recovered_url = re.sub(r'\._[^/]*\.', '.', image_url)
-                    if recovered_url != image_url:
-                        print(f"DEBUG: Recovered high-res Amazon image: {recovered_url}")
-                        image_url = recovered_url
+                # 1. AWS/Amazon Thumbnail Cleaning Removed
+                # Previously, we aggressively upscaled Amazon thumbnails by removing `._AC_SY200_.` parameters.
+                # This caused 404 Not Found errors on S3 upload, which triggered seed image fallbacks.
+                # We now strictly use the reliable raw image url exactly as extracted.
                 
                 # 2. Ajio Domain Repair - assets.ajio.com is often blocked/404
                 # assets-jiocdn.ajio.com is the persistent production CDN

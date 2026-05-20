@@ -922,238 +922,186 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
 
     async def get_fast_bing_data(self, query, num_results=20):
         """
-        Orchestrates parallel retail scrapers and search fallbacks.
-        Enforces a strict global timeout for responsiveness.
+        Orchestrates parallel retail scrapers using Crawl4AI headless Chromium
+        to bypass WAF blocking (Amazon 503, eBay 403, etc.) and extracts product lists 
+        directly using Claude without saving anything to the vector store or S3.
         """
-        # 1. Run all native scrapers in parallel with a strict 12s timeout
-        print(f"DEBUG: Launching parallel scrapers for: {query}", flush=True)
+        from crawler import crawl_site_fast, get_browser_config
+        from crawl4ai import AsyncWebCrawler
+        import urllib.parse
         
-        # 1. Create named tasks — OFFICIAL RETAILERS ONLY, no DuckDuckGo or Bing Images
-        task_map = {
-            "amazon": asyncio.create_task(self.search_amazon_products(query, limit=15)),
-            "ebay": asyncio.create_task(self.search_ebay_products(query, limit=15)),
-            "flipkart": asyncio.create_task(self.search_flipkart_products(query, limit=15)),
-            "walmart": asyncio.create_task(self.search_walmart_products(query, limit=15)),
+        encoded_query = urllib.parse.quote_plus(query)
+        urls = {
+            "Amazon India": f"https://www.amazon.in/s?k={encoded_query}",
+            "eBay": f"https://www.ebay.com/sch/i.html?_nkw={encoded_query}",
+            "Flipkart": f"https://www.flipkart.com/search?q={encoded_query}",
+            "Walmart": f"https://www.walmart.com/search?q={encoded_query}"
         }
         
-        # 2. Wait for what we can get within 12s
-        done, pending = await asyncio.wait(task_map.values(), timeout=12.0)
+        browser_config = get_browser_config()
+        # Ensure images are disabled to maximize speed
+        if "--blink-settings=imagesEnabled=false" not in browser_config.extra_args:
+            browser_config.extra_args.append("--blink-settings=imagesEnabled=false")
+            
+        scraped_pages = {}
+        is_remote = browser_config.browser_mode == "custom"
+        try:
+            # Create a single shared crawler to run crawls concurrently under 1 browser process!
+            async with AsyncWebCrawler(config=browser_config) as crawler:
+                tasks = []
+                retailers = list(urls.keys())
+                for retailer in retailers:
+                    url = urls[retailer]
+                    tasks.append(crawl_site_fast(url, crawler=crawler))
+                    
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for retailer, res in zip(retailers, results):
+                    if isinstance(res, Exception):
+                        print(f"ERROR: Crawl4AI failed for {retailer}: {res}", flush=True)
+                        continue
+                    content, links = res
+                    if content and len(content.strip()) > 50:
+                        scraped_pages[retailer] = content
+                        print(f"DEBUG: Successfully crawled {retailer} search results (length: {len(content)})", flush=True)
+                    else:
+                        print(f"WARNING: Crawl4AI returned empty search results for {retailer}", flush=True)
+        except Exception as e:
+            if is_remote:
+                print(f"WARNING: Remote Crawl4AI parallel search failed: {e}. Attempting local fallback...", flush=True)
+                try:
+                    from crawler import get_browser_config
+                    local_config = get_browser_config(force_local=True)
+                    if "--blink-settings=imagesEnabled=false" not in local_config.extra_args:
+                        local_config.extra_args.append("--blink-settings=imagesEnabled=false")
+                    async with AsyncWebCrawler(config=local_config) as crawler:
+                        tasks = []
+                        retailers = list(urls.keys())
+                        for retailer in retailers:
+                            url = urls[retailer]
+                            tasks.append(crawl_site_fast(url, crawler=crawler))
+                            
+                        results = await asyncio.gather(*tasks, return_exceptions=True)
+                        for retailer, res in zip(retailers, results):
+                            if isinstance(res, Exception):
+                                print(f"ERROR: Local Crawl4AI failed for {retailer}: {res}", flush=True)
+                                continue
+                            content, links = res
+                            if content and len(content.strip()) > 50:
+                                scraped_pages[retailer] = content
+                                print(f"DEBUG: Successfully crawled {retailer} search results locally (length: {len(content)})", flush=True)
+                            else:
+                                print(f"WARNING: Local Crawl4AI returned empty search results for {retailer}", flush=True)
+                except Exception as local_err:
+                    print(f"ERROR: Fatal exception in local Crawl4AI fallback: {local_err}", flush=True)
+            else:
+                print(f"ERROR: Fatal exception in local Crawl4AI parallel search: {e}", flush=True)
+            
+        # Parse products from each retailer's HTML using Claude!
+        extracted_products = []
         
-        # Cancel pending to avoid waste
-        for task in pending:
-            task.cancel()
-            
-        # 3. Extract results safely
-        def get_res(key, default=[]):
-            t = task_map.get(key)
-            if t in done and not t.cancelled():
-                try: return t.result()
-                except Exception as e: 
-                    print(f"ERROR: {key} scraper failed: {e}", flush=True)
-            return default
-
-        amazon_products = get_res("amazon")
-        ebay_products = get_res("ebay")
-        flipkart_products = get_res("flipkart")
-        walmart_products = get_res("walmart")
-        
-        # --- CLIENT REQUIREMENT: All Scraped Websites ---
-        # If any native scraper failed (0 results), trigger a targeted site-specific search
-        # as a backup to ensure that website is at least somewhat represented.
-        async def fetch_domain_fallback(domain_name, site_url):
-            """
-            Native Recovery Strategy:
-            1. Find product URLs via Bing Images (more reliable than web search).
-            2. Scrape individual product pages for real JSON-LD prices in parallel.
-            """
-            print(f"DEBUG: Triggering Native Recovery fallback for {domain_name}", flush=True)
-            
-            # 1. Get URLs from Bing Images (proven to work)
-            img_results = await self.search_images(f"site:{site_url} {query}")
-            urls = []
-            for r in img_results.get("results", []):
-                if r.get("source_url") and site_url in r.get("source_url").lower():
-                    urls.append((r.get("source_url"), r.get("image_url")))
-            
-            if not urls:
-                print(f"DEBUG: Native Recovery failed to find URLs for {domain_name}", flush=True)
+        async def parse_retailer_products(retailer, content):
+            print(f"DEBUG: parse_retailer_products called for {retailer} with content length {len(content)}", flush=True)
+            prompt = (
+                f"Extract a list of the top 10 products from this {retailer} search result page webpage.\n"
+                f"You MUST extract exactly:\n"
+                f"- name: Concise product title/name (keep it clean and brief)\n"
+                f"- price: Price string with currency symbol (e.g. ₹1,299 or $19.99)\n"
+                f"- image_url: A valid product thumbnail image URL from the webpage\n"
+                f"- url: The product detail page path/URL\n"
+                f"- rating: Average rating as float (out of 5), or null if not found\n"
+                f"- brand: Brand name or {retailer}\n"
+                f"- details: A short sentence highlighting specifications (MAX 8 words, keep it very brief)\n"
+                f"\nSearch page webpage content:\n{content[:60000]}"
+            )
+            try:
+                response = await self._call_with_retry(
+                    lambda: self.client.messages.create(
+                        model=self.model,
+                        max_tokens=4000,
+                        system="Return ONLY a valid JSON object with a key 'products' containing the list of products.",
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                )
+                if not response:
+                    print(f"DEBUG: LLM returned empty/null response for {retailer}", flush=True)
+                    return []
+                raw_text = response.content[0].text
+                print(f"DEBUG: LLM Raw response for {retailer} (length: {len(raw_text)}):\n{raw_text}\n", flush=True)
+                data = self._safe_json_parse(raw_text, "products")
+                products = data if isinstance(data, list) else data.get("products", [])
+                print(f"DEBUG: Successfully parsed {len(products)} products from LLM response for {retailer}", flush=True)
+                
+                base_url = "https://www.amazon.in" if retailer == "Amazon India" else \
+                           "https://www.ebay.com" if retailer == "eBay" else \
+                           "https://www.flipkart.com" if retailer == "Flipkart" else \
+                           "https://www.walmart.com"
+                
+                for p in products:
+                    p["source"] = retailer
+                    if not p.get("brand"):
+                        p["brand"] = retailer
+                    p_url = p.get("url") or p.get("source_url")
+                    if p_url:
+                        p["url"] = urllib.parse.urljoin(base_url, p_url)
+                        p["source_url"] = p["url"]
+                    else:
+                        p["url"] = base_url
+                        p["source_url"] = base_url
+                        
+                return products
+            except Exception as e:
+                print(f"ERROR: Failed to parse products for {retailer} via LLM: {e}", flush=True)
+                import traceback
+                traceback.print_exc()
                 return []
                 
-            # 2. Parallel price/rating extraction from product pages using own session
-            async with aiohttp.ClientSession() as fallback_session:
-                extraction_tasks = []
-                for url, img_url in urls[:3]: # Limit to top 3 for speed
-                    extraction_tasks.append(self.rapid_extract_price_and_rating(fallback_session, url))
-                extraction_results = await asyncio.gather(*extraction_tasks)
-            
-            fallback_items = []
-            for (url, data), (orig_url, img_url) in zip(extraction_results, urls[:3]):
-                if not data: continue
+        if scraped_pages:
+            parse_tasks = []
+            for retailer, html in scraped_pages.items():
+                parse_tasks.append(parse_retailer_products(retailer, html))
+            parse_results = await asyncio.gather(*parse_tasks)
+            for res_list in parse_results:
+                extracted_products.extend(res_list)
                 
-                # Use extracted data (JSON-LD/Meta) or reasonable defaults
-                found_price = data.get("price") or "Request Price"
-                found_title = data.get("description") or f"{query} from {domain_name}"
-                if len(found_title) > 80: found_title = found_title[:77] + "..."
-                
-                fallback_items.append({
-                    "name": found_title,
-                    "url": url,
-                    "source_url": url,
-                    "image_url": img_url,
-                    "price": found_price,
-                    "rating_avg": data.get("rating"),
-                    "source": domain_name,
-                    "brand": domain_name
-                })
-            return fallback_items
-
-        # Skip fallback if we already have plenty of results to keep it "fastable"
-        total_found = len(amazon_products) + len(ebay_products) + len(flipkart_products) + len(walmart_products)
-        if total_found < 10:
-            fallback_tasks = []
-            if not amazon_products: fallback_tasks.append(fetch_domain_fallback("Amazon India", "amazon.in"))
-            if not ebay_products: fallback_tasks.append(fetch_domain_fallback("eBay", "ebay.com"))
-            if not flipkart_products: fallback_tasks.append(fetch_domain_fallback("Flipkart", "flipkart.com"))
-            if not walmart_products: fallback_tasks.append(fetch_domain_fallback("Walmart", "walmart.com"))
-            
-            if fallback_tasks:
-                try:
-                    # Fallback search also gets a strict timeout
-                    fallback_results = await asyncio.wait_for(asyncio.gather(*fallback_tasks), timeout=5.0)
-                    # Merge fallbacks into products lists
-                    for fb_list in fallback_results:
-                        if not fb_list: continue
-                        domain = fb_list[0]["source"]
-                        if domain == "Amazon India": amazon_products = fb_list
-                        elif domain == "eBay": ebay_products = fb_list
-                        elif domain == "Flipkart": flipkart_products = fb_list
-                        elif domain == "Walmart": walmart_products = fb_list
-                except asyncio.TimeoutError:
-                    print("WARNING: Native Recovery fallback search timed out! Proceeding with current results.", flush=True)
-                except Exception as e:
-                    print(f"ERROR: Fallback gather failed: {e}", flush=True)
-
-        print(f"DEBUG: Final sources — Amazon: {len(amazon_products)}, eBay: {len(ebay_products)}, Flipkart: {len(flipkart_products)}, Walmart: {len(walmart_products)}", flush=True)
-        
-        # We rely on improved_relevance_score for filtering later.
-        
-
-        # 2. Build fast_results: Interleave all sources
+        # Interleave product results to show a diverse grid of Amazon, eBay, Flipkart, Walmart
         fast_results = []
-        all_live_products = []
-        max_len = max([len(amazon_products), len(ebay_products), len(flipkart_products), len(walmart_products)], default=0)
+        retailer_groups = {}
+        for p in extracted_products:
+            source = p.get("source", "Other")
+            if source not in retailer_groups:
+                retailer_groups[source] = []
+            retailer_groups[source].append(p)
+            
+        max_len = max([len(lst) for lst in retailer_groups.values()], default=0)
         for i in range(max_len):
-            if i < len(amazon_products): all_live_products.append(amazon_products[i])
-            if i < len(ebay_products): all_live_products.append(ebay_products[i])
-            if i < len(flipkart_products): all_live_products.append(flipkart_products[i])
-            if i < len(walmart_products): all_live_products.append(walmart_products[i])
-        
-        # --- CLIENT REQUIREMENT: 'Cheap' / Ranking / Sorting Logic ---
-        # Detect intent and categorical focus for price-sensitive queries
-        ranking_keywords = ["cheap", "affordable", "low price", "budget", "under", "sort by price", "low to high", "cheapest"]
-        is_ranking_requested = any(word in query.lower() for word in ranking_keywords)
-        
-        if is_ranking_requested:
-            print("DEBUG: Price-based ranking/sorting requested. Applying low-to-high sort.", flush=True)
-            # Sort by parsed numeric price. 'Check Site'/inf items go to the back.
-            all_live_products.sort(key=lambda x: self._parse_price(x.get("price")))
-        else:
-            # Default: IMPROVED keyword relevance scoring with stricter filtering
-            query_words = set(re.findall(r'\b\w+\b', query.lower()))
-            stop_words = {'the','and','for','with','are','this','that','from','have','has','its','not','of','in','on','at'}
-            query_words -= stop_words
-            
-            def improved_relevance_score(p):
-                name_lower = (p.get("name") or "").lower()
-                snippet_lower = (p.get("details") or p.get("description") or "").lower()
-                name_words = set(re.findall(r'\b\w+\b', name_lower))
-                
-                # Base matches
-                matches = len(query_words.intersection(name_words))
-                
-                # RECOVERY: If name is short, check snippet for query words
-                if matches == 0:
-                    snippet_words = set(re.findall(r'\b\w+\b', snippet_lower))
-                    matches = len(query_words.intersection(snippet_words)) * 0.5
-                
-                # Penalize non-retail entertainment & architectural media
-                # This explicitly blocks "House Plans", "Trek Guides", and "Stock Wallpapers"
-                lethal_terms = {
-                    'plan', 'house', 'blueprint', 'design', 'elevation', 'layout', 'map',
-                    'trek', 'guide', 'wallpaper', 'teaser', 'movie', 'film', 'trailer', 'cast',
-                    'portrait', 'stock', 'shutterstock'
-                }
-                
-                # Check for absolute lethal terms in title
-                if lethal_terms & name_words:
-                    # Allow 'design' if specifically paired with a product (like 'designer watch')
-                    if not any(w in name_words for w in ["designer", "custom", "branded"]):
-                        return -100
+            for source in retailer_groups:
+                if i < len(retailer_groups[source]):
+                    p = retailer_groups[source][i]
+                    img_url = p.get("image_url")
                     
-                # Targeted block for architectural sites
-                if any(x in name_lower for x in ["floor plan", "home plan", "house design", "stock photo"]):
-                    return -100
-                
-                # RETAIL BOOST: If it has a price or currency symbol, it's highly relevant
-                price_str = str(p.get("price") or "").lower()
-                if any(c in price_str for c in ["$", "£", "€", "₹", "rs", "usd"]):
-                    matches += 2
-                
-                # CATEGORY MATCH: If the search query is actually in the title
-                if query.lower() in name_lower:
-                    matches += 5
+                    def _is_placeholder(u):
+                        if not u: return True
+                        u_str = str(u).lower()
+                        return any(pl in u_str for pl in ["grey-pixel", "01rrzvo", "spacer", "placeholder", "transparent", "pixel", ".svg"])
                     
-                return matches
-            
-            all_live_products.sort(key=improved_relevance_score, reverse=True)
-            
-            # HOME-PAGE POLICY: We want populated categories. Filter out only the absolute worst (-999) items.
-            all_live_products = [p for p in all_live_products if improved_relevance_score(p) > -5]
-            
-            print(f"DEBUG: Re-ranked and filtered to {len(all_live_products)} products for seeding.", flush=True)
-
-        def _is_placeholder(u):
-            if not u: return True
-            u_str = str(u).lower()
-            return any(p in u_str for p in ["grey-pixel", "01rrzvo", "spacer", "placeholder", "transparent", "pixel", ".svg"])
-
-        for idx, product in enumerate(all_live_products[:num_results]):
-            # --- CRITICAL FIX: Prioritize Native Image ---
-            # Using index-based Bing image mapping causes product-image mismatches.
-            # We now prioritize the retailer's native image (Amazon/eBay) which is correct by definition.
-            # AssetProcessor already handles upscaling Amazon/eBay thumbnails to high-res.
-            img_url = product.get("image_url")
-            
-            if img_url and _is_placeholder(img_url):
-                img_url = None
-
-            # Removed index-based bing_images fallback as it mixes unrelated lifestyle images.
-            # The frontend's ProductImage component now correctly handles empty image URLs 
-            # by gracefully displaying the beautiful category illustration.
-            
-            fast_results.append({
-                "name": product["name"],
-                "url": product["url"],
-                "source_url": product["source_url"],
-                "image_url": img_url,
-                "price": product["price"],
-                "rating_avg": product["rating_avg"],
-                "rating_count": product.get("rating_count"),
-                "brand": product["brand"],
-                "source": product["source"],
-                "details": f"{product['name']} - {product.get('price', '')} on {product['source']}"
-            })
-        
-        # Step 3: DDG supplement REMOVED — using only official retailer results.
-        # DuckDuckGo was injecting sports blogs, betting sites and stock photo pages.
-        
-        # 4. ULTIMATE FALLBACK REMOVED
-        # We no longer inject raw Bing Images as fake products when the main scrapers fail.
-        # It is better to return 0 results (and let the UI say 'No results found') 
-        # than to return hallucinated/stock products.
-
-        # 5. NUCLEAR LAST RESORT: If every fallback produced 0 products (all blocked/filtered),
-        #    generate clickable retailer search-link cards so the UI always shows a grid.
+                    if img_url and _is_placeholder(img_url):
+                        img_url = None
+                        
+                    fast_results.append({
+                        "name": p["name"],
+                        "url": p["url"],
+                        "source_url": p["source_url"],
+                        "image_url": img_url,
+                        "price": p["price"],
+                        "rating_avg": p.get("rating"),
+                        "rating_count": None,
+                        "brand": p["brand"],
+                        "source": p["source"],
+                        "details": f"{p['name']} - {p.get('price', '')} on {p['source']}"
+                    })
+                    
+        # NUCLEAR LAST RESORT: If Crawl4AI yielded 0 products (all blocked/filtered),
+        # generate clickable retailer search-link cards so the UI always shows a grid.
         if not fast_results:
             print("DEBUG: NUCLEAR fallback — generating retailer search cards.", flush=True)
             safe_q = query.replace(" ", "+")
@@ -1203,12 +1151,8 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
                     "details": f"Click to search for {query} on Walmart"
                 },
             ]
-
-        # 6. Archive the JSON results in the background
-
-        # Note: Image processing and storage are now handled in the background by api.py task
-        asyncio.create_task(self._archive_results(fast_results, query))
-        
+            
+        print(f"DEBUG: Returning {len(fast_results)} parsed products directly to user chat.", flush=True)
         return fast_results
 
     async def run_deep_crawl_process(self, query, fast_bing_products):
@@ -1717,5 +1661,57 @@ Return ONLY valid JSON with these fields (never return null — use "N/A" if unk
             
         except Exception as e:
             print(f"❌ [BACKGROUND] Error during caching: {e}", flush=True)
+
+    async def extract_direct_product(self, url: str):
+        """
+        Directly scrape a single product URL using Crawl4AI and extract structured details 
+        via LLM, without saving anything to the vector store or S3.
+        """
+        from crawler import crawl_site_fast
+        
+        print(f"DEBUG: Starting real-time direct scrape for: {url}", flush=True)
+        try:
+            # 1. Scrape using high-speed crawl4ai config
+            content, links = await crawl_site_fast(url)
+            if not content:
+                print(f"DEBUG: Direct scrape failed to get content for {url}", flush=True)
+                return {"error": "Failed to retrieve page content."}
+                
+            # 2. Extract structured product info via LLM
+            truncated_content = content[:60000]  # First 60k chars for fast LLM processing
+            prompt = (
+                f"Extract complete product details from this webpage HTML/Markdown content.\n"
+                f"You MUST extract:\n"
+                f"- name: The clear name/title of the product\n"
+                f"- price: The price with original currency symbol (e.g. $29.99, ₹1,299)\n"
+                f"- image_url: A high-quality product image URL from the text\n"
+                f"- description: A clear 2-3 sentence overview of the product specifications and features\n"
+                f"- rating: The average product rating as a float (out of 5), or null if not found\n"
+                f"- reviews: Up to 3 user review comments as a list of dicts: {{\"user\": \"name\", \"comment\": \"text\", \"rating\": 5}}\n"
+                f"\nContent to parse:\n{truncated_content}"
+            )
+            
+            print(f"DEBUG: Real-time LLM extraction start for {url}", flush=True)
+            response = await self._call_with_retry(
+                lambda: self.client.messages.create(
+                    model=self.model,
+                    max_tokens=4000,
+                    system="Return ONLY a single valid JSON object representing the product details.",
+                    messages=[{"role": "user", "content": prompt}],
+                )
+            )
+            if not response:
+                return {"error": "Failed to extract product details from LLM."}
+                
+            data = self._safe_json_parse(response.content[0].text, "product")
+            # Normalize the url
+            if isinstance(data, dict):
+                data["url"] = url
+                return data
+            return {"error": "Failed to parse product data.", "raw": response.content[0].text}
+            
+        except Exception as e:
+            print(f"Error during direct product extraction: {e}", flush=True)
+            return {"error": str(e)}
 
 kimi_service = KimiService()

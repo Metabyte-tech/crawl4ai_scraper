@@ -13,12 +13,9 @@ def get_local_browser_config():
     """
     Returns a standard local BrowserConfig.
     """
-    import os
-    proxy_url = os.getenv("PROXY_URL")
     return BrowserConfig(
         headless=True,
-        extra_args=["--disable-gpu", "--disable-dev-shm-usage"],
-        proxy=proxy_url if proxy_url else None
+        extra_args=["--disable-gpu", "--disable-dev-shm-usage"]
     )
 
 def get_browser_config(force_local=False):
@@ -128,7 +125,7 @@ async def crawl_site(url: str, crawler=None):
     
     return None, []
 
-async def _do_crawl(crawler, url, run_config, session_id=None):
+async def _do_crawl(crawler, url, run_config, session_id=None, return_markdown=False):
     try:
         kwargs = {"url": url, "config": run_config}
         if session_id:
@@ -136,13 +133,13 @@ async def _do_crawl(crawler, url, run_config, session_id=None):
             
         result = await crawler.arun(**kwargs)
         if result.success:
-            # Return HTML for better structured extraction by LLM
-            content = result.html
+            # Return Markdown or HTML based on return_markdown flag
+            content = result.markdown if return_markdown else result.html
             if not content or len(content.strip()) < 500:
-                print(f"HTML content short, retrying with explicit wait for {url}")
+                print(f"Content short, retrying with explicit wait for {url}")
                 run_config.wait_for = "js:() => document.body.innerText.length > 500"
                 result = await crawler.arun(**kwargs)
-                content = result.html
+                content = result.markdown if return_markdown else result.html
             print(f"Successfully crawled: {url}", flush=True)
             return content, result.links
         else:
@@ -170,18 +167,20 @@ async def crawl_site_fast(url: str, crawler=None):
         cache_mode=CacheMode.BYPASS,
         page_timeout=30000,  # 30 seconds max
         wait_for_timeout=5000, # 5s max wait
+        simulate_user=True,
+        override_navigator=True,
         markdown_generator=md_generator
     )
 
     if crawler is None:
         try:
             async with AsyncWebCrawler(config=browser_config) as crawler:
-                return await _do_crawl(crawler, url, run_config)
+                return await _do_crawl(crawler, url, run_config, return_markdown=True)
         except Exception as e:
             return None, []
     else:
         import uuid
-        return await _do_crawl(crawler, url, run_config, session_id=str(uuid.uuid4()))
+        return await _do_crawl(crawler, url, run_config, session_id=str(uuid.uuid4()), return_markdown=True)
 
 async def _run_recursive_crawl(base_url: str, max_pages: int, browser_config) -> list:
     """

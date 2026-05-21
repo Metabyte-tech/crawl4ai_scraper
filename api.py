@@ -218,7 +218,17 @@ async def crawl_endpoint(request: CrawlRequest, req: Request):
     #     currency=request.currency,
     #     category=request.category
     # )
-    # return {"status": "success", "message": f"Ingestion queued for {request.url}"}
+class DirectScrapeRequest(BaseModel):
+    url: str
+
+@app.post("/api/scrape-product")
+async def direct_scrape_product_endpoint(request: DirectScrapeRequest):
+    if not request.url.startswith("http"):
+        raise HTTPException(status_code=400, detail="Invalid URL protocol")
+    
+    print(f"📡 API Request: Direct Product Scrape for URL: {request.url}", flush=True)
+    res = await kimi_service.extract_direct_product(request.url)
+    return res
 
 
 @app.post("/crawl/deep")

@@ -454,6 +454,65 @@ def cosine_similarity_np(v1, v2):
     if norm_v1 == 0 or norm_v2 == 0: return 0.0
     return dot / (norm_v1 * norm_v2)
 
+def _extract_product_count(query: str):
+    import re
+    query_lower = query.lower()
+    
+    # 1. Strip price constraints to avoid matching numbers in prices
+    clean_query = re.sub(
+        r'(?i)(?:under|below|less than|less|budget of|within|max|maximum|at most|above|over|more than|more|at least|min|minimum|between)\s*(?:[\$₹\u20b9£€]|rs\.?|inr)?\s*([\d,]+\.?\d*)',
+        '',
+        query_lower
+    )
+    # Strip price ranges
+    clean_query = re.sub(r'(?i)(?:[\$₹\u20b9£€]|rs\.?|inr)?\s*\d+\s*(?:to|-)\s*(?:[\$₹\u20b9£€]|rs\.?|inr)?\s*\d+', '', clean_query)
+    # Strip standalone prices
+    clean_query = re.sub(r'(?i)(?:[\$₹\u20b9£€]|rs\.?|inr)\s*\d+', '', clean_query)
+    clean_query = re.sub(r'(?i)\d+\s*(?:rs|inr|usd|dollars|rupees|bucks)', '', clean_query)
+    
+    # Strip shoe/clothing sizes
+    clean_query = re.sub(r'(?i)\bsize\s*\d+(?:\.\d+)?\b', '', clean_query)
+    
+    # Word to number mapping
+    word_to_num = {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+        "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+        "twelve": 12, "fifteen": 15, "twenty": 20
+    }
+    
+    num_pattern = r'\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)\b'
+    
+    matches = re.finditer(num_pattern, clean_query)
+    for m in matches:
+        val_str = m.group(1)
+        if val_str.isdigit():
+            val = int(val_str)
+        else:
+            val = word_to_num.get(val_str)
+            
+        if not val or val > 30 or val < 1:
+            continue
+            
+        # Verify the context of this match to make sure it relates to products
+        start_idx = max(0, m.start() - 25)
+        end_idx = min(len(clean_query), m.end() + 30)
+        context = clean_query[start_idx:end_idx]
+        
+        has_prod = any(w in context for w in [
+            "shoe", "laptop", "phone", "watch", "camera", "bag", "shirt", "pant", "toy", "item", "product", "option", "pick", "result", "brand", "best", "top", "recommend",
+            "selection", "choice", "deal", "give", "show", "get", "find"
+        ])
+        
+        # Avoid specifications / model numbers
+        if re.search(r'\b(?:g|gb|tb|pro|max|rtx|ps|iphone|galaxy|pixel|windows|mac|android|os|version|gen|generation)\b', context):
+            continue
+            
+        if has_prod:
+            return val
+            
+    return None
+
+
 def clear_session(conv_id: str):
     if conv_id in _session_cache:
         del _session_cache[conv_id]
@@ -995,6 +1054,22 @@ async def chat_endpoint(req: Request, background_tasks: BackgroundTasks):
                     seen_srcs.add(dedup_key)
             
             print(f"📡 Grid: {len(final_items)} products sent to UI (from {len(items)} before dedup)", flush=True)
+            
+            # Enforce user-specified product count limits
+            product_count_limit = _extract_product_count(query)
+            if product_count_limit:
+                print(f"🎯 Limiting final grid to exactly {product_count_limit} products", flush=True)
+                final_items = final_items[:product_count_limit]
+                if bot_response:
+                    import re as _re
+                    # Naturally inject the count into the intro text response if we find standard phrasing
+                    bot_response = _re.sub(
+                        r'(?i)\b(best options|options|best available options|best options for|options for|results for)\b',
+                        f"{product_count_limit} \\1",
+                        bot_response,
+                        count=1
+                    )
+            
             grid = f"<product_grid>{json.dumps(final_items)}</product_grid>"
             
             # Format text response and append the product grid
